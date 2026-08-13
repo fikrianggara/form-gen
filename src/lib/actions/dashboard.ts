@@ -324,6 +324,7 @@ export async function createUserAction(input: {
 export async function updateUserAction(input: {
   id: string;
   name?: string;
+  email?: string;
   role?: "ADMIN" | "OPERATOR";
   isActive?: boolean;
 }): Promise<{ error?: string }> {
@@ -334,6 +335,7 @@ export async function updateUserAction(input: {
     } else {
       await updateUser(input.id, {
         name: input.name,
+        email: input.email,
         role: input.role,
       });
     }

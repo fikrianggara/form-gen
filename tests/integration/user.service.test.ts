@@ -76,6 +76,28 @@ describe("user service", () => {
     expect(updated.role).toBe("ADMIN");
   });
 
+  it("updates email with normalization", async () => {
+    const user = await createUser({ email: "old@example.com", name: "E", password: "Secret123!", role: "OPERATOR" });
+    const updated = await updateUser(user.id, { email: "  NEW@Example.COM " });
+    expect(updated.email).toBe("new@example.com");
+    // Old address no longer resolves; new one authenticates.
+    expect(await authenticate("old@example.com", "Secret123!")).toBeNull();
+    expect((await authenticate("new@example.com", "Secret123!"))?.id).toBe(user.id);
+  });
+
+  it("keeps the same email when re-saving unchanged", async () => {
+    const user = await createUser({ email: "same@example.com", name: "S", password: "Secret123!", role: "OPERATOR" });
+    const updated = await updateUser(user.id, { email: "same@example.com", name: "Renamed" });
+    expect(updated.email).toBe("same@example.com");
+    expect(updated.name).toBe("Renamed");
+  });
+
+  it("rejects updating to another user's email", async () => {
+    const a = await createUser({ email: "a@example.com", name: "A", password: "Secret123!", role: "OPERATOR" });
+    await createUser({ email: "b@example.com", name: "B", password: "Secret123!", role: "OPERATOR" });
+    await expect(updateUser(a.id, { email: "b@example.com" })).rejects.toThrow(/already exists/i);
+  });
+
   it("deactivates a user", async () => {
     const user = await createUser({ email: "d@example.com", name: "D", password: "Secret123!", role: "OPERATOR" });
     const deactivated = await setUserActive(user.id, false);

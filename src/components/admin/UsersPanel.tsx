@@ -20,6 +20,9 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
   const [error, setError] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
 
   const run = (fn: () => Promise<{ error?: string } | undefined>, success?: string) => {
     startTransition(async () => {
@@ -93,8 +96,29 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
             {users.map((u) => (
               <tr key={u.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
-                  <p className="font-medium text-gray-900">{u.name}</p>
-                  <p className="text-xs text-gray-500">{u.email}</p>
+                  {editId === u.id ? (
+                    <div className="flex flex-col gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="Name"
+                        className={`${inputClass} !px-2 !py-1 text-xs`}
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        className={`${inputClass} !px-2 !py-1 text-xs`}
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-medium text-gray-900">{u.name}</p>
+                      <p className="text-xs text-gray-500">{u.email}</p>
+                    </>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <select
@@ -155,14 +179,52 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                         Cancel
                       </Button>
                     </form>
+                  ) : editId === u.id ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="!px-2 !py-1 text-xs"
+                        disabled={!editName.trim() || !editEmail.trim()}
+                        onClick={() =>
+                          run(
+                            () =>
+                              updateUserAction({
+                                id: u.id,
+                                name: editName.trim(),
+                                email: editEmail.trim(),
+                              }),
+                            "User updated"
+                          )
+                        }
+                      >
+                        Save
+                      </Button>
+                      <Button type="button" variant="ghost" className="!px-2 !py-1 text-xs" onClick={() => setEditId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
                   ) : (
-                    <button
-                      type="button"
-                      className="text-xs text-indigo-600 hover:underline"
-                      onClick={() => setResetId(u.id)}
-                    >
-                      Reset password
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-xs text-indigo-600 hover:underline"
+                        onClick={() => {
+                          setEditId(u.id);
+                          setEditName(u.name);
+                          setEditEmail(u.email);
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-indigo-600 hover:underline"
+                        onClick={() => setResetId(u.id)}
+                      >
+                        Reset password
+                      </button>
+                    </div>
                   )}
                 </td>
               </tr>

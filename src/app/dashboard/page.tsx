@@ -38,11 +38,13 @@ export default async function DashboardPage() {
               <div key={q.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold text-gray-900">{q.title}</h2>
                       <Badge tone={STATUS_TONE[q.status]}>{q.status}</Badge>
                       {!q.acceptMultipleResponses && (
-                        <Badge tone="indigo">single response</Badge>
+                        <Badge tone="indigo" className="text-[10px]">
+                          single response
+                        </Badge>
                       )}
                     </div>
                     <p className="mt-1 text-xs text-gray-500">

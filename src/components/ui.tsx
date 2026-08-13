@@ -72,9 +72,11 @@ export function Field({
 
 export function Badge({
   tone = "gray",
+  className,
   children,
 }: {
   tone?: "gray" | "green" | "amber" | "red" | "indigo";
+  className?: string;
   children: React.ReactNode;
 }) {
   const tones = {
@@ -87,8 +89,9 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-        tones[tone]
+        "inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium",
+        tones[tone],
+        className
       )}
     >
       {children}

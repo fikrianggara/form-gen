@@ -15,6 +15,7 @@ export interface CreateUserInput {
 export interface UpdateUserInput {
   name?: string;
   role?: Role;
+  email?: string;
 }
 
 export function validatePassword(password: string): void {
@@ -61,9 +62,22 @@ export async function getUserById(id: string): Promise<User | null> {
 export async function updateUser(id: string, input: UpdateUserInput): Promise<User> {
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("User not found");
+
+  let email: string | undefined;
+  if (input.email !== undefined) {
+    email = normalizeEmail(input.email);
+    if (email !== existing.email) {
+      const taken = await db.user.findUnique({ where: { email } });
+      if (taken) {
+        throw new AppError("A user with this email already exists", 409, "EMAIL_TAKEN");
+      }
+    }
+  }
+
   return db.user.update({
     where: { id },
     data: {
+      ...(email !== undefined ? { email } : {}),
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.role !== undefined ? { role: input.role } : {}),
     },
