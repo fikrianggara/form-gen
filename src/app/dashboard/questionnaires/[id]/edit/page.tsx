@@ -15,6 +15,9 @@ export interface EditorQuestion {
   parentId: string | null;
   visibilityRule: VisibilityRule | null;
   aggregateConfig: AggregateConfig | null;
+  aiSuggested: boolean;
+  aiConfidence: number | null;
+  aiLowConfidence: boolean;
   questionMaster: {
     id: string;
     code: string;
@@ -26,8 +29,10 @@ export interface EditorQuestion {
 
 export default async function EditQuestionnairePage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { generated?: string; matches?: string; low?: string };
 }) {
   const [questionnaire, masters] = await Promise.all([
     getQuestionnaireWithQuestions(params.id),
@@ -46,6 +51,9 @@ export default async function EditQuestionnairePage({
       parentId: q.parentId,
       visibilityRule: (q.visibilityRule as VisibilityRule | null) ?? null,
       aggregateConfig: (q.aggregateConfig as AggregateConfig | null) ?? null,
+      aiSuggested: q.aiSuggested,
+      aiConfidence: q.aiConfidence,
+      aiLowConfidence: q.aiLowConfidence,
       questionMaster: {
         id: q.questionMaster.id,
         code: q.questionMaster.code,
@@ -61,6 +69,9 @@ export default async function EditQuestionnairePage({
         parentId: c.parentId,
         visibilityRule: (c.visibilityRule as VisibilityRule | null) ?? null,
         aggregateConfig: (c.aggregateConfig as AggregateConfig | null) ?? null,
+        aiSuggested: c.aiSuggested,
+        aiConfidence: c.aiConfidence,
+        aiLowConfidence: c.aiLowConfidence,
         questionMaster: {
           id: c.questionMaster.id,
           code: c.questionMaster.code,
@@ -89,6 +100,14 @@ export default async function EditQuestionnairePage({
         questionType: m.questionType,
         requiredDefault: m.requiredDefault,
       }))}
+      generatedBanner={
+        searchParams.generated === "1"
+          ? {
+              matchCount: Number(searchParams.matches ?? 0),
+              lowCount: Number(searchParams.low ?? 0),
+            }
+          : null
+      }
     />
   );
 }

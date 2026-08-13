@@ -29,6 +29,7 @@ import {
   setUserActive,
   resetPassword,
 } from "@/services/user.service";
+import { generateQuestionnaireFromPrompt } from "@/services/rag.service";
 import type {
   AggregateConfig,
   VisibilityRule,
@@ -307,6 +308,33 @@ export async function resetPasswordAction(input: {
   }
   revalidatePath("/admin/users");
   return {};
+}
+
+// -------------------------------------------------------------------- RAG
+
+export async function generateQuestionnaireAction(input: {
+  prompt: string;
+  maxQuestions?: number;
+  threshold?: number;
+  acceptMultipleResponses?: boolean;
+}): Promise<{
+  error?: string;
+  questionnaireId?: string;
+  matchCount?: number;
+  lowCount?: number;
+}> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const result = await generateQuestionnaireFromPrompt(input);
+    revalidatePath("/dashboard");
+    return {
+      questionnaireId: result.questionnaire.id,
+      matchCount: result.matches.length,
+      lowCount: result.matches.filter((m) => m.lowConfidence).length,
+    };
+  } catch (err) {
+    return actionError(err);
+  }
 }
 
 // ------------------------------------------------------------------ misc

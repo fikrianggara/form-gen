@@ -276,7 +276,33 @@ engine server-side before persisting.
    set `completedAt`; subsequent saves rejected.
 7. Single-response: only the token's own response may be saved.
 
-## 8. Testing Strategy
+## 8. AI Generation (RAG)
+
+`src/services/rag.service.ts` + `src/domain/rag/intents.ts` + `src/services/rag-provider.ts`.
+
+Flow (`POST` via server action → `/dashboard/generate`):
+1. **Intent extraction** (pure): the prompt is split into sentences; each is a
+   retrieval query, plus one broad whole-prompt query.
+2. **Retrieval**: `pg_trgm` similarity over the latest `QuestionMaster` rows
+   (`GREATEST(similarity(title), similarity(description))`), top-K per intent.
+3. **Merge**: dedupe by master keeping the highest score, sort descending, cap
+   at `maxQuestions` (default 10), drop scores below 0.05.
+4. **Generation**: `RagGeneratorProvider` — `LlmRagProvider` (OpenAI-compatible
+   `POST {base}/chat/completions`, JSON `{title, description}` response) when
+   `LLM_API_KEY` is set; `DeterministicRagProvider` (extractive title-casing)
+   otherwise. LLM failures fall back to deterministic.
+5. **Persistence**: creates the questionnaire (DRAFT, unique slug) and attaches
+   matches with `aiSuggested`, `aiConfidence` (0–1 similarity), and
+   `aiLowConfidence` (`score < threshold`, default 0.3) persisted.
+6. **Flagging**: the builder renders an `AI <score>` badge per suggested
+   question and an amber `⚠ low confidence` flag for weak matches.
+
+New columns on `QuestionnaireQuestion`: `aiSuggested Boolean`, `aiConfidence Float?`,
+`aiLowConfidence Boolean`. Retrieval indexes: GIN trigram indexes on
+`QuestionMaster(title)` and `QuestionMaster(description)`; `pg_trgm` extension
+installed by migration.
+
+## 9. Testing Strategy
 
 - **Unit (Vitest, no DB)**: visibility rule evaluation (all operators, ALL/ANY),
   aggregate SUM incl. repeatable rows, progress calculation, answer type

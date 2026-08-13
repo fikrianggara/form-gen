@@ -132,6 +132,9 @@ model QuestionnaireQuestion {
   parentId         String?
   parent           QuestionnaireQuestion? @relation("RepeatableParent", fields: [parentId], references: [id], onDelete: Cascade)
   children         QuestionnaireQuestion[] @relation("RepeatableParent")
+  aiSuggested      Boolean            @default(false)
+  aiConfidence     Float?
+  aiLowConfidence  Boolean            @default(false)
   answers          Answer[]
   answerGroups     AnswerGroup[]
 

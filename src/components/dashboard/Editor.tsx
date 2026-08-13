@@ -32,11 +32,12 @@ interface EditorProps {
     questionType: string;
     requiredDefault: boolean;
   }>;
+  generatedBanner?: { matchCount: number; lowCount: number } | null;
 }
 
 const OPERATORS = ["EQ", "NEQ", "GT", "GTE", "LT", "LTE", "CONTAINS", "ANY_OF", "NONE_OF"];
 
-export function Editor({ questionnaire: q, questions, masters }: EditorProps) {
+export function Editor({ questionnaire: q, questions, masters, generatedBanner }: EditorProps) {
   const [items, setItems] = useState(questions);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -118,6 +119,22 @@ export function Editor({ questionnaire: q, questions, masters }: EditorProps) {
       </div>
 
       {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+
+      {generatedBanner && (
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4 text-sm text-indigo-900">
+          <p className="font-medium">Questionnaire generated from your prompt.</p>
+          <p className="mt-0.5 text-indigo-700">
+            {generatedBanner.matchCount} question{generatedBanner.matchCount === 1 ? "" : "s"} suggested
+            {generatedBanner.lowCount > 0 && (
+              <>
+                {" "}· <span className="font-medium text-amber-700">{generatedBanner.lowCount} flagged as low confidence</span>
+                {" "}— review them before publishing
+              </>
+            )}
+            .
+          </p>
+        </div>
+      )}
 
       {/* Settings */}
       <Card className="p-6">
@@ -404,6 +421,19 @@ function QuestionRow({
             <Badge tone="indigo">{item.questionMaster.questionType}</Badge>
             {item.isRepeatable && <Badge tone="green">repeatable</Badge>}
             {item.isAggregate && <Badge tone="amber">aggregate</Badge>}
+            {item.aiSuggested && (
+              <>
+                <Badge tone="indigo">AI {item.aiConfidence !== null ? item.aiConfidence.toFixed(2) : ""}</Badge>
+                {item.aiLowConfidence && (
+                  <span
+                    className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                    title="The system was not confident this question matches the generation prompt — review before publishing."
+                  >
+                    ⚠ low confidence
+                  </span>
+                )}
+              </>
+            )}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-600">
             <label className="flex items-center gap-1.5">
