@@ -118,8 +118,8 @@ export async function updateQuestionMaster(
   });
 
   const created = await db.$transaction(async (tx) => {
-    await tx.questionMaster.update({
-      where: { id: existing.id },
+    await tx.questionMaster.updateMany({
+      where: { code: existing.code, isLatest: true },
       data: { isLatest: false },
     });
     return tx.questionMaster.create({
@@ -267,8 +267,8 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
   });
 
   return db.$transaction(async (tx) => {
-    await tx.optionSet.update({
-      where: { id: existing.id },
+    await tx.optionSet.updateMany({
+      where: { name: existing.name, isLatest: true },
       data: { isLatest: false },
     });
     return tx.optionSet.create({

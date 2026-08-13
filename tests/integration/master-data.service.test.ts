@@ -110,6 +110,22 @@ describe("question master service", () => {
     expect(remaining).toBe(0);
   });
 
+  it("keeps only the newest version as latest even when editing an old version", async () => {
+    const m = await createQuestionMaster({ code: "q_branch", title: "A", questionType: "TEXT" });
+    const v2 = await updateQuestionMaster(m.id, { title: "B" });
+    // Branch off the ORIGINAL version again, then edit v2.
+    await updateQuestionMaster(m.id, { title: "C" });
+    await updateQuestionMaster(v2.id, { title: "D" });
+    const versions = await db.questionMaster.findMany({
+      where: { code: "q_branch" },
+      orderBy: { version: "asc" },
+    });
+    const latest = versions.filter((v) => v.isLatest);
+    expect(latest).toHaveLength(1);
+    expect(latest[0]?.version).toBe(4);
+    expect(latest[0]?.title).toBe("D");
+  });
+
   it("questionnaires keep the master version they were built with", async () => {
     const m = await createQuestionMaster({ code: "q_pin", title: "V1", questionType: "TEXT" });
     const q = await createQuestionnaire({ title: "Pin", slug: "pin-1" });
