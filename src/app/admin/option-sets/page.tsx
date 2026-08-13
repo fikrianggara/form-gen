@@ -14,6 +14,7 @@ export default async function AdminOptionSetsPage() {
       <OptionSetsPanel
         optionSets={optionSets.map((s) => ({
           id: s.id,
+          familyId: s.familyId,
           name: s.name,
           source: s.source,
           apiUrl: s.apiUrl,
@@ -25,6 +26,7 @@ export default async function AdminOptionSetsPage() {
         }))}
         history={history.map((h) => ({
           id: h.id,
+          familyId: h.familyId,
           name: h.name,
           version: h.version,
           isLatest: h.isLatest,

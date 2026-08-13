@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 
 export interface OptionSetRow {
   id: string;
+  familyId: string | null;
   name: string;
   source: "STATIC" | "EXTERNAL_API";
   apiUrl: string | null;
@@ -19,6 +20,7 @@ export interface OptionSetRow {
 
 export interface OptionSetVersionRow {
   id: string;
+  familyId: string | null;
   name: string;
   version: number;
   isLatest: boolean;
@@ -48,9 +50,10 @@ export function OptionSetsPanel({
   const historyByName = useMemo(() => {
     const map = new Map<string, OptionSetVersionRow[]>();
     for (const h of history) {
-      const list = map.get(h.name) ?? [];
+      const key = h.familyId ?? h.name;
+      const list = map.get(key) ?? [];
       list.push(h);
-      map.set(h.name, list);
+      map.set(key, list);
     }
     return map;
   }, [history]);
@@ -111,6 +114,7 @@ export function OptionSetsPanel({
           </p>
         )}
         <form
+          key={form?.id ?? "new"}
           className="grid gap-4 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
@@ -141,8 +145,8 @@ export function OptionSetsPanel({
             );
           }}
         >
-          <Field label="Name" required hint="Cannot be changed after creation">
-            <input name="name" required disabled={!!form} defaultValue={form?.name} className={inputClass} />
+          <Field label="Name" required hint="Renaming creates a new version with the new name">
+            <input name="name" required defaultValue={form?.name} className={inputClass} />
           </Field>
           <Field label="Source" required>
             <select name="source" required defaultValue={form?.source ?? "STATIC"} className={inputClass}>
@@ -205,11 +209,12 @@ export function OptionSetsPanel({
               <OptionSetRowView
                 key={s.id}
                 set={s}
-                history={historyByName.get(s.name) ?? []}
-                historyOpen={openHistory === s.name}
-                onToggleHistory={() =>
-                  setOpenHistory((cur) => (cur === s.name ? null : s.name))
-                }
+                history={historyByName.get(s.familyId ?? s.name) ?? []}
+                historyOpen={openHistory === (s.familyId ?? s.name)}
+                onToggleHistory={() => {
+                  const key = s.familyId ?? s.name;
+                  setOpenHistory((cur) => (cur === key ? null : key));
+                }}
                 onEdit={() => setEditing(s)}
                 onDelete={() => {
                   if (confirm(`Delete option set ${s.name} (all versions)?`)) {

@@ -278,4 +278,61 @@ describe("option set service", () => {
     const all = await listOptionSets();
     expect(all.map((s) => s.name).sort()).toEqual(["One", "Two"]);
   });
+
+  it("never creates a version with a blank name", async () => {
+    const set = await createOptionSet({ name: "RealName", source: "STATIC", options: [{ label: "A", value: "a" }] });
+    // A blank/whitespace name must fall back to the existing name.
+    const updated = await updateOptionSet(set.id, { name: "   " });
+    expect(updated.name).toBe("RealName");
+    const all = await db.optionSet.findMany({ where: { name: "RealName" } });
+    expect(all).toHaveLength(1); // no-op: no new version
+  });
+
+  it("renames via a new version while keeping the same family", async () => {
+    const set = await createOptionSet({ name: "OldName", source: "STATIC", options: [{ label: "A", value: "a" }] });
+    const renamed = await updateOptionSet(set.id, { name: "NewName" });
+    expect(renamed.name).toBe("NewName");
+    expect(renamed.familyId).toBe(set.familyId);
+    // Old version keeps its name; family stays intact.
+    const old = await db.optionSet.findUnique({ where: { id: set.id } });
+    expect(old?.name).toBe("OldName");
+    const family = await db.optionSet.findMany({ where: { familyId: set.familyId } });
+    expect(family.map((f) => f.name).sort()).toEqual(["NewName", "OldName"]);
+    // Deleting the family removes BOTH names — recreate with either is then fine.
+    await deleteOptionSet(renamed.id);
+    expect(await db.optionSet.count({ where: { familyId: set.familyId } })).toBe(0);
+    const recreated = await createOptionSet({ name: "OldName", source: "STATIC", options: [] });
+    expect(recreated.name).toBe("OldName");
+  });
+
+  it("rejects a rename that collides with another family's name", async () => {
+    await createOptionSet({ name: "Taken", source: "STATIC", options: [] });
+    const set = await createOptionSet({ name: "Renamer", source: "STATIC", options: [] });
+    await expect(updateOptionSet(set.id, { name: "Taken" })).rejects.toMatchObject({
+      code: "NAME_TAKEN",
+    });
+  });
+
+  it("names the master questions blocking a delete", async () => {
+    const set = await createOptionSet({
+      name: "Blocked",
+      source: "STATIC",
+      options: [{ label: "A", value: "a" }],
+    });
+    await createQuestionMaster({
+      code: "q_blocked",
+      title: "Blocked question",
+      questionType: "RADIO",
+      optionSetId: set.id,
+    });
+    await expect(deleteOptionSet(set.id)).rejects.toThrow(/Blocked question \(q_blocked\)/);
+  });
+
+  it("hard-deletes: recreating the same name after delete succeeds", async () => {
+    const set = await createOptionSet({ name: "Cycle", source: "STATIC", options: [{ label: "A", value: "a" }] });
+    await deleteOptionSet(set.id);
+    const again = await createOptionSet({ name: "Cycle", source: "STATIC", options: [] });
+    expect(again.name).toBe("Cycle");
+    expect(again.version).toBe(1);
+  });
 });

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Prisma, QuestionType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
@@ -208,6 +209,7 @@ export async function createOptionSet(input: OptionSetInput) {
   return db.optionSet.create({
     data: {
       name: input.name.trim(),
+      familyId: randomUUID(),
       version: 1,
       isLatest: true,
       source: input.source,
@@ -227,9 +229,11 @@ export async function createOptionSet(input: OptionSetInput) {
 }
 
 /**
- * Update an option set by creating a NEW immutable version (same name,
+ * Update an option set by creating a NEW immutable version (same family,
  * version + 1) with its own option rows. The previous version — including its
- * options — stays intact. No-op saves do not bump.
+ * options — stays intact. No-op saves do not bump. The name may change
+ * (renames are tracked via the stable familyId), but never to a blank string
+ * or a name already used by a DIFFERENT family.
  */
 export async function updateOptionSet(id: string, input: Partial<OptionSetInput>) {
   const existing = await db.optionSet.findUnique({
@@ -244,8 +248,27 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
     throw new AppError("External API option sets require an apiUrl", 422, "API_URL_REQUIRED");
   }
 
+  // Blank/whitespace names fall back to the existing name — never create a
+  // version with an empty name.
+  const rawName = input.name !== undefined ? input.name.trim() : existing.name;
+  const name = rawName || existing.name;
+
+  const familyId = existing.familyId ?? existing.id;
+  if (name !== existing.name) {
+    const collision = await db.optionSet.findFirst({
+      where: { name, familyId: { not: familyId } },
+    });
+    if (collision) {
+      throw new AppError(
+        `An option set with the name "${name}" already exists — pick a different name`,
+        409,
+        "NAME_TAKEN"
+      );
+    }
+  }
+
   const next = {
-    name: input.name !== undefined ? input.name.trim() : existing.name,
+    name,
     source,
     apiUrl: source === "EXTERNAL_API" ? apiUrl ?? null : null,
     apiMethod: input.apiMethod !== undefined ? (input.apiMethod ?? "GET") : existing.apiMethod,
@@ -262,18 +285,19 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
   }
 
   const maxVersion = await db.optionSet.aggregate({
-    where: { name: existing.name },
+    where: { familyId },
     _max: { version: true },
   });
 
   return db.$transaction(async (tx) => {
     await tx.optionSet.updateMany({
-      where: { name: existing.name, isLatest: true },
+      where: { familyId, isLatest: true },
       data: { isLatest: false },
     });
     return tx.optionSet.create({
       data: {
         name: next.name,
+        familyId,
         version: (maxVersion._max.version ?? 0) + 1,
         isLatest: true,
         source: next.source,
@@ -293,28 +317,39 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
   });
 }
 
-/** Delete an option set (all versions). Blocked while any master or placed question references it. */
+/** Delete an option set — the whole family, hard delete. Blocked with a
+ * named error while any master or placed question references any version. */
 export async function deleteOptionSet(id: string): Promise<void> {
   const existing = await db.optionSet.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Option set not found");
-  const used = await db.questionMaster.count({
-    where: { optionSet: { name: existing.name } },
-  });
+  const familyId = existing.familyId ?? existing.id;
   const versions = await db.optionSet.findMany({
-    where: { name: existing.name },
+    where: { familyId },
     select: { id: true },
   });
-  const usedByQuestion = await db.questionnaireQuestion.count({
-    where: { optionSetId: { in: versions.map((v) => v.id) } },
+  const versionIds = versions.map((v) => v.id);
+
+  const masters = await db.questionMaster.findMany({
+    where: { optionSetId: { in: versionIds } },
+    select: { code: true, title: true },
   });
-  if (used > 0 || usedByQuestion > 0) {
+  const usedByQuestion = await db.questionnaireQuestion.count({
+    where: { optionSetId: { in: versionIds } },
+  });
+  if (masters.length > 0 || usedByQuestion > 0) {
+    const masterList =
+      masters.length > 0
+        ? masters.map((m) => `${m.title} (${m.code})`).join(", ")
+        : null;
     throw new AppError(
-      "Cannot delete: this option set is used by question masters",
+      masterList
+        ? `Cannot delete: this option set is used by master question${masters.length > 1 ? "s" : ""} ${masterList}`
+        : "Cannot delete: this option set is used by a questionnaire question",
       409,
       "OPTION_SET_IN_USE"
     );
   }
-  await db.optionSet.deleteMany({ where: { name: existing.name } });
+  await db.optionSet.deleteMany({ where: { familyId } });
 }
 
 /** Latest version of every option set, ordered by name. */

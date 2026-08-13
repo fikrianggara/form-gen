@@ -78,6 +78,8 @@ model QuestionMaster {
 model OptionSet {
   id        String       @id @default(cuid())
   name      String
+  /** Stable identity across versions — survives renames. */
+  familyId  String?
   version   Int          @default(1)
   isLatest  Boolean      @default(true)
   source    OptionSource @default(STATIC)
@@ -93,6 +95,7 @@ model OptionSet {
 
   @@unique([name, version])
   @@index([name, isLatest])
+  @@index([familyId])
 }
 
 model Option {
