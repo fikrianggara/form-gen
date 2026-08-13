@@ -28,12 +28,32 @@ export default async function ResponsesPage({
             {questionnaire.title} · <Link href={`/f/${questionnaire.slug}`} className="underline">/f/{questionnaire.slug}</Link>
           </p>
         </div>
-        <Link
-          href={`/dashboard/questionnaires/${questionnaire.id}/edit`}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          ← Back to editor
-        </Link>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/questionnaires/${questionnaire.slug}/export?format=json`}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Export API
+          </a>
+          <a
+            href={`/api/questionnaires/${questionnaire.slug}/export?format=xlsx`}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Export Excel
+          </a>
+          <Link
+            href={`/dashboard/questionnaires/${questionnaire.id}/report`}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Report
+          </Link>
+          <Link
+            href={`/dashboard/questionnaires/${questionnaire.id}/edit`}
+            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            ← Back to editor
+          </Link>
+        </div>
       </div>
 
       {responses.length === 0 ? (

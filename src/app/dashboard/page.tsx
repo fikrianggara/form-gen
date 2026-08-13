@@ -62,6 +62,12 @@ export default async function DashboardPage() {
                       Responses
                     </Link>
                     <Link
+                      href={`/dashboard/questionnaires/${q.id}/report`}
+                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    >
+                      Report
+                    </Link>
+                    <Link
                       href={`/dashboard/questionnaires/${q.id}/edit`}
                       className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                     >
