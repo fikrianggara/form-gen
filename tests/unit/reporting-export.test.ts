@@ -135,4 +135,29 @@ describe("buildExportTable", () => {
     expect(stringifyValue(42)).toBe("42");
     expect(stringifyValue(null)).toBe("");
   });
+
+  it("disambiguates duplicate question titles with the question code", () => {
+    const dup: ExportQuestion[] = [
+      {
+        id: "q1",
+        code: "amt_idr",
+        title: "Amount",
+        questionType: "NUMBER",
+        parentId: null,
+        isRepeatable: false,
+      },
+      {
+        id: "q2",
+        code: "amt_usd",
+        title: "Amount",
+        questionType: "NUMBER",
+        parentId: null,
+        isRepeatable: false,
+      },
+    ];
+    const { columns } = buildExportTable(dup, []);
+    const labels = columns.filter((c) => c.kind === "question").map((c) => c.label);
+    expect(labels).toEqual(["Amount", "Amount (amt_usd)"]);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
 });

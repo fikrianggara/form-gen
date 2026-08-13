@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createQuestionnaireAction } from "@/lib/actions/dashboard";
 import { Button, Card, Field, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 export default function NewQuestionnaireForm() {
   const router = useRouter();
+  const toast = useToast();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -20,16 +22,19 @@ export default function NewQuestionnaireForm() {
           setPending(true);
           setError(null);
           const fd = new FormData(e.currentTarget);
+          const title = String(fd.get("title") ?? "");
           const result = await createQuestionnaireAction({
-            title: String(fd.get("title") ?? ""),
+            title,
             slug: String(fd.get("slug") ?? ""),
             description: String(fd.get("description") ?? "") || undefined,
             acceptMultipleResponses: fd.get("multiple") === "on",
           });
           if (result?.error) {
             setError(result.error);
+            toast.error("Could not create questionnaire", result.error);
             setPending(false);
           } else {
+            toast.success("Questionnaire created", `"${title}" is ready to build.`);
             router.refresh();
           }
         }}

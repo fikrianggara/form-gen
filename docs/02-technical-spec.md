@@ -24,6 +24,7 @@
 │  ├─ services/response.service.ts                        │
 │  ├─ services/master-data.service.ts                     │
 │  ├─ services/option-proxy.service.ts (external API)     │
+│  ├─ services/report.service.ts (stats + export)         │
 │  └─ services/user.service.ts                            │
 ├────────────────────────────────────────────────────────┤
 │  Data layer: Prisma → PostgreSQL 14                     │
@@ -229,9 +230,11 @@ type AggregateConfig = { type: 'SUM'; sourceQuestionId: string };
 | `POST /api/questionnaires/[slug]/responses` | create response (or return existing when single-response) |
 | `PATCH /api/questionnaires/[slug]/responses/[id]` | save draft / complete (body: answers + `status`) |
 | `GET /api/option-sets/[id]/options` | static options or live proxy of external API |
+| `GET /api/questionnaires/[slug]/export` | **auth required** — all responses as JSON (wide rows + lossless long rows); `?format=xlsx` streams an Excel workbook |
 
 All public endpoints are idempotent, validate with Zod, and re-run the domain
-engine server-side before persisting.
+engine server-side before persisting. The export endpoint additionally requires
+an authenticated dashboard session (any role).
 
 ### Server Actions (dashboard)
 - `createQuestionnaire`, `updateQuestionnaire`, `updateQuestionStatus`
@@ -332,11 +335,14 @@ migrations.
 
 - **Unit (Vitest, no DB)**: visibility rule evaluation (all operators, ALL/ANY),
   aggregate SUM incl. repeatable rows, progress calculation, answer type
-  validation, JSON pointer extraction, session sign/verify.
+  validation, JSON pointer extraction, session sign/verify, reporting stats
+  (completion, daily counts, choice distributions, numeric stats) and export
+  table builders (wide/long rows, group joins, label disambiguation).
 - **Integration (Vitest + real Postgres `form_gen_test`)**: service layer —
   user CRUD + RBAC helpers, questionnaire build (add/reorder/remove questions),
   response lifecycle (draft → complete, resume, single-response blocking,
-  computed aggregates persisted, progress persisted).
+  computed aggregates persisted, progress persisted), questionnaire report and
+  export payloads (wide rows, long rows, xlsx workbook round-trip).
 - **Setup**: `.env.test` with `DATABASE_URL=postgresql://localhost:5432/form_gen_test`;
   a global setup script runs `prisma migrate deploy` (or `db push`) then truncates
   tables between tests via `beforeEach` cleanup. Tests run serially (`--pool=forks`,

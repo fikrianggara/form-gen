@@ -169,7 +169,12 @@ describe("report service — questionnaire report", () => {
 
     const rating = byCode.get("rs_rating");
     expect(rating?.numeric).toEqual({ count: 2, min: 4, max: 5, avg: 4.5, sum: 9 });
-    expect(rating?.distribution?.[0]).toMatchObject({ value: "5", count: 1, percent: 50 });
+    expect(rating?.distribution).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "5", count: 1, percent: 50 }),
+        expect.objectContaining({ value: "4", count: 1, percent: 50 }),
+      ])
+    );
 
     const total = byCode.get("rs_total");
     expect(total?.numeric).toEqual({ count: 2, min: 50, max: 350, avg: 200, sum: 400 });
@@ -182,6 +187,14 @@ describe("report service — questionnaire report", () => {
     expect(report?.questions.some((x) => x.code === "rs_items")).toBe(false);
     const amount = report?.questions.find((x) => x.code === "rs_amount");
     expect(amount?.groupTitle).toBe("Items");
+  });
+
+  it("never lists the same question twice", async () => {
+    const s = await buildSurvey();
+    await seedResponses(s);
+    const report = await getQuestionnaireReport(s.q.id);
+    const ids = report?.questions.map((x) => x.questionId) ?? [];
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it("returns null for an unknown questionnaire", async () => {
@@ -239,16 +252,18 @@ describe("report service — export", () => {
     // Round-trip through exceljs to verify the workbook is valid.
     const ExcelJS = await import("exceljs");
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buffer);
+    await wb.xlsx.load(
+      buffer as unknown as Parameters<typeof wb.xlsx.load>[0]
+    );
     expect(wb.worksheets.map((ws) => ws.name)).toEqual(["Responses", "Answers (long)"]);
 
-    const wide = wb.getWorksheet("Responses");
+    const wide = wb.getWorksheet("Responses")!;
     expect(wide.rowCount).toBe(4); // header + 3 responses
     const header = wide.getRow(1).values as unknown[];
     expect(header).toContain("Respondent");
     expect(header).toContain("Items → Amount");
 
-    const long = wb.getWorksheet("Answers (long)");
+    const long = wb.getWorksheet("Answers (long)")!;
     expect(long.rowCount).toBeGreaterThan(10);
   });
 });

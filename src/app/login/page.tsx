@@ -1,14 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
 import { useFormState } from "react-dom";
 import Link from "next/link";
 import { loginAction, type LoginState } from "@/lib/actions/auth";
 import { Button, Card, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 const initialState: LoginState = { error: null };
 
 export default function LoginPage() {
   const [state, formAction, pending] = useFormState(loginAction, initialState);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (state.error) toast.error("Sign in failed", state.error);
+  }, [state.error, toast]);
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">

@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { saveOptionSetAction, deleteOptionSetAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 export interface OptionSetRow {
   id: string;
@@ -42,6 +43,7 @@ export function OptionSetsPanel({
   const [editing, setEditing] = useState<OptionSetRow | null>(null);
   const [openHistory, setOpenHistory] = useState<string | null>(null);
   const [test, setTest] = useState<TestState>({ testingId: null, result: null });
+  const toast = useToast();
 
   const historyByName = useMemo(() => {
     const map = new Map<string, OptionSetVersionRow[]>();
@@ -53,12 +55,17 @@ export function OptionSetsPanel({
     return map;
   }, [history]);
 
-  const run = (fn: () => Promise<{ error?: string } | undefined>) => {
+  const run = (fn: () => Promise<{ error?: string } | undefined>, success?: string) => {
     startTransition(async () => {
       setError(null);
       const res = await fn();
-      if (res?.error) setError(res.error);
-      else setEditing(null);
+      if (res?.error) {
+        setError(res.error);
+        toast.error("Action failed", res.error);
+      } else {
+        setEditing(null);
+        if (success) toast.success(success);
+      }
     });
   };
 
@@ -118,17 +125,19 @@ export function OptionSetsPanel({
                 const [label, value] = line.split(/[=|,]/).map((s) => s.trim());
                 return { label: label ?? value ?? line, value: value ?? label ?? line };
               });
-            run(() =>
-              saveOptionSetAction({
-                id: form?.id,
-                name: String(fd.get("name") ?? ""),
-                source,
-                apiUrl: String(fd.get("apiUrl") ?? "") || undefined,
-                apiMethod: String(fd.get("apiMethod") ?? "") || undefined,
-                apiHeaders: String(fd.get("apiHeaders") ?? "") || undefined,
-                itemsPath: String(fd.get("itemsPath") ?? "") || undefined,
-                options,
-              })
+            run(
+              () =>
+                saveOptionSetAction({
+                  id: form?.id,
+                  name: String(fd.get("name") ?? ""),
+                  source,
+                  apiUrl: String(fd.get("apiUrl") ?? "") || undefined,
+                  apiMethod: String(fd.get("apiMethod") ?? "") || undefined,
+                  apiHeaders: String(fd.get("apiHeaders") ?? "") || undefined,
+                  itemsPath: String(fd.get("itemsPath") ?? "") || undefined,
+                  options,
+                }),
+              form ? "Option set saved" : "Option set created"
             );
           }}
         >
@@ -204,7 +213,7 @@ export function OptionSetsPanel({
                 onEdit={() => setEditing(s)}
                 onDelete={() => {
                   if (confirm(`Delete option set ${s.name} (all versions)?`)) {
-                    run(() => deleteOptionSetAction({ id: s.id }));
+                    run(() => deleteOptionSetAction({ id: s.id }), "Option set deleted");
                   }
                 }}
                 testing={test.testingId === s.id}

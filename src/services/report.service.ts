@@ -64,9 +64,8 @@ interface QuestionNode {
   };
 }
 
-/** A top-level tree node additionally carries its title and child nodes. */
+/** A top-level tree node additionally carries its child nodes. */
 interface TreeQuestionNode extends QuestionNode {
-  title: string;
   children: QuestionNode[];
 }
 
@@ -179,13 +178,14 @@ function flattenQuestions(tree: QuestionTree): FlatQuestion[] {
   // view the nodes through our structural interface (runtime shape matches the
   // include exactly; the double cast is a TS overlap escape hatch).
   for (const q of tree.questions as unknown as TreeQuestionNode[]) {
-    out.push(toFlatQuestion(q, null));
-    for (const c of q.children) out.push(toFlatQuestion(c, q.title));
+    if (q.parentId !== null) continue; // children are emitted via their parent
+    out.push(toFlatQuestion(q));
+    for (const c of q.children) out.push(toFlatQuestion(c));
   }
   return out;
 }
 
-function toFlatQuestion(q: QuestionNode, groupTitle: string | null): FlatQuestion {
+function toFlatQuestion(q: QuestionNode): FlatQuestion {
   const isChoice = CHOICE_TYPES.has(q.questionMaster.questionType);
   const options =
     isChoice && q.questionMaster.optionSet?.source === "STATIC"

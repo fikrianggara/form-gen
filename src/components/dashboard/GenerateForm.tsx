@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { generateQuestionnaireAction } from "@/lib/actions/dashboard";
 import { Button, Card, Field, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 export default function GenerateForm({ hybridActive }: { hybridActive: boolean }) {
   const router = useRouter();
+  const toast = useToast();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [maxQuestions, setMaxQuestions] = useState(10);
@@ -38,9 +40,14 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
             });
             if (result.error) {
               setError(result.error);
+              toast.error("Could not generate questionnaire", result.error);
               setPending(false);
               return;
             }
+            toast.success(
+              "Questionnaire generated",
+              `${result.matchCount} question${result.matchCount === 1 ? "" : "s"} suggested from the question bank.`
+            );
             router.push(
               `/dashboard/questionnaires/${result.questionnaireId}/edit?generated=1&matches=${result.matchCount}&low=${result.lowCount}`
             );

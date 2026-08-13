@@ -72,6 +72,27 @@ export function stringifyValue(value: AnswerValue): string {
   return String(value);
 }
 
+/**
+ * Keep spreadsheet column labels unique: when a label repeats (two question
+ * masters sharing a title), append the question code, then a numeric suffix.
+ */
+function uniqueLabel(base: string, code: string, used: Set<string>): string {
+  if (!used.has(base)) {
+    used.add(base);
+    return base;
+  }
+  const withCode = `${base} (${code})`;
+  if (!used.has(withCode)) {
+    used.add(withCode);
+    return withCode;
+  }
+  let n = 2;
+  while (used.has(`${withCode} #${n}`)) n++;
+  const final = `${withCode} #${n}`;
+  used.add(final);
+  return final;
+}
+
 export function buildExportTable(
   questions: ExportQuestion[],
   responses: ExportResponse[]
@@ -89,19 +110,19 @@ export function buildExportTable(
     { key: "createdAt", label: "Created At", kind: "meta", questionType: null },
   ];
 
-  const questionColumns: ExportColumn[] = topLevel
-    .filter((q) => !q.isRepeatable)
-    .map((q) => ({
-      key: q.id,
-      label: q.title,
-      kind: "question" as const,
-      questionType: q.questionType,
-    }));
+  const questionColumns: ExportColumn[] = [];
+  const usedLabels = new Set<string>(metaColumns.map((c) => c.label));
+  for (const q of topLevel) {
+    if (q.isRepeatable) continue;
+    const label = uniqueLabel(q.title, q.code, usedLabels);
+    questionColumns.push({ key: q.id, label, kind: "question", questionType: q.questionType });
+  }
   for (const child of children) {
     const parent = child.parentId ? byId.get(child.parentId) : undefined;
+    const base = parent ? `${parent.title} → ${child.title}` : child.title;
     questionColumns.push({
       key: child.id,
-      label: parent ? `${parent.title} → ${child.title}` : child.title,
+      label: uniqueLabel(base, child.code, usedLabels),
       kind: "question",
       questionType: child.questionType,
     });

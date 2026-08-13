@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { createUserAction, updateUserAction, resetPasswordAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 export interface UserRow {
   id: string;
@@ -14,16 +15,22 @@ export interface UserRow {
 }
 
 export function UsersPanel({ users }: { users: UserRow[] }) {
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
 
-  const run = (fn: () => Promise<{ error?: string } | undefined>) => {
+  const run = (fn: () => Promise<{ error?: string } | undefined>, success?: string) => {
     startTransition(async () => {
       setError(null);
       const res = await fn();
-      if (res?.error) setError(res.error);
+      if (res?.error) {
+        setError(res.error);
+        toast.error("Action failed", res.error);
+      } else if (success) {
+        toast.success(success);
+      }
     });
   };
 
@@ -47,7 +54,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
               });
               if (!res?.error) e.currentTarget.reset();
               return res;
-            });
+            }, "User created");
           }}
         >
           <Field label="Email" required>
@@ -93,11 +100,10 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                   <select
                     defaultValue={u.role}
                     className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
-                    onChange={(e) =>
-                      run(() =>
-                        updateUserAction({ id: u.id, role: e.target.value as "ADMIN" | "OPERATOR" })
-                      )
-                    }
+                    onChange={(e) => {
+                      const role = e.target.value as "ADMIN" | "OPERATOR";
+                      run(() => updateUserAction({ id: u.id, role }), `Role set to ${role}`);
+                    }}
                   >
                     <option value="OPERATOR">OPERATOR</option>
                     <option value="ADMIN">ADMIN</option>
@@ -106,7 +112,12 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                 <td className="px-4 py-3">
                   <button
                     type="button"
-                    onClick={() => run(() => updateUserAction({ id: u.id, isActive: !u.isActive }))}
+                    onClick={() =>
+                      run(
+                        () => updateUserAction({ id: u.id, isActive: !u.isActive }),
+                        u.isActive ? "User disabled" : "User enabled"
+                      )
+                    }
                   >
                     <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "active" : "disabled"}</Badge>
                   </button>
@@ -125,7 +136,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                             setResetPassword("");
                           }
                           return res;
-                        });
+                        }, "Password reset");
                       }}
                     >
                       <input

@@ -168,6 +168,11 @@ answer per child field. Aggregates can target a child across all rows.
   add-from-master, reorder, required toggle, visibility rule editor, aggregate
   toggle, repeatable toggle.
 - `/dashboard/questionnaires/[id]/responses` — response list, per-response detail.
+- `/dashboard/questionnaires/[id]/report` — report: overall progress KPIs (total,
+  completed, completion rate, average progress), responses-per-day chart, and
+  per-question statistics (answered rate; choice distributions; numeric
+  min/max/avg/sum). Export to Excel (`.xlsx`) or JSON API from the responses
+  page and the report page.
 - `/admin/users` — user management (admin only).
 - `/admin/question-masters` — question bank (admin full, operator create).
 - `/admin/option-sets` — option sets incl. external API config (admin only).
