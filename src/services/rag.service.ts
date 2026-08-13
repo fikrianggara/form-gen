@@ -1,30 +1,40 @@
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { AppError, ValidationError } from "@/lib/errors";
+import { ValidationError } from "@/lib/errors";
 import {
   extractIntents,
-  mergeMatches,
   isLowConfidence,
   generateTitle,
   slugify,
-  type RagMatch,
 } from "@/domain/rag/intents";
 import {
   createRagProvider,
   DeterministicRagProvider,
   type CandidateMaster,
 } from "@/services/rag-provider";
+import {
+  cosineToScore,
+  mergeHybridMatches,
+  type HybridRetrievalResult,
+} from "@/domain/rag/hybrid";
+import { createEmbedder, type Embedder } from "@/services/embedding.provider";
 
 const MIN_MATCH_SCORE = 0.05;
 const DEFAULT_MAX_QUESTIONS = 10;
 const DEFAULT_THRESHOLD = 0.3;
 const PER_INTENT_TOP_K = 3;
+const HYBRID_WEIGHT = 0.6;
 
 export interface GenerateQuestionnaireInput {
   prompt: string;
   maxQuestions?: number;
   threshold?: number;
   acceptMultipleResponses?: boolean;
+}
+
+export interface GenerateDeps {
+  /** Injectable for tests; defaults to the environment-configured embedder. */
+  embedder?: Embedder | null;
 }
 
 export interface GeneratedQuestionnaireResult {
@@ -53,16 +63,18 @@ interface RetrievalRow {
 }
 
 /**
- * RAG questionnaire generation:
+ * RAG questionnaire generation with HYBRID retrieval:
  * 1. Split the prompt into question intents (plus a broad whole-prompt query).
- * 2. Retrieve matching latest question masters via pg_trgm similarity.
- * 3. Merge + dedupe, keep the best matches, compute confidence.
+ * 2. Retrieve latest question masters per intent — trigram similarity always,
+ *    PLUS pgvector cosine similarity when an embedder is configured.
+ * 3. Merge both sources into a hybrid confidence score, dedupe, cap.
  * 4. Generate questionnaire metadata (deterministic, or LLM when configured).
  * 5. Create the DRAFT questionnaire and attach matches flagged with their
  *    confidence (low-confidence flags persisted).
  */
 export async function generateQuestionnaireFromPrompt(
-  input: GenerateQuestionnaireInput
+  input: GenerateQuestionnaireInput,
+  deps: GenerateDeps = {}
 ): Promise<GeneratedQuestionnaireResult> {
   const prompt = input.prompt.trim();
   if (!prompt) {
@@ -73,18 +85,16 @@ export async function generateQuestionnaireFromPrompt(
   }
   const maxQuestions = clampInt(input.maxQuestions ?? DEFAULT_MAX_QUESTIONS, 1, 30);
   const threshold = clampNum(input.threshold ?? DEFAULT_THRESHOLD, 0, 1);
+  const embedder = deps.embedder !== undefined ? deps.embedder : createEmbedder();
 
-  // ---- retrieval --------------------------------------------------------
+  // ---- retrieval (hybrid: trigram + vector) ------------------------------
   const intents = extractIntents(prompt);
   const queries = intents.length > 0 ? [...intents, prompt] : [prompt];
-  const rawMatches: RagMatch[] = [];
+  const hybrid: HybridRetrievalResult[] = [];
   for (const q of queries) {
-    const rows = await retrieveTopMasters(q, PER_INTENT_TOP_K);
-    for (const row of rows) {
-      rawMatches.push({ masterId: row.id, score: row.score, masterTitle: row.title });
-    }
+    hybrid.push(...(await retrieveHybrid(q, PER_INTENT_TOP_K, embedder)));
   }
-  const merged = mergeMatches(rawMatches)
+  const merged = mergeHybridMatches(hybrid, HYBRID_WEIGHT)
     .filter((m) => m.score >= MIN_MATCH_SCORE)
     .slice(0, maxQuestions);
 
@@ -196,6 +206,63 @@ async function retrieveTopMasters(query: string, k: number): Promise<RetrievalRo
   return rows;
 }
 
+/**
+ * One hybrid retrieval pass: trigram similarity always; pgvector cosine
+ * similarity when an embedder is available. Results are keyed by master with
+ * per-source scores so the caller can blend them.
+ */
+async function retrieveHybrid(
+  query: string,
+  k: number,
+  embedder: Embedder | null
+): Promise<HybridRetrievalResult[]> {
+  const trigram = await retrieveTopMasters(query, k);
+  const byId = new Map<string, HybridRetrievalResult>();
+  for (const row of trigram) {
+    byId.set(row.id, {
+      masterId: row.id,
+      masterTitle: row.title,
+      trigramScore: row.score,
+      vectorScore: null,
+    });
+  }
+
+  if (embedder) {
+    try {
+      const [qvec] = await embedder.embedTexts([query]);
+      const literal = `[${qvec.join(",")}]`;
+      const vecRows = await db.$queryRaw<Array<{ id: string; title: string; dist: number }>>(
+        Prisma.sql`
+          SELECT id, title, embedding <=> ${literal}::vector AS dist
+          FROM "QuestionMaster"
+          WHERE "isLatest" = true AND embedding IS NOT NULL
+          ORDER BY embedding <=> ${literal}::vector
+          LIMIT ${k}
+        `
+      );
+      for (const row of vecRows) {
+        const score = cosineToScore(row.dist);
+        const existing = byId.get(row.id);
+        if (existing) {
+          existing.vectorScore = score;
+        } else {
+          byId.set(row.id, {
+            masterId: row.id,
+            masterTitle: row.title,
+            trigramScore: null,
+            vectorScore: score,
+          });
+        }
+      }
+    } catch (err) {
+      // Embedding failure degrades gracefully to trigram-only for this query.
+      console.warn("vector retrieval failed, falling back to trigram:", err);
+    }
+  }
+
+  return [...byId.values()];
+}
+
 async function uniqueSlug(base: string): Promise<string> {
   let slug = base;
   let i = 2;
@@ -215,5 +282,3 @@ function clampNum(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
 }
-
-export { AppError };

@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:embed": "tsx scripts/embed-masters.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

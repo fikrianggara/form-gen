@@ -20,12 +20,15 @@ draft/completed status and progress. RBAC: admin vs operator.
   visibility** (`if A = yes → show B`), **repeatable groups** (add multiple rows
   of child questions), **aggregate questions** (e.g. total = SUM of an expense
   column across all rows), draft/active/closed status, single- or multi-response.
-- **AI generation (RAG)** — describe a questionnaire in plain text and the
-  system retrieves matching question masters (PostgreSQL `pg_trgm` similarity),
-  predicts the title/description, creates a draft questionnaire with the best
-  matches, and **flags low-confidence suggestions** (AI badge + confidence
-  score in the builder). Title/description generation uses an optional
-  OpenAI-compatible LLM (`LLM_API_KEY`) or a deterministic extractive generator.
+- **AI generation (RAG, hybrid search)** — describe a questionnaire in plain text
+  and the system retrieves matching question masters, predicts the
+  title/description, creates a draft questionnaire with the best matches, and
+  **flags low-confidence suggestions**. Retrieval is **hybrid**: pgvector
+  embeddings (cosine) blended with PostgreSQL `pg_trgm` trigram similarity when
+  an embedding provider is configured (`LLM_EMBEDDING_API_KEY` + `npm run
+  db:embed`), degrading to trigram-only otherwise. Title/description generation
+  uses an optional OpenAI-compatible LLM (`LLM_API_KEY`) or a deterministic
+  extractive generator.
 - **Responses** — DRAFT → COMPLETED lifecycle, immutable after completion,
   server-computed aggregates, stored progress %, resumable drafts, single-response
   enforcement per visitor.

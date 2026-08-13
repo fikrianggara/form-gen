@@ -1,6 +1,7 @@
 import type { Prisma, QuestionType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
+import { ensureMasterEmbedding } from "@/services/embedding.service";
 
 export const CHOICE_TYPES: QuestionType[] = ["RADIO", "CHECKBOX", "SELECT"];
 
@@ -65,7 +66,9 @@ export async function createQuestionMaster(input: QuestionMasterInput) {
       ? { optionSet: { connect: { id: input.optionSetId } } }
       : {}),
   };
-  return db.questionMaster.create({ data });
+  const created = await db.questionMaster.create({ data });
+  await tryEmbed(created.id);
+  return created;
 }
 
 /**
@@ -114,7 +117,7 @@ export async function updateQuestionMaster(
     _max: { version: true },
   });
 
-  return db.$transaction(async (tx) => {
+  const created = await db.$transaction(async (tx) => {
     await tx.questionMaster.update({
       where: { id: existing.id },
       data: { isLatest: false },
@@ -139,6 +142,8 @@ export async function updateQuestionMaster(
       },
     });
   });
+  await tryEmbed(created.id);
+  return created;
 }
 
 /**
@@ -332,6 +337,15 @@ export async function listAllOptionSetVersions() {
 }
 
 // ---------------------------------------------------------------- helpers
+
+/** Best-effort embedding for a master version; never blocks master writes. */
+async function tryEmbed(masterId: string): Promise<void> {
+  try {
+    await ensureMasterEmbedding(masterId);
+  } catch (err) {
+    console.warn("failed to embed question master", masterId, err);
+  }
+}
 
 function validateMasterFields(input: QuestionMasterInput): void {
   if (CHOICE_TYPES.includes(input.questionType)) {

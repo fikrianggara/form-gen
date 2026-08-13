@@ -276,31 +276,57 @@ engine server-side before persisting.
    set `completedAt`; subsequent saves rejected.
 7. Single-response: only the token's own response may be saved.
 
-## 8. AI Generation (RAG)
+## 8. AI Generation (RAG, hybrid retrieval)
 
-`src/services/rag.service.ts` + `src/domain/rag/intents.ts` + `src/services/rag-provider.ts`.
+`src/services/rag.service.ts` + `src/domain/rag/{intents,hybrid}.ts` +
+`src/services/{rag-provider,embedding.provider,embedding.service}.ts`.
 
 Flow (`POST` via server action → `/dashboard/generate`):
 1. **Intent extraction** (pure): the prompt is split into sentences; each is a
    retrieval query, plus one broad whole-prompt query.
-2. **Retrieval**: `pg_trgm` similarity over the latest `QuestionMaster` rows
-   (`GREATEST(similarity(title), similarity(description))`), top-K per intent.
-3. **Merge**: dedupe by master keeping the highest score, sort descending, cap
-   at `maxQuestions` (default 10), drop scores below 0.05.
+2. **Hybrid retrieval** per query, two sources blended:
+   - **Lexical**: `pg_trgm` similarity over latest `QuestionMaster` rows
+     (`GREATEST(similarity(title), similarity(description))`), top-K.
+   - **Semantic**: when an embedder is configured (`LLM_EMBEDDING_API_KEY` +
+     `LLM_EMBEDDING_BASE_URL` + `LLM_EMBEDDING_MODEL`), the query is embedded
+     and nearest neighbors found via pgvector HNSW cosine (`<=>`), top-K.
+     Embedder failures degrade gracefully to trigram-only.
+3. **Fusion**: per master, best per-source score is kept, then
+   `hybridScore = 0.6·vector + 0.4·trigram` (either source alone when the other
+   is missing), dedupe, cap at `maxQuestions`, drop scores below 0.05.
 4. **Generation**: `RagGeneratorProvider` — `LlmRagProvider` (OpenAI-compatible
    `POST {base}/chat/completions`, JSON `{title, description}` response) when
    `LLM_API_KEY` is set; `DeterministicRagProvider` (extractive title-casing)
    otherwise. LLM failures fall back to deterministic.
 5. **Persistence**: creates the questionnaire (DRAFT, unique slug) and attaches
-   matches with `aiSuggested`, `aiConfidence` (0–1 similarity), and
+   matches with `aiSuggested`, `aiConfidence` (hybrid 0–1), and
    `aiLowConfidence` (`score < threshold`, default 0.3) persisted.
 6. **Flagging**: the builder renders an `AI <score>` badge per suggested
    question and an amber `⚠ low confidence` flag for weak matches.
 
+### Embedding pipeline
+
+- `QuestionMaster.embedding Unsupported("vector(1024)")?` — one embedding per
+  master *version* (version-pinned like all master data). Column + HNSW cosine
+  index created by migration; `pgvector` extension required (built from source
+  against Homebrew postgresql@14).
+- Embedder: OpenAI-compatible `POST {base}/embeddings` with `model` and an
+  explicit `dimensions` parameter (`EMBEDDING_DIM`, default 1024) so the output
+  dimension is predictable and within pgvector's 2000-dim HNSW limit. Output
+  length is verified; mismatches throw.
+- Backfill: `npm run db:embed` (`scripts/embed-masters.ts`) embeds latest
+  masters missing an embedding (`--force` re-embeds all). New/edited master
+  versions are embedded automatically (best-effort) on create/update when a
+  provider is configured.
+- Writes go through raw SQL (`embedding.service.writeMasterEmbedding`) since
+  Prisma cannot represent `vector` values; reads use raw SQL with the `<=>`
+  operator and `cosineToScore` conversion.
+
 New columns on `QuestionnaireQuestion`: `aiSuggested Boolean`, `aiConfidence Float?`,
 `aiLowConfidence Boolean`. Retrieval indexes: GIN trigram indexes on
-`QuestionMaster(title)` and `QuestionMaster(description)`; `pg_trgm` extension
-installed by migration.
+`QuestionMaster(title)`/`(description)`, HNSW cosine index on
+`QuestionMaster(embedding)`; `pg_trgm` and `vector` extensions installed by
+migrations.
 
 ## 9. Testing Strategy
 

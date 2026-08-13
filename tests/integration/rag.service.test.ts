@@ -3,6 +3,28 @@ import { db } from "@/lib/db";
 import { truncateAll } from "./helpers";
 import { generateQuestionnaireFromPrompt } from "@/services/rag.service";
 import { createQuestionMaster, createOptionSet } from "@/services/master-data.service";
+import { embeddingTextForMaster, writeMasterEmbedding } from "@/services/embedding.service";
+import type { Embedder } from "@/services/embedding.provider";
+
+/**
+ * Deterministic fake embedder: word-hash bag-of-words into 1024 dims.
+ * Texts sharing words get overlapping vectors -> higher cosine similarity,
+ * which lets integration tests exercise the pgvector path without a network.
+ */
+class FakeEmbedder implements Embedder {
+  readonly dimension = 1024;
+  async embedTexts(texts: string[]): Promise<number[][]> {
+    return texts.map((text) => {
+      const v = new Array<number>(1024).fill(0);
+      for (const word of text.toLowerCase().split(/\W+/).filter(Boolean)) {
+        let h = 7;
+        for (const ch of word) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+        v[h % 1024] = (v[h % 1024] ?? 0) + 1;
+      }
+      return v;
+    });
+  }
+}
 
 beforeEach(async () => {
   await truncateAll();
@@ -131,6 +153,56 @@ describe("rag.service — generateQuestionnaireFromPrompt", () => {
       expect(typeof m.score).toBe("number");
       expect(typeof m.lowConfidence).toBe("boolean");
       expect(m.masterCode.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("rag.service — hybrid vector retrieval", () => {
+  it("retrieves semantically-related masters via the vector path", async () => {
+    const bank = await seedBank();
+    const embedder = new FakeEmbedder();
+    for (const m of Object.values(bank)) {
+      const [vec] = await embedder.embedTexts([embeddingTextForMaster(m)]);
+      await writeMasterEmbedding(m.id, vec);
+    }
+    // Paraphrased wording: trigram overlaps only weakly, the vector path carries it.
+    const result = await generateQuestionnaireFromPrompt(
+      { prompt: "Kindly share your email address with us" },
+      { embedder }
+    );
+    const attached = await db.questionnaireQuestion.findMany({
+      where: { questionnaireId: result.questionnaire.id },
+      include: { questionMaster: true },
+    });
+    const email = attached.find((q) => q.questionMaster.code === "q_email");
+    expect(email).toBeTruthy();
+    expect(email?.aiConfidence ?? 0).toBeGreaterThan(0.3);
+  });
+
+  it("persists embeddings and reads them back through the vector column", async () => {
+    const bank = await seedBank();
+    const embedder = new FakeEmbedder();
+    const [vec] = await embedder.embedTexts([embeddingTextForMaster(bank.email)]);
+    await writeMasterEmbedding(bank.email.id, vec);
+    const row = await db.$queryRaw<Array<{ dim: number }>>`
+      SELECT vector_dims(embedding) AS dim FROM "QuestionMaster" WHERE id = ${bank.email.id}
+    `;
+    expect(row[0]?.dim).toBe(1024);
+  });
+
+  it("degrades to trigram-only when no embeddings are stored", async () => {
+    await seedBank();
+    const result = await generateQuestionnaireFromPrompt(
+      { prompt: "What is your email address?" },
+      { embedder: new FakeEmbedder() }
+    );
+    const attached = await db.questionnaireQuestion.findMany({
+      where: { questionnaireId: result.questionnaire.id },
+      include: { questionMaster: true },
+    });
+    expect(attached.length).toBeGreaterThan(0);
+    for (const q of attached) {
+      expect(q.aiConfidence ?? 0).toBeGreaterThan(0);
     }
   });
 });

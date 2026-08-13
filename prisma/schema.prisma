@@ -67,6 +67,7 @@ model QuestionMaster {
   optionSetId     String?
   optionSet       OptionSet?   @relation(fields: [optionSetId], references: [id])
   questionnaireQuestions QuestionnaireQuestion[]
+  embedding       Unsupported("vector(1024)")?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
