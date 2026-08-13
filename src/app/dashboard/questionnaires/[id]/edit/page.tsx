@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { getQuestionnaireWithQuestions } from "@/services/questionnaire.service";
-import { listQuestionMasters } from "@/services/master-data.service";
+import {
+  listQuestionMasters,
+  listAllMasterVersions,
+  listAllOptionSetVersions,
+} from "@/services/master-data.service";
 import { Editor } from "@/components/dashboard/Editor";
 import type { VisibilityRule, AggregateConfig } from "@/domain/types";
 
@@ -18,12 +22,16 @@ export interface EditorQuestion {
   aiSuggested: boolean;
   aiConfidence: number | null;
   aiLowConfidence: boolean;
+  optionSetId: string | null;
   questionMaster: {
     id: string;
     code: string;
     title: string;
+    description: string | null;
     questionType: string;
   };
+  /** Option set family the master is pinned to (for the version picker). */
+  masterOptionSetName: string | null;
   children: EditorQuestion[];
 }
 
@@ -34,9 +42,11 @@ export default async function EditQuestionnairePage({
   params: { id: string };
   searchParams: { generated?: string; matches?: string; low?: string };
 }) {
-  const [questionnaire, masters] = await Promise.all([
+  const [questionnaire, masters, masterVersions, optionSets] = await Promise.all([
     getQuestionnaireWithQuestions(params.id),
     listQuestionMasters(),
+    listAllMasterVersions(),
+    listAllOptionSetVersions(),
   ]);
   if (!questionnaire) notFound();
 
@@ -54,12 +64,15 @@ export default async function EditQuestionnairePage({
       aiSuggested: q.aiSuggested,
       aiConfidence: q.aiConfidence,
       aiLowConfidence: q.aiLowConfidence,
+      optionSetId: q.optionSetId,
       questionMaster: {
         id: q.questionMaster.id,
         code: q.questionMaster.code,
         title: q.questionMaster.title,
+        description: q.questionMaster.description,
         questionType: q.questionMaster.questionType,
       },
+      masterOptionSetName: q.questionMaster.optionSet?.name ?? null,
       children: q.children.map((c) => ({
         id: c.id,
         order: c.order,
@@ -72,12 +85,15 @@ export default async function EditQuestionnairePage({
         aiSuggested: c.aiSuggested,
         aiConfidence: c.aiConfidence,
         aiLowConfidence: c.aiLowConfidence,
+        optionSetId: c.optionSetId,
         questionMaster: {
           id: c.questionMaster.id,
           code: c.questionMaster.code,
           title: c.questionMaster.title,
+          description: c.questionMaster.description,
           questionType: c.questionMaster.questionType,
         },
+        masterOptionSetName: c.questionMaster.optionSet?.name ?? null,
         children: [],
       })),
     }));
@@ -99,6 +115,23 @@ export default async function EditQuestionnairePage({
         title: m.title,
         questionType: m.questionType,
         requiredDefault: m.requiredDefault,
+        optionSetId: m.optionSetId,
+        optionSetName: m.optionSet?.name ?? null,
+      }))}
+      masterVersions={masterVersions.map((m) => ({
+        id: m.id,
+        code: m.code,
+        version: m.version,
+        title: m.title,
+        isLatest: m.isLatest,
+        questionType: m.questionType,
+      }))}
+      optionSets={optionSets.map((o) => ({
+        id: o.id,
+        name: o.name,
+        version: o.version,
+        isLatest: o.isLatest,
+        source: o.source,
       }))}
       generatedBanner={
         searchParams.generated === "1"

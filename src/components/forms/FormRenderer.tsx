@@ -11,6 +11,7 @@ import { evaluateVisibility } from "@/domain/rules/visibility";
 import { sumValues } from "@/domain/rules/aggregate";
 import { extractAnswerValue } from "@/domain/answers";
 import { Button, Card, ProgressBar, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 interface ExternalOptions {
   [optionSetId: string]: Array<{ label: string; value: string }>;
@@ -31,6 +32,7 @@ function getToken(): string {
 }
 
 export default function FormRenderer({ slug }: { slug: string }) {
+  const toast = useToast();
   const [config, setConfig] = useState<QuestionnaireConfig | null>(null);
   const [responseId, setResponseId] = useState<string | null>(null);
   const [status, setStatus] = useState<"DRAFT" | "COMPLETED">("DRAFT");
@@ -40,7 +42,6 @@ export default function FormRenderer({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   // Bootstrap: fetch config, ensure a response, prefill saved answers.
@@ -52,7 +53,11 @@ export default function FormRenderer({ slug }: { slug: string }) {
         const configRes = await fetch(`/api/questionnaires/${slug}`);
         if (!configRes.ok) {
           const body = await configRes.json().catch(() => null);
-          setError(body?.error?.message ?? "This questionnaire is unavailable.");
+          const message = body?.error?.message ?? "This questionnaire is unavailable.";
+          if (!cancelled) {
+            setError(message);
+            toast.error("Could not load form", message);
+          }
           return;
         }
         const { questionnaire } = await configRes.json();
@@ -66,7 +71,11 @@ export default function FormRenderer({ slug }: { slug: string }) {
         });
         if (!created.ok) {
           const body = await created.json().catch(() => null);
-          setError(body?.error?.message ?? "Could not start a response.");
+          const message = body?.error?.message ?? "Could not start a response.";
+          if (!cancelled) {
+            setError(message);
+            toast.error("Could not start response", message);
+          }
           return;
         }
         const { response } = await created.json();
@@ -90,7 +99,10 @@ export default function FormRenderer({ slug }: { slug: string }) {
           }
         }
       } catch {
-        if (!cancelled) setError("Network error while loading the form.");
+        if (!cancelled) {
+          setError("Network error while loading the form.");
+          toast.error("Network error", "Could not reach the server while loading.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -98,7 +110,7 @@ export default function FormRenderer({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, toast]);
 
   // Fetch external option lists for questions backed by an API option set.
   useEffect(() => {
@@ -190,7 +202,6 @@ export default function FormRenderer({ slug }: { slug: string }) {
       if (!config || !responseId) return;
       setSaving(true);
       setError(null);
-      setNotice(null);
       try {
         const payload = {
           token: getToken(),
@@ -216,22 +227,26 @@ export default function FormRenderer({ slug }: { slug: string }) {
         });
         const body = await res.json().catch(() => null);
         if (!res.ok) {
-          setError(body?.error?.message ?? "Could not save your response.");
+          const message = body?.error?.message ?? "Could not save your response.";
+          setError(message);
+          toast.error("Could not save", message);
           return;
         }
         setStatus(body?.response?.status ?? "DRAFT");
         if (complete) {
           setSubmitted(true);
+          toast.success("Response submitted", "Thank you for completing the questionnaire.");
         } else {
-          setNotice("Draft saved.");
+          toast.success("Draft saved", "You can continue later from this device.");
         }
       } catch {
         setError("Network error while saving.");
+        toast.error("Network error", "Could not reach the server while saving.");
       } finally {
         setSaving(false);
       }
     },
-    [config, responseId, answers, groups, slug]
+    [config, responseId, answers, groups, slug, toast]
   );
 
   if (loading) {
@@ -309,9 +324,6 @@ export default function FormRenderer({ slug }: { slug: string }) {
 
         {error && (
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
-        )}
-        {notice && (
-          <p className="rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</p>
         )}
 
         <div className="flex items-center justify-end gap-3 pt-2">
@@ -445,10 +457,40 @@ function QuestionInput({
 }) {
   const m = question.questionMaster;
   const options = question.options?.items ?? externalOptions ?? [];
+  const [infoOpen, setInfoOpen] = useState(false);
+  const infoIcon = m.description ? (
+    <span
+      role="button"
+      tabIndex={0}
+      aria-label="Question description"
+      className="cursor-pointer text-gray-400 hover:text-indigo-600"
+      title="Question description"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setInfoOpen((v) => !v);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setInfoOpen((v) => !v);
+        }
+      }}
+    >
+      ⓘ
+    </span>
+  ) : null;
+  const description =
+    infoOpen && m.description ? (
+      <span className="mb-2 block rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
+        {m.description}
+      </span>
+    ) : null;
   const label = (
-    <span className="mb-1 block text-sm font-medium text-gray-800">
-      {m.title}
-      {required && <span className="ml-1 text-red-500">*</span>}
+    <span className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-800">
+      <span>{m.title}</span>
+      {required && <span className="text-red-500">*</span>}
+      {infoIcon}
     </span>
   );
 
@@ -457,6 +499,7 @@ function QuestionInput({
       return (
         <label className="block">
           {label}
+          {description}
           <input
             type="text"
             className={inputClass}
@@ -471,6 +514,7 @@ function QuestionInput({
       return (
         <label className="block">
           {label}
+          {description}
           <textarea
             className={inputClass}
             rows={4}
@@ -485,6 +529,7 @@ function QuestionInput({
       return (
         <label className="block">
           {label}
+          {description}
           <input
             type="number"
             className={inputClass}
@@ -501,6 +546,7 @@ function QuestionInput({
       return (
         <label className="block">
           {label}
+          {description}
           <input
             type="date"
             className={inputClass}
@@ -512,10 +558,12 @@ function QuestionInput({
     case "RADIO":
       return (
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-gray-800">
+          <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-800">
             {m.title}
-            {required && <span className="ml-1 text-red-500">*</span>}
+            {required && <span className="text-red-500">*</span>}
+            {infoIcon}
           </legend>
+          {description}
           <div className="space-y-2">
             {options.map((o) => (
               <label key={o.value} className="flex items-center gap-2 text-sm">
@@ -535,10 +583,12 @@ function QuestionInput({
     case "CHECKBOX":
       return (
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-gray-800">
+          <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-800">
             {m.title}
-            {required && <span className="ml-1 text-red-500">*</span>}
+            {required && <span className="text-red-500">*</span>}
+            {infoIcon}
           </legend>
+          {description}
           <div className="space-y-2">
             {options.map((o) => {
               const selected = Array.isArray(value) ? value : [];
@@ -566,6 +616,7 @@ function QuestionInput({
       return (
         <label className="block">
           {label}
+          {description}
           <select
             className={inputClass}
             value={typeof value === "string" ? value : ""}
@@ -583,10 +634,12 @@ function QuestionInput({
     case "RATING":
       return (
         <fieldset>
-          <legend className="mb-1 text-sm font-medium text-gray-800">
+          <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium text-gray-800">
             {m.title}
-            {required && <span className="ml-1 text-red-500">*</span>}
+            {required && <span className="text-red-500">*</span>}
+            {infoIcon}
           </legend>
+          {description}
           <div className="flex gap-1">
             {Array.from({ length: m.ratingMax ?? 5 }, (_, i) => i + 1).map((star) => (
               <button

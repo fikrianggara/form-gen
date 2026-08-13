@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listQuestionnaires } from "@/services/questionnaire.service";
 import NewQuestionnaireForm from "@/components/dashboard/NewQuestionnaireForm";
+import DuplicateQuestionnaireButton from "@/components/dashboard/DuplicateQuestionnaireButton";
 import { Badge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ export default async function DashboardPage() {
                     >
                       Responses
                     </Link>
+                    <DuplicateQuestionnaireButton questionnaireId={q.id} />
                     <Link
                       href={`/dashboard/questionnaires/${q.id}/report`}
                       className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"

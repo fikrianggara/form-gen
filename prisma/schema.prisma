@@ -87,6 +87,7 @@ model OptionSet {
   itemsPath String?
   options   Option[]
   questionMasters QuestionMaster[]
+  questionnaireQuestions QuestionnaireQuestion[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -136,6 +137,8 @@ model QuestionnaireQuestion {
   aiSuggested      Boolean            @default(false)
   aiConfidence     Float?
   aiLowConfidence  Boolean            @default(false)
+  optionSetId      String?
+  optionSet        OptionSet?         @relation(fields: [optionSetId], references: [id])
   answers          Answer[]
   answerGroups     AnswerGroup[]
 

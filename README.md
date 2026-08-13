@@ -20,6 +20,11 @@ draft/completed status and progress. RBAC: admin vs operator.
   visibility** (`if A = yes → show B`), **repeatable groups** (add multiple rows
   of child questions), **aggregate questions** (e.g. total = SUM of an expense
   column across all rows), draft/active/closed status, single- or multi-response.
+  Questions can be reordered by **drag-and-drop** (top-level and within groups),
+  every placed question can be **re-pinned to a specific master version** and
+  override its **option set version**, master descriptions are one click away
+  via the ⓘ icon, and questionnaires can be **duplicated** (DRAFT copy with a
+  unique slug) from the dashboard home.
 - **AI generation (RAG, hybrid search)** — describe a questionnaire in plain text
   and the system retrieves matching question masters, predicts the
   title/description, creates a draft questionnaire with the best matches, and

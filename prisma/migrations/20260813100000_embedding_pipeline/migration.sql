@@ -4,6 +4,8 @@
 -- 2000-dimension limit for HNSW indexes. Vectors are written via raw SQL
 -- (Prisma models this column as Unsupported("vector(1024)")).
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 ALTER TABLE "QuestionMaster" ADD COLUMN "embedding" vector(1024);
 
 -- HNSW cosine index for approximate nearest-neighbor search.

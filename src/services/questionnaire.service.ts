@@ -22,6 +22,8 @@ export interface AddQuestionInput {
   isAggregate?: boolean;
   aggregateConfig?: AggregateConfig | null;
   parentId?: string | null;
+  /** Specific OptionSet version to use instead of the master's pinned one. */
+  optionSetId?: string | null;
 }
 
 export interface UpdateQuestionSettingsInput {
@@ -98,6 +100,7 @@ export function getQuestionnaireWithQuestions(id: string) {
       questions: {
         orderBy: { order: "asc" },
         include: {
+          optionSet: { include: { options: { orderBy: { order: "asc" } } } },
           questionMaster: {
             include: {
               optionSet: { include: { options: { orderBy: { order: "asc" } } } },
@@ -106,6 +109,7 @@ export function getQuestionnaireWithQuestions(id: string) {
           children: {
             orderBy: { order: "asc" },
             include: {
+              optionSet: { include: { options: { orderBy: { order: "asc" } } } },
               questionMaster: {
                 include: {
                   optionSet: { include: { options: { orderBy: { order: "asc" } } } },
@@ -164,6 +168,10 @@ export async function addQuestion(input: AddQuestionInput) {
       "AGGREGATE_CONFIG_REQUIRED"
     );
   }
+  if (input.optionSetId) {
+    const optionSet = await db.optionSet.findUnique({ where: { id: input.optionSetId } });
+    if (!optionSet) throw new NotFoundError("Option set version not found");
+  }
 
   // Postgres treats NULLs as distinct in unique constraints, so top-level
   // duplicates (parentId NULL) must be caught explicitly.
@@ -198,6 +206,9 @@ export async function addQuestion(input: AddQuestionInput) {
     aggregateConfig: jsonOrNull(input.aggregateConfig),
     ...(parentId
       ? { parent: { connect: { id: parentId } } }
+      : {}),
+    ...(input.optionSetId
+      ? { optionSet: { connect: { id: input.optionSetId } } }
       : {}),
   };
 
@@ -253,6 +264,132 @@ export async function updateQuestionSettings(
   });
 }
 
+/** Re-pin a placed question to a different version of its master. */
+export async function updateQuestionMasterVersion(
+  questionId: string,
+  masterVersionId: string
+) {
+  const existing = await db.questionnaireQuestion.findUnique({ where: { id: questionId } });
+  if (!existing) throw new NotFoundError("Question not found");
+  const master = await db.questionMaster.findUnique({ where: { id: masterVersionId } });
+  if (!master) throw new NotFoundError("Question master version not found");
+  try {
+    return await db.questionnaireQuestion.update({
+      where: { id: questionId },
+      data: { questionMasterId: masterVersionId },
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new AppError(
+        "This master version is already used in this position",
+        409,
+        "QUESTION_DUPLICATE"
+      );
+    }
+    throw err;
+  }
+}
+
+/**
+ * Set (or clear, with null) the per-question OptionSet version override.
+ * null means the question uses the option set pinned on its master version.
+ */
+export async function updateQuestionOptionSet(
+  questionId: string,
+  optionSetId: string | null
+) {
+  const existing = await db.questionnaireQuestion.findUnique({ where: { id: questionId } });
+  if (!existing) throw new NotFoundError("Question not found");
+  if (optionSetId) {
+    const optionSet = await db.optionSet.findUnique({ where: { id: optionSetId } });
+    if (!optionSet) throw new NotFoundError("Option set version not found");
+  }
+  return db.questionnaireQuestion.update({
+    where: { id: questionId },
+    data: { optionSetId },
+  });
+}
+
+/**
+ * Deep-copy a questionnaire: new DRAFT with "(copy)" title and a unique slug,
+ * recreating every question (order, settings, rules, AI flags, option set
+ * overrides) and preserving repeatable parent/child structure.
+ */
+export async function duplicateQuestionnaire(id: string) {
+  const existing = await getQuestionnaireWithQuestions(id);
+  if (!existing) throw new NotFoundError("Questionnaire not found");
+
+  const slug = await uniqueSlug(`${existing.slug}-copy`);
+
+  return db.$transaction(async (tx) => {
+    const copy = await tx.questionnaire.create({
+      data: {
+        title: `${existing.title} (copy)`,
+        description: existing.description,
+        slug,
+        status: "DRAFT",
+        acceptMultipleResponses: existing.acceptMultipleResponses,
+      },
+    });
+
+    const idMap = new Map<string, string>();
+    for (const q of existing.questions) {
+      const created = await tx.questionnaireQuestion.create({
+        data: {
+          questionnaireId: copy.id,
+          questionMasterId: q.questionMasterId,
+          order: q.order,
+          required: q.required,
+          visibilityRule: jsonOrNull(q.visibilityRule),
+          isRepeatable: q.isRepeatable,
+          isAggregate: q.isAggregate,
+          aggregateConfig: jsonOrNull(q.aggregateConfig),
+          aiSuggested: q.aiSuggested,
+          aiConfidence: q.aiConfidence,
+          aiLowConfidence: q.aiLowConfidence,
+          optionSetId: q.optionSetId,
+        },
+      });
+      idMap.set(q.id, created.id);
+      for (const c of q.children) {
+        const child = await tx.questionnaireQuestion.create({
+          data: {
+            questionnaireId: copy.id,
+            questionMasterId: c.questionMasterId,
+            order: c.order,
+            required: c.required,
+            visibilityRule: jsonOrNull(c.visibilityRule),
+            isRepeatable: c.isRepeatable,
+            isAggregate: c.isAggregate,
+            aggregateConfig: jsonOrNull(c.aggregateConfig),
+            aiSuggested: c.aiSuggested,
+            aiConfidence: c.aiConfidence,
+            aiLowConfidence: c.aiLowConfidence,
+            optionSetId: c.optionSetId,
+            parentId: idMap.get(q.id) ?? null,
+          },
+        });
+        idMap.set(c.id, child.id);
+      }
+    }
+
+    return {
+      questionnaire: copy,
+      questionCount: idMap.size,
+    };
+  });
+}
+
+async function uniqueSlug(base: string): Promise<string> {
+  let slug = base;
+  let i = 2;
+  while (await db.questionnaire.findUnique({ where: { slug } })) {
+    slug = `${base}-${i}`;
+    i++;
+  }
+  return slug;
+}
+
 /** Remove a question; child questions cascade via FK. */
 export async function removeQuestion(questionId: string): Promise<void> {
   const existing = await db.questionnaireQuestion.findUnique({ where: { id: questionId } });
@@ -260,12 +397,17 @@ export async function removeQuestion(questionId: string): Promise<void> {
   await db.questionnaireQuestion.delete({ where: { id: questionId } });
 }
 
+/**
+ * Reorder questions within a scope. Default scope: top-level questions
+ * (parentId null). Pass a parentId to reorder a repeatable group's children.
+ */
 export async function reorderQuestions(
   questionnaireId: string,
-  orderedIds: string[]
+  orderedIds: string[],
+  parentId: string | null = null
 ): Promise<void> {
   const questions = await db.questionnaireQuestion.findMany({
-    where: { questionnaireId },
+    where: { questionnaireId, parentId },
     select: { id: true },
   });
   const existingIds = new Set(questions.map((q) => q.id));
@@ -274,7 +416,7 @@ export async function reorderQuestions(
     orderedIds.some((id) => !existingIds.has(id))
   ) {
     throw new AppError(
-      "Reorder list must match the questionnaire's questions exactly",
+      "Reorder list must match the scope's questions exactly",
       422,
       "REORDER_MISMATCH"
     );

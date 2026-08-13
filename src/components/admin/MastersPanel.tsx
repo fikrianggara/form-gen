@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { saveQuestionMasterAction, deleteQuestionMasterAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
+import { useToast } from "@/components/toast";
 
 const QUESTION_TYPES = ["TEXT", "TEXTAREA", "NUMBER", "DATE", "RADIO", "CHECKBOX", "SELECT", "RATING"];
 
@@ -45,6 +46,8 @@ export function MastersPanel({
   const [editing, setEditing] = useState<MasterRow | null>(null);
   const [query, setQuery] = useState("");
   const [openHistory, setOpenHistory] = useState<string | null>(null);
+  const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const toast = useToast();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -67,12 +70,17 @@ export function MastersPanel({
     return map;
   }, [history]);
 
-  const run = (fn: () => Promise<{ error?: string } | undefined>) => {
+  const run = (fn: () => Promise<{ error?: string } | undefined>, success?: string) => {
     startTransition(async () => {
       setError(null);
       const res = await fn();
-      if (res?.error) setError(res.error);
-      else setEditing(null);
+      if (res?.error) {
+        setError(res.error);
+        toast.error("Action failed", res.error);
+      } else {
+        setEditing(null);
+        if (success) toast.success(success);
+      }
     });
   };
 
@@ -97,21 +105,23 @@ export function MastersPanel({
             const fd = new FormData(e.currentTarget);
             const type = String(fd.get("questionType") ?? "") as "TEXT" | "TEXTAREA" | "NUMBER" | "DATE" | "RADIO" | "CHECKBOX" | "SELECT" | "RATING";
             const optionSetId = String(fd.get("optionSetId") ?? "") || null;
-            run(() =>
-              saveQuestionMasterAction({
-                id: form?.id,
-                code: String(fd.get("code") ?? ""),
-                title: String(fd.get("title") ?? ""),
-                description: String(fd.get("description") ?? "") || undefined,
-                questionType: type,
-                requiredDefault: fd.get("requiredDefault") === "on",
-                placeholder: String(fd.get("placeholder") ?? "") || undefined,
-                minValue: fd.get("minValue") ? Number(fd.get("minValue")) : null,
-                maxValue: fd.get("maxValue") ? Number(fd.get("maxValue")) : null,
-                maxLength: fd.get("maxLength") ? Number(fd.get("maxLength")) : null,
-                ratingMax: fd.get("ratingMax") ? Number(fd.get("ratingMax")) : null,
-                optionSetId,
-              })
+            run(
+              () =>
+                saveQuestionMasterAction({
+                  id: form?.id,
+                  code: String(fd.get("code") ?? ""),
+                  title: String(fd.get("title") ?? ""),
+                  description: String(fd.get("description") ?? "") || undefined,
+                  questionType: type,
+                  requiredDefault: fd.get("requiredDefault") === "on",
+                  placeholder: String(fd.get("placeholder") ?? "") || undefined,
+                  minValue: fd.get("minValue") ? Number(fd.get("minValue")) : null,
+                  maxValue: fd.get("maxValue") ? Number(fd.get("maxValue")) : null,
+                  maxLength: fd.get("maxLength") ? Number(fd.get("maxLength")) : null,
+                  ratingMax: fd.get("ratingMax") ? Number(fd.get("ratingMax")) : null,
+                  optionSetId,
+                }),
+              form ? "Question master saved" : "Question master created"
             );
           }}
         >
@@ -201,10 +211,14 @@ export function MastersPanel({
                   onToggleHistory={() =>
                     setOpenHistory((cur) => (cur === m.code ? null : m.code))
                   }
+                  infoOpen={openInfo === m.code}
+                  onToggleInfo={() =>
+                    setOpenInfo((cur) => (cur === m.code ? null : m.code))
+                  }
                   onEdit={() => setEditing(m)}
                   onDelete={() => {
                     if (confirm(`Delete master ${m.code} (all versions)?`)) {
-                      run(() => deleteQuestionMasterAction({ id: m.id }));
+                      run(() => deleteQuestionMasterAction({ id: m.id }), "Question master deleted");
                     }
                   }}
                 />
@@ -227,6 +241,8 @@ function MasterRowView({
   history,
   historyOpen,
   onToggleHistory,
+  infoOpen,
+  onToggleInfo,
   onEdit,
   onDelete,
 }: {
@@ -234,6 +250,8 @@ function MasterRowView({
   history: MasterVersionRow[];
   historyOpen: boolean;
   onToggleHistory: () => void;
+  infoOpen: boolean;
+  onToggleInfo: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -241,7 +259,22 @@ function MasterRowView({
     <>
       <tr className="hover:bg-gray-50">
         <td className="px-4 py-3 font-mono text-xs text-gray-600">{master.code}</td>
-        <td className="px-4 py-3 text-gray-900">{master.title}</td>
+        <td className="px-4 py-3 text-gray-900">
+          <span className="inline-flex items-center gap-1.5">
+            {master.title}
+            {master.description && (
+              <button
+                type="button"
+                className="text-gray-400 hover:text-indigo-600"
+                onClick={onToggleInfo}
+                aria-label="Master description"
+                title="Master description"
+              >
+                ⓘ
+              </button>
+            )}
+          </span>
+        </td>
         <td className="px-4 py-3"><Badge tone="indigo">{master.questionType}</Badge></td>
         <td className="px-4 py-3">{master.requiredDefault ? "yes" : "no"}</td>
         <td className="px-4 py-3">
@@ -265,6 +298,13 @@ function MasterRowView({
           </div>
         </td>
       </tr>
+      {infoOpen && master.description && (
+        <tr className="bg-indigo-50/60">
+          <td colSpan={6} className="px-4 py-3 text-xs text-indigo-900">
+            {master.description}
+          </td>
+        </tr>
+      )}
       {historyOpen && (
         <tr className="bg-gray-50/50">
           <td colSpan={6} className="px-6 py-3">

@@ -7,12 +7,15 @@ import {
   setStatusAction,
   addQuestionAction,
   updateQuestionSettingsAction,
+  updateQuestionMasterVersionAction,
+  updateQuestionOptionSetAction,
   removeQuestionAction,
   reorderQuestionsAction,
 } from "@/lib/actions/dashboard";
 import type { VisibilityRule } from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { useToast } from "@/components/toast";
 import type { EditorQuestion } from "@/app/dashboard/questionnaires/[id]/edit/page";
 
 interface EditorProps {
@@ -31,16 +34,45 @@ interface EditorProps {
     title: string;
     questionType: string;
     requiredDefault: boolean;
+    optionSetId: string | null;
+    optionSetName: string | null;
+  }>;
+  masterVersions: Array<{
+    id: string;
+    code: string;
+    version: number;
+    title: string;
+    isLatest: boolean;
+    questionType: string;
+  }>;
+  optionSets: Array<{
+    id: string;
+    name: string;
+    version: number;
+    isLatest: boolean;
+    source: string;
   }>;
   generatedBanner?: { matchCount: number; lowCount: number } | null;
 }
 
 const OPERATORS = ["EQ", "NEQ", "GT", "GTE", "LT", "LTE", "CONTAINS", "ANY_OF", "NONE_OF"];
 
-export function Editor({ questionnaire: q, questions, masters, generatedBanner }: EditorProps) {
+const CHOICE_TYPES = ["RADIO", "CHECKBOX", "SELECT"];
+
+export function Editor({
+  questionnaire: q,
+  questions,
+  masters,
+  masterVersions,
+  optionSets,
+  generatedBanner,
+}: EditorProps) {
+  const toast = useToast();
   const [items, setItems] = useState(questions);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   // Settings form state
   const [title, setTitle] = useState(q.title);
@@ -49,17 +81,24 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
 
   // Add-question form state
   const [masterId, setMasterId] = useState("");
+  const [masterVersionId, setMasterVersionId] = useState("");
+  const [optionSetVersionId, setOptionSetVersionId] = useState("");
   const [required, setRequired] = useState(false);
   const [repeatable, setRepeatable] = useState(false);
   const [isAggregate, setIsAggregate] = useState(false);
   const [aggregateSource, setAggregateSource] = useState("");
   const [parentId, setParentId] = useState("");
 
-  const run = (fn: () => Promise<{ error?: string } | undefined>) => {
+  const run = (fn: () => Promise<{ error?: string } | undefined>, success?: string) => {
     startTransition(async () => {
       setError(null);
       const res = await fn();
-      if (res?.error) setError(res.error);
+      if (res?.error) {
+        setError(res.error);
+        toast.error("Action failed", res.error);
+      } else if (success) {
+        toast.success(success);
+      }
     });
   };
 
@@ -90,6 +129,61 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
     [masters]
   );
 
+  const selectedMaster = masters.find((m) => m.id === masterId) ?? null;
+
+  const selectedMasterVersions = useMemo(
+    () =>
+      selectedMaster
+        ? masterVersions
+            .filter((v) => v.code === selectedMaster.code)
+            .sort((a, b) => a.version - b.version)
+        : [],
+    [selectedMaster, masterVersions]
+  );
+
+  const selectedMasterOptionSets = useMemo(
+    () =>
+      selectedMaster?.optionSetName
+        ? optionSets
+            .filter((o) => o.name === selectedMaster.optionSetName)
+            .sort((a, b) => a.version - b.version)
+        : [],
+    [selectedMaster, optionSets]
+  );
+
+  const pickMaster = (id: string) => {
+    setMasterId(id);
+    const master = masters.find((m) => m.id === id);
+    if (!master) return;
+    const versions = masterVersions
+      .filter((v) => v.code === master.code)
+      .sort((a, b) => a.version - b.version);
+    const latest = versions[versions.length - 1];
+    setMasterVersionId(latest?.id ?? id);
+    setOptionSetVersionId("");
+  };
+
+  /**
+   * Move `dragId` to the position of `targetId` within a scope's id list,
+   * then apply locally and persist.
+   */
+  const applyDrop = (
+    scopeIds: string[],
+    drag: string,
+    target: string,
+    persist: (ordered: string[]) => void,
+    applyLocally?: (ordered: string[]) => void
+  ) => {
+    const from = scopeIds.indexOf(drag);
+    const to = scopeIds.indexOf(target);
+    if (from === -1 || to === -1 || from === to) return;
+    const next = [...scopeIds];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved!);
+    if (applyLocally) applyLocally(next);
+    persist(next);
+  };
+
   const move = (index: number, dir: -1 | 1) => {
     const next = [...items];
     const target = index + dir;
@@ -98,6 +192,16 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
     setItems(next);
     run(() =>
       reorderQuestionsAction({ questionnaireId: q.id, orderedIds: next.map((x) => x.id) })
+    );
+  };
+
+  const moveChild = (parentId: string, ordered: string[]) => {
+    run(() =>
+      reorderQuestionsAction({
+        questionnaireId: q.id,
+        orderedIds: ordered,
+        parentId,
+      })
     );
   };
 
@@ -156,13 +260,15 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
             variant="secondary"
             disabled={pending}
             onClick={() =>
-              run(() =>
-                updateQuestionnaireSettingsAction({
-                  id: q.id,
-                  title,
-                  description: description || null,
-                  acceptMultipleResponses: multiple,
-                })
+              run(
+                () =>
+                  updateQuestionnaireSettingsAction({
+                    id: q.id,
+                    title,
+                    description: description || null,
+                    acceptMultipleResponses: multiple,
+                  }),
+                "Settings saved"
               )
             }
           >
@@ -173,11 +279,13 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
             <select
               value={q.status}
               className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-              onChange={(e) =>
-                run(() =>
-                  setStatusAction({ id: q.id, status: e.target.value as "DRAFT" | "ACTIVE" | "CLOSED" })
-                )
-              }
+              onChange={(e) => {
+                const status = e.target.value as "DRAFT" | "ACTIVE" | "CLOSED";
+                run(
+                  () => setStatusAction({ id: q.id, status }),
+                  `Status set to ${status}`
+                );
+              }}
             >
               <option value="DRAFT">Draft</option>
               <option value="ACTIVE">Active</option>
@@ -195,10 +303,45 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
             <SearchableSelect
               options={masterOptions}
               value={masterId}
-              onChange={setMasterId}
+              onChange={pickMaster}
               placeholder="Type to search the question bank…"
             />
           </Field>
+          <Field label="Master version" hint="Which version of the master to pin">
+            <select
+              className={inputClass}
+              value={masterVersionId}
+              onChange={(e) => setMasterVersionId(e.target.value)}
+              disabled={!selectedMaster}
+            >
+              {selectedMasterVersions.length === 0 && <option value="">— select master first —</option>}
+              {selectedMasterVersions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  v{v.version}{v.isLatest ? " (latest)" : ""} — {v.title}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        {selectedMaster && CHOICE_TYPES.includes(selectedMaster.questionType) && selectedMaster.optionSetName && (
+          <div className="mt-4">
+            <Field label="Option set version" hint={`Override for "${selectedMaster.optionSetName}"; default = the version pinned on the master`}>
+              <select
+                className={inputClass}
+                value={optionSetVersionId}
+                onChange={(e) => setOptionSetVersionId(e.target.value)}
+              >
+                <option value="">Default (version pinned on the master)</option>
+                {selectedMasterOptionSets.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    v{o.version}{o.isLatest ? " (latest)" : ""} · {o.source === "EXTERNAL_API" ? "external API" : "static"}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )}
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Repeatable group (optional)">
             <select className={inputClass} value={parentId} onChange={(e) => setParentId(e.target.value)}>
               <option value="">None</option>
@@ -243,15 +386,18 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
               run(async () => {
                 const res = await addQuestionAction({
                   questionnaireId: q.id,
-                  questionMasterId: masterId,
+                  questionMasterId: masterVersionId || masterId,
                   required,
                   isRepeatable: repeatable,
                   isAggregate,
                   aggregateConfig: isAggregate ? { type: "SUM", sourceQuestionId: aggregateSource } : null,
                   parentId: parentId || null,
+                  optionSetId: optionSetVersionId || null,
                 });
                 if (!res?.error) {
                   setMasterId("");
+                  setMasterVersionId("");
+                  setOptionSetVersionId("");
                   setRequired(false);
                   setRepeatable(false);
                   setIsAggregate(false);
@@ -259,7 +405,7 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
                   setParentId("");
                 }
                 return res;
-              })
+              }, "Question added")
             }
           >
             Add question
@@ -276,19 +422,80 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
               index={index}
               total={items.length}
               allQuestions={items}
+              masterVersions={masterVersions}
+              optionSets={optionSets}
+              dragging={dragId === item.id}
+              dragOver={dragOverId === item.id}
+              dragHandlers={{
+                onDragStart: (e) => {
+                  setDragId(item.id);
+                  e.dataTransfer.effectAllowed = "move";
+                },
+                onDragOver: (e) => {
+                  e.preventDefault();
+                  setDragOverId(item.id);
+                },
+                onDragLeave: () => setDragOverId((cur) => (cur === item.id ? null : cur)),
+                onDrop: (e) => {
+                  e.preventDefault();
+                  if (dragId && dragOverId) {
+                    applyDrop(
+                      items.map((x) => x.id),
+                      dragId,
+                      dragOverId,
+                      (next) =>
+                        run(() =>
+                          reorderQuestionsAction({ questionnaireId: q.id, orderedIds: next })
+                        ),
+                      (next) =>
+                        setItems(next.map((id) => items.find((x) => x.id === id)!).filter(Boolean))
+                    );
+                  }
+                  setDragId(null);
+                  setDragOverId(null);
+                },
+                onDragEnd: () => {
+                  setDragId(null);
+                  setDragOverId(null);
+                },
+              }}
               onMove={(dir) => move(index, dir)}
               onToggleRequired={(val) =>
                 run(() =>
                   updateQuestionSettingsAction({ questionId: item.id, questionnaireId: q.id, required: val })
                 )
               }
+              onMasterVersionChange={(questionId, masterVersionId) =>
+                run(
+                  () =>
+                    updateQuestionMasterVersionAction({
+                      questionnaireId: q.id,
+                      questionId,
+                      masterVersionId,
+                    }),
+                  "Master version updated"
+                )
+              }
+              onOptionSetChange={(questionId, optionSetId) =>
+                run(
+                  () =>
+                    updateQuestionOptionSetAction({
+                      questionnaireId: q.id,
+                      questionId,
+                      optionSetId,
+                    }),
+                  "Option set version updated"
+                )
+              }
               onSaveRule={(rule) =>
-                run(() =>
-                  updateQuestionSettingsAction({
-                    questionId: item.id,
-                    questionnaireId: q.id,
-                    visibilityRule: rule,
-                  })
+                run(
+                  () =>
+                    updateQuestionSettingsAction({
+                      questionId: item.id,
+                      questionnaireId: q.id,
+                      visibilityRule: rule,
+                    }),
+                  "Visibility rule saved"
                 )
               }
               onRemove={() =>
@@ -296,7 +503,7 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
                   const res = await removeQuestionAction({ questionId: item.id, questionnaireId: q.id });
                   if (!res?.error) setItems((prev) => prev.filter((x) => x.id !== item.id));
                   return res;
-                })
+                }, "Question removed")
               }
             />
             {item.children.length > 0 && (
@@ -308,19 +515,89 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
                     index={0}
                     total={1}
                     allQuestions={items}
+                    masterVersions={masterVersions}
+                    optionSets={optionSets}
+                    dragging={dragId === child.id}
+                    dragOver={dragOverId === child.id}
+                    dragHandlers={{
+                      onDragStart: (e) => {
+                        setDragId(child.id);
+                        e.dataTransfer.effectAllowed = "move";
+                      },
+                      onDragOver: (e) => {
+                        e.preventDefault();
+                        setDragOverId(child.id);
+                      },
+                      onDragLeave: () => setDragOverId((cur) => (cur === child.id ? null : cur)),
+                      onDrop: (e) => {
+                        e.preventDefault();
+                        const childIds = item.children.map((c) => c.id);
+                        if (dragId && dragOverId) {
+                          applyDrop(
+                            childIds,
+                            dragId,
+                            dragOverId,
+                            (next) => moveChild(item.id, next),
+                            (next) =>
+                              setItems((prev) =>
+                                prev.map((x) =>
+                                  x.id === item.id
+                                    ? {
+                                        ...x,
+                                        children: next
+                                          .map((id) => x.children.find((c) => c.id === id)!)
+                                          .filter(Boolean),
+                                      }
+                                    : x
+                                )
+                              )
+                          );
+                        }
+                        setDragId(null);
+                        setDragOverId(null);
+                      },
+                      onDragEnd: () => {
+                        setDragId(null);
+                        setDragOverId(null);
+                      },
+                    }}
                     onMove={() => undefined}
                     onToggleRequired={(val) =>
                       run(() =>
                         updateQuestionSettingsAction({ questionId: child.id, questionnaireId: q.id, required: val })
                       )
                     }
+                    onMasterVersionChange={(questionId, masterVersionId) =>
+                      run(
+                        () =>
+                          updateQuestionMasterVersionAction({
+                            questionnaireId: q.id,
+                            questionId,
+                            masterVersionId,
+                          }),
+                        "Master version updated"
+                      )
+                    }
+                    onOptionSetChange={(questionId, optionSetId) =>
+                      run(
+                        () =>
+                          updateQuestionOptionSetAction({
+                            questionnaireId: q.id,
+                            questionId,
+                            optionSetId,
+                          }),
+                        "Option set version updated"
+                      )
+                    }
                     onSaveRule={(rule) =>
-                      run(() =>
-                        updateQuestionSettingsAction({
-                          questionId: child.id,
-                          questionnaireId: q.id,
-                          visibilityRule: rule,
-                        })
+                      run(
+                        () =>
+                          updateQuestionSettingsAction({
+                            questionId: child.id,
+                            questionnaireId: q.id,
+                            visibilityRule: rule,
+                          }),
+                        "Visibility rule saved"
                       )
                     }
                     onRemove={() =>
@@ -336,7 +613,7 @@ export function Editor({ questionnaire: q, questions, masters, generatedBanner }
                           );
                         }
                         return res;
-                      })
+                      }, "Question removed")
                     }
                   />
                 ))}
@@ -363,6 +640,13 @@ function QuestionRow({
   onToggleRequired,
   onSaveRule,
   onRemove,
+  onMasterVersionChange,
+  onOptionSetChange,
+  masterVersions,
+  optionSets,
+  dragging,
+  dragOver,
+  dragHandlers,
 }: {
   item: EditorQuestion;
   index: number;
@@ -372,8 +656,22 @@ function QuestionRow({
   onToggleRequired: (val: boolean) => void;
   onSaveRule: (rule: VisibilityRule | null) => void;
   onRemove: () => void;
+  onMasterVersionChange: (questionId: string, masterVersionId: string) => void;
+  onOptionSetChange: (questionId: string, optionSetId: string | null) => void;
+  masterVersions: Array<{ id: string; code: string; version: number; isLatest: boolean; title: string }>;
+  optionSets: Array<{ id: string; name: string; version: number; isLatest: boolean; source: string }>;
+  dragging: boolean;
+  dragOver: boolean;
+  dragHandlers: {
+    onDragStart: (e: React.DragEvent) => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDragLeave: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent) => void;
+    onDragEnd: () => void;
+  };
 }) {
   const [ruleOpen, setRuleOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
   const [ruleCondition, setRuleCondition] = useState<"ALL" | "ANY">(
     item.visibilityRule?.condition ?? "ALL"
   );
@@ -391,32 +689,66 @@ function QuestionRow({
     (q) => q.id !== item.id && !q.parentId && !q.isAggregate
   );
 
+  const versions = masterVersions
+    .filter((v) => v.code === item.questionMaster.code)
+    .sort((a, b) => a.version - b.version);
+
+  const setVersions = item.masterOptionSetName
+    ? optionSets
+        .filter((o) => o.name === item.masterOptionSetName)
+        .sort((a, b) => a.version - b.version)
+    : [];
+
   return (
-    <Card className="p-4">
+    <Card
+      className={`p-4 transition-shadow ${dragging ? "opacity-60" : ""} ${dragOver ? "ring-2 ring-indigo-300" : ""}`}
+      {...dragHandlers}
+    >
       <div className="flex items-start gap-3">
-        <div className="flex flex-col gap-1 pt-1">
-          <button
-            type="button"
-            disabled={index === 0}
-            onClick={() => onMove(-1)}
-            className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
-            aria-label="Move up"
+        <div className="flex flex-col items-center gap-1 pt-1">
+          <span
+            className="cursor-grab text-gray-300 hover:text-gray-500"
+            title="Drag to reorder"
+            draggable
+            onDragStart={dragHandlers.onDragStart}
           >
-            ▲
-          </button>
-          <button
-            type="button"
-            disabled={index === total - 1}
-            onClick={() => onMove(1)}
-            className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
-            aria-label="Move down"
-          >
-            ▼
-          </button>
+            ⠿
+          </span>
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              disabled={index === 0}
+              onClick={() => onMove(-1)}
+              className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+              aria-label="Move up"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              disabled={index === total - 1}
+              onClick={() => onMove(1)}
+              className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+              aria-label="Move down"
+            >
+              ▼
+            </button>
+          </div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium text-gray-900">{item.questionMaster.title}</span>
+            {item.questionMaster.description && (
+              <button
+                type="button"
+                className="text-gray-400 hover:text-indigo-600"
+                onClick={() => setInfoOpen((v) => !v)}
+                aria-label="Question description"
+                title="Question description"
+              >
+                ⓘ
+              </button>
+            )}
             <Badge tone="gray">{item.questionMaster.code}</Badge>
             <Badge tone="indigo">{item.questionMaster.questionType}</Badge>
             {item.isRepeatable && <Badge tone="green">repeatable</Badge>}
@@ -435,6 +767,13 @@ function QuestionRow({
               </>
             )}
           </div>
+
+          {infoOpen && item.questionMaster.description && (
+            <p className="mt-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-900">
+              {item.questionMaster.description}
+            </p>
+          )}
+
           <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-gray-600">
             <label className="flex items-center gap-1.5">
               <input
@@ -445,6 +784,39 @@ function QuestionRow({
               />
               Required
             </label>
+            {versions.length > 1 && (
+              <label className="flex items-center gap-1.5">
+                <span className="text-gray-400">v:</span>
+                <select
+                  className="rounded-lg border border-gray-300 px-1.5 py-1 text-xs"
+                  value={item.questionMaster.id}
+                  onChange={(e) => onMasterVersionChange(item.id, e.target.value)}
+                >
+                  {versions.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      v{v.version}{v.isLatest ? " (latest)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {setVersions.length > 1 && (
+              <label className="flex items-center gap-1.5">
+                <span className="text-gray-400">options:</span>
+                <select
+                  className="rounded-lg border border-gray-300 px-1.5 py-1 text-xs"
+                  value={item.optionSetId ?? ""}
+                  onChange={(e) => onOptionSetChange(item.id, e.target.value || null)}
+                >
+                  <option value="">default</option>
+                  {setVersions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      v{o.version}{o.isLatest ? " (latest)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <button
               type="button"
               className="underline hover:text-indigo-600"

@@ -14,6 +14,9 @@ import {
   updateQuestionSettings,
   removeQuestion,
   reorderQuestions,
+  updateQuestionMasterVersion,
+  updateQuestionOptionSet,
+  duplicateQuestionnaire,
 } from "@/services/questionnaire.service";
 import {
   createQuestionMaster,
@@ -102,6 +105,7 @@ export async function addQuestionAction(input: {
   isAggregate?: boolean;
   aggregateConfig?: AggregateConfig | null;
   parentId?: string | null;
+  optionSetId?: string | null;
 }): Promise<{ error?: string }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
@@ -111,6 +115,49 @@ export async function addQuestionAction(input: {
   }
   revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
   return {};
+}
+
+export async function updateQuestionMasterVersionAction(input: {
+  questionnaireId: string;
+  questionId: string;
+  masterVersionId: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await updateQuestionMasterVersion(input.questionId, input.masterVersionId);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+  return {};
+}
+
+export async function updateQuestionOptionSetAction(input: {
+  questionnaireId: string;
+  questionId: string;
+  optionSetId: string | null;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await updateQuestionOptionSet(input.questionId, input.optionSetId);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+  return {};
+}
+
+export async function duplicateQuestionnaireAction(input: {
+  questionnaireId: string;
+}): Promise<{ error?: string; questionnaireId?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const result = await duplicateQuestionnaire(input.questionnaireId);
+    revalidatePath("/dashboard");
+    return { questionnaireId: result.questionnaire.id };
+  } catch (err) {
+    return actionError(err);
+  }
 }
 
 export async function updateQuestionSettingsAction(input: {
@@ -149,10 +196,11 @@ export async function removeQuestionAction(input: {
 export async function reorderQuestionsAction(input: {
   questionnaireId: string;
   orderedIds: string[];
+  parentId?: string | null;
 }): Promise<{ error?: string }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
-    await reorderQuestions(input.questionnaireId, input.orderedIds);
+    await reorderQuestions(input.questionnaireId, input.orderedIds, input.parentId ?? null);
   } catch (err) {
     return actionError(err);
   }

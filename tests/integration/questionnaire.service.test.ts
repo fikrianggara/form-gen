@@ -11,8 +11,12 @@ import {
   updateQuestionSettings,
   removeQuestion,
   reorderQuestions,
+  updateQuestionMasterVersion,
+  updateQuestionOptionSet,
+  duplicateQuestionnaire,
 } from "@/services/questionnaire.service";
-import { createQuestionMaster, createOptionSet } from "@/services/master-data.service";
+import { createQuestionMaster, createOptionSet, updateOptionSet, deleteOptionSet, updateQuestionMaster } from "@/services/master-data.service";
+import { getQuestionnaireConfig } from "@/services/response.service";
 import type { QuestionnaireStatus } from "@prisma/client";
 
 beforeEach(async () => {
@@ -207,5 +211,158 @@ describe("questionnaire service", () => {
     const loaded = await getQuestionnaireWithQuestions(q.id);
     expect(loaded?.questions.map((x) => x.questionMaster.code)).toEqual(["q_load1", "q_load2"]);
     expect(loaded?.questions[1]?.questionMaster.optionSet).toBeTruthy();
+  });
+});
+
+describe("version selection and duplication", () => {
+  it("adds a question pinned to a specific option set version (override)", async () => {
+    const set = await createOptionSet({
+      name: "Versioned Set",
+      source: "STATIC",
+      options: [{ label: "A", value: "a" }],
+    });
+    const setV2 = await updateOptionSet(set.id, {
+      name: "Versioned Set",
+      options: [
+        { label: "A", value: "a" },
+        { label: "B", value: "b" },
+      ],
+    });
+    const master = await createQuestionMaster({
+      code: "q_ver_radio",
+      title: "Versioned radio",
+      questionType: "RADIO",
+      optionSetId: set.id, // v1
+    });
+    const q = await createQuestionnaire({ title: "V", slug: "ver-1" });
+    const placed = await addQuestion({
+      questionnaireId: q.id,
+      questionMasterId: master.id,
+      optionSetId: setV2.id,
+    });
+    expect(placed.optionSetId).toBe(setV2.id);
+    const config = await getQuestionnaireConfig("ver-1");
+    const options = config?.questions[0]?.options;
+    expect(options?.optionSetId).toBe(setV2.id);
+    expect(options?.items.map((o) => o.value)).toEqual(["a", "b"]);
+  });
+
+  it("effective option set falls back to the master's pinned version", async () => {
+    const set = await createOptionSet({
+      name: "Fallback Set",
+      source: "STATIC",
+      options: [{ label: "X", value: "x" }],
+    });
+    const master = await createQuestionMaster({
+      code: "q_fb_radio",
+      title: "Fallback radio",
+      questionType: "RADIO",
+      optionSetId: set.id,
+    });
+    const q = await createQuestionnaire({ title: "F", slug: "fb-1" });
+    await addQuestion({ questionnaireId: q.id, questionMasterId: master.id });
+    const config = await getQuestionnaireConfig("fb-1");
+    expect(config?.questions[0]?.options?.optionSetId).toBe(set.id);
+  });
+
+  it("re-pins a placed question to another master version", async () => {
+    const master = await createQuestionMaster({ code: "q_repin", title: "V1", questionType: "TEXT" });
+    const v2 = await updateQuestionMaster(master.id, { title: "V2" });
+    const q = await createQuestionnaire({ title: "R", slug: "repin-1" });
+    const placed = await addQuestion({ questionnaireId: q.id, questionMasterId: master.id });
+    const updated = await updateQuestionMasterVersion(placed.id, v2.id);
+    expect(updated.questionMasterId).toBe(v2.id);
+    const loaded = await getQuestionnaireWithQuestions(q.id);
+    expect(loaded?.questions[0]?.questionMaster.title).toBe("V2");
+  });
+
+  it("rejects a master version that would duplicate another placed question", async () => {
+    const master = await createQuestionMaster({ code: "q_dup", title: "D", questionType: "TEXT" });
+    const other = await createQuestionMaster({ code: "q_other", title: "O", questionType: "TEXT" });
+    const q = await createQuestionnaire({ title: "D", slug: "dup-1" });
+    await addQuestion({ questionnaireId: q.id, questionMasterId: master.id });
+    const placed2 = await addQuestion({
+      questionnaireId: q.id,
+      questionMasterId: other.id,
+    });
+    // Re-pinning placed2 to the master already used at the same level must fail.
+    await expect(updateQuestionMasterVersion(placed2.id, master.id)).rejects.toThrow();
+  });
+
+  it("sets and clears the per-question option set override", async () => {
+    const set = await createOptionSet({ name: "OS", source: "STATIC", options: [{ label: "A", value: "a" }] });
+    const setV2 = await updateOptionSet(set.id, { name: "OS", options: [{ label: "A", value: "a" }, { label: "B", value: "b" }] });
+    const master = await createQuestionMaster({ code: "q_os", title: "OS q", questionType: "RADIO", optionSetId: set.id });
+    const q = await createQuestionnaire({ title: "O", slug: "os-1" });
+    const placed = await addQuestion({ questionnaireId: q.id, questionMasterId: master.id });
+    const withOverride = await updateQuestionOptionSet(placed.id, setV2.id);
+    expect(withOverride.optionSetId).toBe(setV2.id);
+    const cleared = await updateQuestionOptionSet(placed.id, null);
+    expect(cleared.optionSetId).toBeNull();
+  });
+
+  it("duplicates a questionnaire preserving structure, rules and flags", async () => {
+    const set = await createOptionSet({ name: "DupSet", source: "STATIC", options: [{ label: "A", value: "a" }] });
+    const master = await createQuestionMaster({ code: "q_dup1", title: "Dup master", questionType: "RADIO", optionSetId: set.id });
+    const childMaster = await createQuestionMaster({ code: "q_dup2", title: "Child", questionType: "TEXT" });
+    const q = await createQuestionnaire({ title: "Original", slug: "orig-1", acceptMultipleResponses: false });
+    const parent = await addQuestion({
+      questionnaireId: q.id,
+      questionMasterId: master.id,
+      isRepeatable: true,
+      visibilityRule: {
+        condition: "ALL",
+        rules: [{ dependsOnQuestionId: "x", operator: "EQ", value: "yes" }],
+      },
+    });
+    await addQuestion({
+      questionnaireId: q.id,
+      questionMasterId: childMaster.id,
+      parentId: parent.id,
+      required: true,
+      optionSetId: set.id,
+    });
+    await setQuestionnaireStatus(q.id, "ACTIVE");
+
+    const { questionnaire: copy, questionCount } = await duplicateQuestionnaire(q.id);
+    expect(copy.title).toBe("Original (copy)");
+    expect(copy.status).toBe("DRAFT");
+    expect(copy.slug).not.toBe(q.slug);
+    expect(copy.acceptMultipleResponses).toBe(false);
+    expect(questionCount).toBe(2);
+
+    const loaded = await getQuestionnaireWithQuestions(copy.id);
+    const parentCopy = loaded?.questions.find((x) => x.isRepeatable);
+    expect(parentCopy).toBeTruthy();
+    expect(parentCopy?.children).toHaveLength(1);
+    expect(parentCopy?.children[0]?.required).toBe(true);
+    expect(parentCopy?.children[0]?.optionSetId).toBe(set.id);
+    expect(parentCopy?.visibilityRule).toEqual({
+      condition: "ALL",
+      rules: [{ dependsOnQuestionId: "x", operator: "EQ", value: "yes" }],
+    });
+
+    // Original untouched.
+    const original = await getQuestionnaireWithQuestions(q.id);
+    expect(original?.status).toBe("ACTIVE");
+    expect(original?.questions.filter((x) => x.parentId === null)).toHaveLength(1);
+  });
+
+  it("duplicates with a unique slug each time", async () => {
+    const master = await createQuestionMaster({ code: "q_dup3", title: "D3", questionType: "TEXT" });
+    const q = await createQuestionnaire({ title: "Slug", slug: "slug-1" });
+    await addQuestion({ questionnaireId: q.id, questionMasterId: master.id });
+    const first = await duplicateQuestionnaire(q.id);
+    const second = await duplicateQuestionnaire(q.id);
+    expect(first.questionnaire.slug).toBe("slug-1-copy");
+    expect(second.questionnaire.slug).toBe("slug-1-copy-2");
+  });
+
+  it("blocks deleting an option set referenced directly by a placed question", async () => {
+    const set = await createOptionSet({ name: "Guarded", source: "STATIC", options: [{ label: "A", value: "a" }] });
+    const master = await createQuestionMaster({ code: "q_guard", title: "G", questionType: "RADIO", optionSetId: set.id });
+    const q = await createQuestionnaire({ title: "G", slug: "guard-1" });
+    await addQuestion({ questionnaireId: q.id, questionMasterId: master.id, optionSetId: set.id });
+    await expect(deleteOptionSet(set.id)).rejects.toThrow(/used/);
   });
 });

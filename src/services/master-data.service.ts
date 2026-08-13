@@ -293,14 +293,21 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
   });
 }
 
-/** Delete an option set (all versions). Blocked while any master references it. */
+/** Delete an option set (all versions). Blocked while any master or placed question references it. */
 export async function deleteOptionSet(id: string): Promise<void> {
   const existing = await db.optionSet.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Option set not found");
   const used = await db.questionMaster.count({
     where: { optionSet: { name: existing.name } },
   });
-  if (used > 0) {
+  const versions = await db.optionSet.findMany({
+    where: { name: existing.name },
+    select: { id: true },
+  });
+  const usedByQuestion = await db.questionnaireQuestion.count({
+    where: { optionSetId: { in: versions.map((v) => v.id) } },
+  });
+  if (used > 0 || usedByQuestion > 0) {
     throw new AppError(
       "Cannot delete: this option set is used by question masters",
       409,

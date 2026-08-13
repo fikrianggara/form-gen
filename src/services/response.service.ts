@@ -262,7 +262,8 @@ export async function getQuestionnaireConfig(slug: string) {
     questions: tree.questions.map((qq) => {
       const master = qq.questionMaster;
       const isChoice = ["RADIO", "CHECKBOX", "SELECT"].includes(master.questionType);
-      const optionSet = master.optionSet;
+      // Per-question override wins; otherwise the master's pinned option set.
+      const optionSet = qq.optionSet ?? master.optionSet;
       return {
         id: qq.id,
         order: qq.order,
