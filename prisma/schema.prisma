@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum QuestionType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DATE
+  RADIO
+  CHECKBOX
+  SELECT
+  RATING
+}
+
+enum OptionSource {
+  STATIC
+  EXTERNAL_API
+}
+
+enum QuestionnaireStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum ResponseStatus {
+  DRAFT
+  COMPLETED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(OPERATOR)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model QuestionMaster {
+  id              String       @id @default(cuid())
+  code            String
+  version         Int          @default(1)
+  isLatest        Boolean      @default(true)
+  title           String
+  description     String?
+  questionType    QuestionType
+  requiredDefault Boolean      @default(false)
+  placeholder     String?
+  minValue        Int?
+  maxValue        Int?
+  maxLength       Int?
+  ratingMax       Int?         @default(5)
+  optionSetId     String?
+  optionSet       OptionSet?   @relation(fields: [optionSetId], references: [id])
+  questionnaireQuestions QuestionnaireQuestion[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([code, version])
+  @@index([code, isLatest])
+}
+
+model OptionSet {
+  id        String       @id @default(cuid())
+  name      String
+  version   Int          @default(1)
+  isLatest  Boolean      @default(true)
+  source    OptionSource @default(STATIC)
+  apiUrl    String?
+  apiMethod String?      @default("GET")
+  apiHeaders Json?       @default("{}")
+  itemsPath String?
+  options   Option[]
+  questionMasters QuestionMaster[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([name, version])
+  @@index([name, isLatest])
+}
+
+model Option {
+  id          String    @id @default(cuid())
+  optionSetId String
+  optionSet   OptionSet @relation(fields: [optionSetId], references: [id], onDelete: Cascade)
+  label       String
+  value       String
+  order       Int       @default(0)
+
+  @@unique([optionSetId, value])
+}
+
+model Questionnaire {
+  id                      String                   @id @default(cuid())
+  title                   String
+  description             String?
+  slug                    String                   @unique
+  status                  QuestionnaireStatus      @default(DRAFT)
+  acceptMultipleResponses Boolean                  @default(true)
+  questions               QuestionnaireQuestion[]
+  responses               Response[]
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+}
+
+model QuestionnaireQuestion {
+  id               String             @id @default(cuid())
+  questionnaireId  String
+  questionnaire    Questionnaire      @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  questionMasterId String
+  questionMaster   QuestionMaster     @relation(fields: [questionMasterId], references: [id])
+  order            Int
+  required         Boolean            @default(false)
+  visibilityRule   Json?
+  isRepeatable     Boolean            @default(false)
+  isAggregate      Boolean            @default(false)
+  aggregateConfig  Json?
+  parentId         String?
+  parent           QuestionnaireQuestion? @relation("RepeatableParent", fields: [parentId], references: [id], onDelete: Cascade)
+  children         QuestionnaireQuestion[] @relation("RepeatableParent")
+  answers          Answer[]
+  answerGroups     AnswerGroup[]
+
+  @@unique([questionnaireId, questionMasterId, parentId])
+}
+
+model Response {
+  id               String           @id @default(cuid())
+  questionnaireId  String
+  questionnaire    Questionnaire    @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  respondentToken  String
+  respondentLabel  String?
+  status           ResponseStatus   @default(DRAFT)
+  progress         Int              @default(0)
+  completedAt      DateTime?
+  answers          Answer[]
+  answerGroups     AnswerGroup[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([questionnaireId, respondentToken])
+}
+
+model AnswerGroup {
+  id               String                @id @default(cuid())
+  responseId       String
+  response         Response              @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  parentQuestionId String
+  question         QuestionnaireQuestion @relation(fields: [parentQuestionId], references: [id], onDelete: Cascade)
+  rowIndex         Int
+  answers          Answer[]
+  createdAt        DateTime              @default(now())
+
+  @@unique([responseId, parentQuestionId, rowIndex])
+}
+
+model Answer {
+  id            String               @id @default(cuid())
+  responseId    String
+  response      Response             @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  questionId    String
+  question      QuestionnaireQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answerGroupId String?
+  answerGroup   AnswerGroup?         @relation(fields: [answerGroupId], references: [id], onDelete: Cascade)
+  textValue     String?
+  numberValue   Float?
+  dateValue     DateTime?
+  jsonValue     Json?
+  isComputed    Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([responseId])
+}
