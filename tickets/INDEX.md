@@ -15,4 +15,3 @@
 | TKT-012 | feature | small | questionnaire-extras | backlog | null | null | false | Questionnaire sample upload |
 | TKT-003 | bug | small | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | Rate-limit respondent login attempts |
 | TKT-004 | feature | small | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
-| TKT-016 | feature | small | — | done | jarvis | feature-TKT-016-crit-enforcement-drill | true | crit enforcement drill |
