@@ -83,6 +83,23 @@ describe("questionnaire service", () => {
     expect(updated.acceptMultipleResponses).toBe(false);
   });
 
+  it("persists and updates the sample emails list (TKT-001)", async () => {
+    const q = await createQuestionnaire({
+      title: "Sample",
+      slug: "q-sample",
+      sampleEmails: ["a@example.com", "b@example.com"],
+    });
+    expect(JSON.parse(JSON.stringify(q.sampleEmails))).toEqual([
+      "a@example.com",
+      "b@example.com",
+    ]);
+
+    const updated = await updateQuestionnaire(q.id, {
+      sampleEmails: ["c@example.com"],
+    });
+    expect(JSON.parse(JSON.stringify(updated.sampleEmails))).toEqual(["c@example.com"]);
+  });
+
   it("sets status", async () => {
     const q = await createQuestionnaire({ title: "S", slug: "s1" });
     const active = await setQuestionnaireStatus(q.id, "ACTIVE");

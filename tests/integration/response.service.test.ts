@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { truncateAll } from "./helpers";
 import {
   createResponse,
+  createResponseWithState,
   getResponseForToken,
   saveResponse,
   listResponses,
@@ -94,6 +95,54 @@ describe("response service — lifecycle", () => {
     const detail = await getResponseDetail(resp.id);
     const nameAnswer = detail?.answers.find((a) => a.questionId === qName.id);
     expect(nameAnswer?.textValue).toBe("Alice");
+  });
+});
+
+describe("response service — lazy create with current state (TKT-001)", () => {
+  it("creates the response AND persists the current answers atomically on first save", async () => {
+    const { q, qName, qMood, qNote } = await buildSurvey({ slug: "lazy-1" });
+    await setQuestionnaireStatus(q.id, "ACTIVE");
+
+    const resp = await createResponseWithState(q.id, TOKEN, "a@example.com", {
+      status: "DRAFT",
+      answers: [
+        { questionId: qName.id, value: "Alice" },
+        { questionId: qMood.id, value: "happy" },
+        { questionId: qNote.id, value: "hello" },
+      ],
+    });
+
+    expect(resp.status).toBe("DRAFT");
+    // The current state was saved with the row — no blank data.
+    const detail = await getResponseDetail(resp.id);
+    expect(detail?.answers).toHaveLength(3);
+    expect(detail?.answers.find((a) => a.questionId === qName.id)?.textValue).toBe("Alice");
+    expect(detail?.answers.find((a) => a.questionId === qMood.id)?.textValue).toBe("happy");
+    expect(detail?.answers.find((a) => a.questionId === qNote.id)?.textValue).toBe("hello");
+    // Only ONE response row exists for the token.
+    const all = await db.response.findMany({ where: { questionnaireId: q.id, respondentToken: TOKEN } });
+    expect(all).toHaveLength(1);
+  });
+
+  it("computes progress from the saved state on lazy create", async () => {
+    const { q, qName } = await buildSurvey({ slug: "lazy-prog-1" });
+    await setQuestionnaireStatus(q.id, "ACTIVE");
+    const resp = await createResponseWithState(q.id, TOKEN, "a@example.com", {
+      status: "DRAFT",
+      answers: [{ questionId: qName.id, value: "Alice" }],
+    });
+    expect(resp.progress).toBe(33);
+  });
+
+  it("rejects lazy completion when a required visible answer is missing", async () => {
+    const { q, qName } = await buildSurvey({ slug: "lazy-miss-1" });
+    await setQuestionnaireStatus(q.id, "ACTIVE");
+    await expect(
+      createResponseWithState(q.id, TOKEN, "a@example.com", {
+        status: "COMPLETED",
+        answers: [{ questionId: qName.id, value: "Alice" }],
+      })
+    ).rejects.toThrow(/required/i);
   });
 });
 

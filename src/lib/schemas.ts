@@ -18,11 +18,6 @@ export const saveResponseSchema = z.object({
   respondentLabel: z.string().max(200).nullable().optional(),
 });
 
-export const createResponseSchema = z.object({
-  token: z.string().min(8).max(128),
-  respondentLabel: z.string().max(200).nullable().optional(),
-});
-
 /** Shapes of the visibility rule / aggregate config accepted from the builder UI. */
 export const visibilityRuleSchema = z.object({
   condition: z.enum(["ALL", "ANY"]),

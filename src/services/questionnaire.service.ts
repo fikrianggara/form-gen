@@ -51,6 +51,8 @@ export interface QuestionnaireInput {
   description?: string | null;
   slug: string;
   acceptMultipleResponses?: boolean;
+  /** Sample respondent emails for unique-link distribution (TKT-001). */
+  sampleEmails?: string[];
 }
 
 export interface AddQuestionInput {
@@ -89,6 +91,7 @@ export async function createQuestionnaire(input: QuestionnaireInput) {
         description: input.description ?? null,
         slug: input.slug.trim().toLowerCase(),
         acceptMultipleResponses: input.acceptMultipleResponses ?? true,
+        sampleEmails: (input.sampleEmails ?? []) as unknown as object,
       },
     });
   } catch (err) {
@@ -112,6 +115,9 @@ export async function updateQuestionnaire(
       ...(input.description !== undefined ? { description: input.description ?? null } : {}),
       ...(input.acceptMultipleResponses !== undefined
         ? { acceptMultipleResponses: input.acceptMultipleResponses }
+        : {}),
+      ...(input.sampleEmails !== undefined
+        ? { sampleEmails: input.sampleEmails as unknown as object }
         : {}),
     },
   });
