@@ -44,7 +44,7 @@ next_id() {
 }
 
 slugify() {
-  echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//' | cut -c1-24
+  echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-//; s/-$//' | cut -c1-24 | sed -E 's/-+$//'
 }
 
 doc_commit() { # message
