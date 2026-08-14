@@ -15,6 +15,7 @@ import {
   updateBlockAction,
   deleteBlockAction,
   setQuestionBlockAction,
+  reorderBlockAction,
 } from "@/lib/actions/dashboard";
 import type { VisibilityRule, VisibilityRuleSet, VisibilityRuleClause } from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
@@ -79,6 +80,20 @@ export function Editor({
   const [blockTitle, setBlockTitle] = useState("");
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [blockDraftSets, setBlockDraftSets] = useState<VisibilityRuleSet[]>([]);
+  const moveBlock = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= blocks.length) return;
+    const next = [...blocks];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    run(
+      () =>
+        reorderBlockAction({
+          questionnaireId: q.id,
+          orderedIds: next.map((b) => b.id),
+        }),
+      "Blocks reordered"
+    );
+  };
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -450,11 +465,31 @@ export function Editor({
           <p className="text-xs text-gray-400">No blocks yet — questions can be grouped into sections.</p>
         )}
         <div className="space-y-2">
-          {blocks.map((b) => {
+          {blocks.map((b, bIdx) => {
             const isEditing = editingBlockId === b.id;
             return (
               <div key={b.id} className="rounded-lg border border-gray-200 p-3">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <div className="flex flex-col">
+                    <button
+                      type="button"
+                      disabled={bIdx === 0 || pending}
+                      onClick={() => moveBlock(bIdx, -1)}
+                      className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                      aria-label="Move block up"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      disabled={bIdx === blocks.length - 1 || pending}
+                      onClick={() => moveBlock(bIdx, 1)}
+                      className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                      aria-label="Move block down"
+                    >
+                      ▼
+                    </button>
+                  </div>
                   <span className="font-medium text-gray-800">{b.title}</span>
                   {b.entryRule && <Badge tone="indigo">conditional entry</Badge>}
                   <button
