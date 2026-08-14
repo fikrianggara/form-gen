@@ -9,8 +9,8 @@
 | TKT-009 | feature | medium | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
 | TKT-013 | feature | medium | questionnaire-extras | backlog | null | null | false | Mailblast respondent emails |
 | TKT-002 | feature | medium | respondent-auth | backlog | null | null | false | Email verification and password reset for respondents |
-| TKT-011 | feature | small | admin-polish | backlog | null | null | false | Conditional field disabling in master and option set forms |
-| TKT-010 | feature | small | external-mapping | backlog | null | null | false | Option set nested key extraction from API responses |
+| TKT-011 | feature | small | admin-polish | merged | jarvis | feature-TKT-011-small-wins | false | Conditional field disabling in master and option set forms |
+| TKT-010 | feature | small | external-mapping | merged | jarvis | feature-TKT-011-small-wins | false | Option set nested key extraction from API responses |
 | TKT-012 | feature | small | questionnaire-extras | backlog | null | null | false | Questionnaire sample upload |
-| TKT-003 | bug | small | respondent-auth | done | jarvis | bug-TKT-003-rate-limit-respondent-lo | true | Rate-limit respondent login attempts |
+| TKT-003 | bug | small | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | Rate-limit respondent login attempts |
 | TKT-004 | feature | small | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
