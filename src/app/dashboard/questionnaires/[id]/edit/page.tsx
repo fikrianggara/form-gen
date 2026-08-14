@@ -109,6 +109,9 @@ export default async function EditQuestionnairePage({
         description: questionnaire.description,
         status: questionnaire.status,
         acceptMultipleResponses: questionnaire.acceptMultipleResponses,
+        sampleEmails: Array.isArray(questionnaire.sampleEmails)
+          ? (questionnaire.sampleEmails as string[])
+          : [],
         slug: questionnaire.slug,
       }}
       questions={questions}

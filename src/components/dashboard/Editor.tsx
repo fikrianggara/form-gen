@@ -10,11 +10,13 @@ import {
   updateQuestionMasterVersionAction,
   updateQuestionOptionSetAction,
   removeQuestionAction,
+  sendInvitationsAction,
   reorderQuestionsAction,
   createBlockAction,
   updateBlockAction,
   deleteBlockAction,
   setQuestionBlockAction,
+  reorderBlockAction,
 } from "@/lib/actions/dashboard";
 import type { VisibilityRule, VisibilityRuleSet, VisibilityRuleClause } from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
@@ -30,6 +32,7 @@ interface EditorProps {
     description: string | null;
     status: "DRAFT" | "ACTIVE" | "CLOSED";
     acceptMultipleResponses: boolean;
+    sampleEmails: string[];
     slug: string;
   };
   questions: EditorQuestion[];
@@ -79,6 +82,20 @@ export function Editor({
   const [blockTitle, setBlockTitle] = useState("");
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [blockDraftSets, setBlockDraftSets] = useState<VisibilityRuleSet[]>([]);
+  const moveBlock = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= blocks.length) return;
+    const next = [...blocks];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    run(
+      () =>
+        reorderBlockAction({
+          questionnaireId: q.id,
+          orderedIds: next.map((b) => b.id),
+        }),
+      "Blocks reordered"
+    );
+  };
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -88,6 +105,8 @@ export function Editor({
   const [title, setTitle] = useState(q.title);
   const [description, setDescription] = useState(q.description ?? "");
   const [multiple, setMultiple] = useState(q.acceptMultipleResponses);
+  const [sampleEmails, setSampleEmails] = useState(q.sampleEmails.join("\n"));
+  const [inviteLinks, setInviteLinks] = useState<Array<{ email: string; link: string }> | null>(null);
 
   // Add-question form state
   const [masterId, setMasterId] = useState("");
@@ -277,6 +296,10 @@ export function Editor({
                     title,
                     description: description || null,
                     acceptMultipleResponses: multiple,
+                    sampleEmails: sampleEmails
+                      .split("\n")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
                   }),
                 "Settings saved"
               )
@@ -303,6 +326,66 @@ export function Editor({
             </select>
           </div>
         </div>
+      </Card>
+
+      {/* Sample emails & unique links */}
+      <Card className="p-6">
+        <h2 className="mb-4 font-semibold">Sample emails & unique links</h2>
+        <p className="mb-2 text-xs text-gray-500">
+          One email per line. Generate a unique form link per email and mailblast
+          them. No responses are created until a link is opened and saved.
+        </p>
+        <textarea
+          className={inputClass}
+          rows={4}
+          value={sampleEmails}
+          onChange={(e) => setSampleEmails(e.target.value)}
+          placeholder={"respondent1@example.com\nrespondent2@example.com"}
+        />
+        <div className="mt-3 flex items-center gap-3">
+          <Button
+            variant="secondary"
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                // Persist the list first so the mailblast reads the saved copy.
+                await updateQuestionnaireSettingsAction({
+                  id: q.id,
+                  sampleEmails: sampleEmails
+                    .split("\n")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                });
+                const res = await sendInvitationsAction({ questionnaireId: q.id });
+                if (res.links) setInviteLinks(res.links);
+                return res;
+              }, "Invitation links sent")
+            }
+          >
+            Generate & send links
+          </Button>
+          {inviteLinks && (
+            <span className="text-xs text-gray-500">
+              {inviteLinks.length} link{inviteLinks.length === 1 ? "" : "s"} sent
+            </span>
+          )}
+        </div>
+        {inviteLinks && inviteLinks.length > 0 && (
+          <ul className="mt-4 space-y-1.5">
+            {inviteLinks.map((l) => (
+              <li
+                key={l.email}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm"
+              >
+                <span className="font-medium text-gray-700">{l.email}</span>
+                <code className="break-all text-xs text-indigo-700">
+                  {window.location.origin}
+                  {l.link}
+                </code>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
 
       {/* Add question */}
@@ -450,11 +533,31 @@ export function Editor({
           <p className="text-xs text-gray-400">No blocks yet — questions can be grouped into sections.</p>
         )}
         <div className="space-y-2">
-          {blocks.map((b) => {
+          {blocks.map((b, bIdx) => {
             const isEditing = editingBlockId === b.id;
             return (
               <div key={b.id} className="rounded-lg border border-gray-200 p-3">
                 <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <div className="flex flex-col">
+                    <button
+                      type="button"
+                      disabled={bIdx === 0 || pending}
+                      onClick={() => moveBlock(bIdx, -1)}
+                      className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                      aria-label="Move block up"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      disabled={bIdx === blocks.length - 1 || pending}
+                      onClick={() => moveBlock(bIdx, 1)}
+                      className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
+                      aria-label="Move block down"
+                    >
+                      ▼
+                    </button>
+                  </div>
                   <span className="font-medium text-gray-800">{b.title}</span>
                   {b.entryRule && <Badge tone="indigo">conditional entry</Badge>}
                   <button
