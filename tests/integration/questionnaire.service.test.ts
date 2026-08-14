@@ -229,7 +229,7 @@ describe("questionnaire service", () => {
     };
     const updated = await updateQuestionSettings(qb.id, { visibilityRule: rule });
     expect(updated.visibilityRule).toEqual(rule);
-    const config = await getQuestionnaireConfig(q.slug);
+    const config = (await getQuestionnaireConfig(q.slug))!;
     const qbConfig = config.questions.find((x) => x.id === qb.id);
     expect(qbConfig?.visibilityRule).toEqual(rule);
   });
@@ -386,7 +386,7 @@ describe("version selection and duplication", () => {
       questionMasterId: depMaster.id,
     });
     // A real rule on the parent depending on `dep`.
-    const parentRule = {
+    const parentRule: import("@/domain/types").VisibilityRule = {
       sets: [
         { condition: "ALL", rules: [{ dependsOnQuestionId: dep.id, operator: "EQ", value: "yes" }] },
       ],
