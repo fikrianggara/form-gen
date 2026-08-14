@@ -30,6 +30,20 @@ function startStub(): Promise<void> {
         );
         return;
       }
+      if (req.url === "/nested") {
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(
+          JSON.stringify({
+            data: {
+              items: [
+                { user: { name: "Budi", id: 7 }, attributes: { code: "ID-7" } },
+                { user: { name: "Sari", id: 8 }, attributes: { code: "ID-8" } },
+              ],
+            },
+          })
+        );
+        return;
+      }
       if (req.url === "/raw") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(["one", "two", "three"]));
@@ -100,6 +114,40 @@ describe("option proxy service", () => {
       { label: "one", value: "one" },
       { label: "two", value: "two" },
       { label: "three", value: "three" },
+    ]);
+  });
+
+  it("maps nested keys from API items when configured", async () => {
+    await startStub();
+    const set = await createOptionSet({
+      name: "Nested",
+      source: "EXTERNAL_API",
+      apiUrl: `${baseUrl}/nested`,
+      itemsPath: "data.items",
+      apiLabelKey: "user.name",
+      apiValueKey: "attributes.code",
+    });
+    const result = await getOptionSetOptions(set.id, { fresh: true });
+    expect(result.items).toEqual([
+      { label: "Budi", value: "ID-7" },
+      { label: "Sari", value: "ID-8" },
+    ]);
+  });
+
+  it("falls back to standard keys when nested keys miss", async () => {
+    await startStub();
+    const set = await createOptionSet({
+      name: "NestedFallback",
+      source: "EXTERNAL_API",
+      apiUrl: `${baseUrl}/items`,
+      itemsPath: "data.items",
+      apiLabelKey: "user.name", // absent in /items items
+      apiValueKey: "attributes.code", // absent too
+    });
+    const result = await getOptionSetOptions(set.id, { fresh: true });
+    expect(result.items).toEqual([
+      { label: "Jakarta", value: "JKT" },
+      { label: "Bandung", value: "BDG" },
     ]);
   });
 

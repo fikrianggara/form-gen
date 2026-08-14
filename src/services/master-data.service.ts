@@ -33,6 +33,8 @@ export interface OptionSetInput {
   apiMethod?: string | null;
   apiHeaders?: Record<string, string> | null;
   itemsPath?: string | null;
+  apiLabelKey?: string | null;
+  apiValueKey?: string | null;
   options?: OptionInput[];
 }
 
@@ -217,6 +219,8 @@ export async function createOptionSet(input: OptionSetInput) {
       apiMethod: input.apiMethod ?? "GET",
       apiHeaders: (input.apiHeaders ?? {}) as Prisma.InputJsonValue,
       itemsPath: input.itemsPath ?? null,
+      apiLabelKey: input.apiLabelKey ?? null,
+      apiValueKey: input.apiValueKey ?? null,
       options: {
         create: (input.options ?? []).map((o, i) => ({
           label: o.label.trim(),
@@ -277,6 +281,8 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
         ? (input.apiHeaders ?? {})
         : ((existing.apiHeaders ?? {}) as Record<string, string>),
     itemsPath: input.itemsPath !== undefined ? (input.itemsPath ?? null) : existing.itemsPath,
+    apiLabelKey: input.apiLabelKey !== undefined ? (input.apiLabelKey ?? null) : existing.apiLabelKey,
+    apiValueKey: input.apiValueKey !== undefined ? (input.apiValueKey ?? null) : existing.apiValueKey,
     options: input.options ?? existing.options.map((o) => ({ label: o.label, value: o.value, order: o.order })),
   };
 
@@ -305,6 +311,8 @@ export async function updateOptionSet(id: string, input: Partial<OptionSetInput>
         apiMethod: next.apiMethod,
         apiHeaders: next.apiHeaders as Prisma.InputJsonValue,
         itemsPath: next.itemsPath,
+        apiLabelKey: next.apiLabelKey ?? null,
+        apiValueKey: next.apiValueKey ?? null,
         options: {
           create: next.options.map((o, i) => ({
             label: o.label.trim(),

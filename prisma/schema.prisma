@@ -87,6 +87,9 @@ model OptionSet {
   apiMethod String?      @default("GET")
   apiHeaders Json?       @default("{}")
   itemsPath String?
+  /** Optional dotted keys inside each item for label/value (nested supported). */
+  apiLabelKey String?
+  apiValueKey  String?
   options   Option[]
   questionMasters QuestionMaster[]
   questionnaireQuestions QuestionnaireQuestion[]
