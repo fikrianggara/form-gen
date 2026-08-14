@@ -146,6 +146,21 @@ cmd_done() {
   [[ "$status" == "ongoing" ]] || die "ticket $id is '$status', only ongoing tickets can be finished"
   branch="$(get_field "$f" branch)"
   [[ -n "$branch" ]] || die "ticket $id has no branch — was it started?"
+
+  # Acceptance-criteria check: surface unchecked boxes and template
+  # placeholders so the agent verifies the spec before marking done.
+  local unchecked placeholder
+  unchecked="$(grep -c '^\s*- \[ \]' "$f" || true)"
+  placeholder="$(grep -c 'concrete, testable criteria' "$f" || true)"
+  if [[ "$placeholder" -gt 0 ]]; then
+    echo "WARNING: $id still has TEMPLATE acceptance criteria — replace the"
+    echo "         placeholder with concrete criteria and tick them before done."
+  elif [[ "$unchecked" -gt 0 ]]; then
+    echo "WARNING: $id has $unchecked unchecked acceptance-criteria box(es):"
+    grep '^\s*- \[ \]' "$f" | sed 's/^/         /'
+    echo "         Verify each is implemented and tick them before done."
+  fi
+
   set_field "$f" status done
   set_field "$f" readyToMerge true
   set_field "$f" updated "$(date +%F)"
