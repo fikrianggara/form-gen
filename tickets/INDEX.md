@@ -5,8 +5,8 @@
 | TKT-003 | bug | small | respondent-auth | backlog | null | null | false | Rate-limit respondent login attempts |
 | TKT-004 | feature | small | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
 | TKT-005 | feature | big | proposal | backlog | null | null | false | Survey proposal workflow with optional email verification |
-| TKT-006 | feature | big | rule-engine | ongoing | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
-| TKT-007 | feature | big | rule-engine | backlog | null | null | false | Question blocks with multi entry rules |
+| TKT-006 | feature | big | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
+| TKT-007 | feature | big | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
 | TKT-008 | feature | big | ai-sourcing | backlog | null | null | false | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
 | TKT-009 | feature | medium | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
 | TKT-010 | feature | small | external-mapping | backlog | null | null | false | Option set nested key extraction from API responses |
