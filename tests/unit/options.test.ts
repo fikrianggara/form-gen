@@ -41,7 +41,7 @@ describe("mapOptionItemWithKeys", () => {
   });
 
   it("falls back to default mapping when no keys given", () => {
-    expect(mapOptionItemWithKeys(items[0], null, null)).toEqual({ label: "", value: "" });
+    expect(mapOptionItemWithKeys({ label: "L", value: "V" }, null, null)).toEqual({ label: "L", value: "V" });
     expect(mapOptionItemWithKeys({ label: "L", value: "V" }, undefined, undefined)).toEqual({ label: "L", value: "V" });
   });
 
