@@ -35,7 +35,7 @@ if [[ -z "$done_tickets" ]]; then
   exit 0
 fi
 
-get_field() { grep -m1 "^${2}:" "$1" | sed "s|^${2}: *||" | sed 's/^"//; s/"$//'; }
+get_field() { grep -m1 "^${2}:" "$1" | sed -e "s|^${2}: *||" -e 's| *#.*$||' -e 's|[[:space:]]*$||' | sed 's/^"//; s/"$//'; }
 
 git checkout -q main
 git pull --ff-only >/dev/null 2>&1 || true

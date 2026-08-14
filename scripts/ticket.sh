@@ -15,7 +15,7 @@ cd "$ROOT"
 die() { echo "error: $*" >&2; exit 1; }
 
 get_field() { # file key
-  grep -m1 "^${2}:" "$1" | sed "s|^${2}: *||" | sed 's/^"//; s/"$//'
+  grep -m1 "^${2}:" "$1" | sed -e "s|^${2}: *||" -e 's| *#.*$||' -e 's|[[:space:]]*$||' | sed 's/^"//; s/"$//'
 }
 
 set_field() { # file key value  (value must be single-line, no colons)
