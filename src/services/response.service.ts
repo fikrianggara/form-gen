@@ -314,7 +314,7 @@ export async function createResponseWithState(
     return response;
   });
 
-  return db.response.findUnique({ where: { id: created.id } });
+  return db.response.findUniqueOrThrow({ where: { id: created.id } });
 }
 
 // ------------------------------------------------------------- config

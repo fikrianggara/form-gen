@@ -31,11 +31,19 @@ function getToken(): string {
   return token;
 }
 
-export default function FormRenderer({ slug }: { slug: string }) {
+export default function FormRenderer({
+  slug,
+  invite,
+}: {
+  slug: string;
+  invite?: string | null;
+}) {
   const toast = useToast();
   const [config, setConfig] = useState<QuestionnaireConfig | null>(null);
   const [responseId, setResponseId] = useState<string | null>(null);
   const [status, setStatus] = useState<"DRAFT" | "COMPLETED">("DRAFT");
+  const [respondentToken, setRespondentToken] = useState<string>("");
+  const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [answers, setAnswers] = useState<FlatAnswers>({});
   const [groups, setGroups] = useState<GroupRows>({});
   const [external, setExternal] = useState<ExternalOptions>({});
@@ -49,7 +57,26 @@ export default function FormRenderer({ slug }: { slug: string }) {
     let cancelled = false;
     (async () => {
       try {
-        const token = getToken();
+        // Unique-link flow: validate the invitation and use its token as the
+        // respondent identity; NO response row is created until first save.
+        let token = "";
+        let email: string | null = null;
+        if (invite) {
+          const invRes = await fetch(`/api/invitations/${encodeURIComponent(invite)}`);
+          const invBody = await invRes.json().catch(() => null);
+          if (!invBody?.valid) {
+            if (!cancelled) {
+              setError("This invitation link is invalid or has expired.");
+              toast.error("Invalid link", "This invitation link is invalid or has expired.");
+            }
+            return;
+          }
+          token = invite;
+          email = invBody.email ?? null;
+        } else {
+          token = getToken();
+        }
+
         const configRes = await fetch(`/api/questionnaires/${slug}`);
         if (!configRes.ok) {
           const body = await configRes.json().catch(() => null);
@@ -63,38 +90,51 @@ export default function FormRenderer({ slug }: { slug: string }) {
         const { questionnaire } = await configRes.json();
         if (cancelled) return;
         setConfig(questionnaire);
+        setRespondentToken(token);
+        setInviteEmail(email);
 
-        const created = await fetch(`/api/questionnaires/${slug}/responses`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token }),
-        });
-        if (!created.ok) {
-          const body = await created.json().catch(() => null);
-          const message = body?.error?.message ?? "Could not start a response.";
-          if (!cancelled) {
-            setError(message);
-            toast.error("Could not start response", message);
+        // Anonymous flow keeps its existing behavior: create a blank draft now.
+        if (!invite) {
+          const created = await fetch(`/api/questionnaires/${slug}/responses`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token }),
+          });
+          if (!created.ok) {
+            const body = await created.json().catch(() => null);
+            const message = body?.error?.message ?? "Could not start a response.";
+            if (!cancelled) {
+              setError(message);
+              toast.error("Could not start response", message);
+            }
+            return;
           }
-          return;
-        }
-        const { response } = await created.json();
-        if (cancelled) return;
-        setResponseId(response.id);
-        setStatus(response.status);
+          const { response } = await created.json();
+          if (cancelled) return;
+          setResponseId(response.id);
+          setStatus(response.status);
 
-        if (response.status === "COMPLETED") {
-          setSubmitted(true);
-          return;
+          if (response.status === "COMPLETED") {
+            setSubmitted(true);
+            return;
+          }
         }
 
-        // Prefill saved draft.
+        // Prefill a saved draft (invite flow only resumes after first save).
         const resume = await fetch(
           `/api/questionnaires/${slug}/responses?token=${encodeURIComponent(token)}`
         );
         if (resume.ok) {
           const { response: detail }: { response: ResponseDto | null } = await resume.json();
           if (detail && !cancelled) {
+            if (detail.status === "COMPLETED") {
+              setSubmitted(true);
+              setResponseId(detail.id);
+              setStatus(detail.status);
+              return;
+            }
+            setResponseId(detail.id);
+            setStatus(detail.status);
             applyPrefill(detail, questionnaire, setAnswers, setGroups);
           }
         }
@@ -110,7 +150,7 @@ export default function FormRenderer({ slug }: { slug: string }) {
     return () => {
       cancelled = true;
     };
-  }, [slug, toast]);
+  }, [slug, invite, toast]);
 
   // Fetch external option lists for questions backed by an API option set.
   useEffect(() => {
@@ -206,12 +246,13 @@ export default function FormRenderer({ slug }: { slug: string }) {
 
   const save = useCallback(
     async (complete: boolean) => {
-      if (!config || !responseId) return;
+      if (!config) return;
       setSaving(true);
       setError(null);
       try {
+        const token = respondentToken || getToken();
         const payload = {
-          token: getToken(),
+          token,
           status: complete ? "COMPLETED" : "DRAFT",
           answers: Object.entries(answers)
             .filter(([, v]) => v !== null && v !== undefined)
@@ -226,7 +267,35 @@ export default function FormRenderer({ slug }: { slug: string }) {
                   .map(([questionId, value]) => ({ questionId, value }))
               ),
             })),
+          ...(inviteEmail ? { respondentLabel: inviteEmail } : {}),
         };
+
+        // Unique-link flow, first save: no Response row exists yet — create it
+        // WITH the current form state atomically (never a blank draft).
+        if (!responseId) {
+          const res = await fetch(`/api/questionnaires/${slug}/responses`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const body = await res.json().catch(() => null);
+          if (!res.ok) {
+            const message = body?.error?.message ?? "Could not save your response.";
+            setError(message);
+            toast.error("Could not save", message);
+            return;
+          }
+          setResponseId(body?.response?.id ?? null);
+          setStatus(body?.response?.status ?? "DRAFT");
+          if (complete) {
+            setSubmitted(true);
+            toast.success("Response submitted", "Thank you for completing the questionnaire.");
+          } else {
+            toast.success("Draft saved", "You can continue later from this device.");
+          }
+          return;
+        }
+
         const res = await fetch(`/api/questionnaires/${slug}/responses/${responseId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -253,7 +322,7 @@ export default function FormRenderer({ slug }: { slug: string }) {
         setSaving(false);
       }
     },
-    [config, responseId, answers, groups, slug, toast]
+    [config, responseId, respondentToken, inviteEmail, answers, groups, slug, toast]
   );
 
   if (loading) {

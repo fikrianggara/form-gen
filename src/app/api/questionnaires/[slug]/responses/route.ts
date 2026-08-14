@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { createResponseSchema } from "@/lib/schemas";
+import { saveResponseSchema } from "@/lib/schemas";
 import { jsonOk, jsonError, isValidRespondentToken } from "@/lib/http";
 import { NotFoundError, ValidationError } from "@/lib/errors";
-import { createResponse } from "@/services/response.service";
+import { createResponse, createResponseWithState } from "@/services/response.service";
+import { linkInvitationToResponse } from "@/services/invitation.service";
 
 interface Params {
   params: { slug: string };
@@ -34,10 +35,15 @@ export async function GET(req: NextRequest, { params }: Params) {
   }
 }
 
-/** Create a response for a questionnaire (or resume an existing one). */
+/**
+ * Create a response for a questionnaire.
+ * - Anonymous bootstrap (no state): creates a blank draft (existing behavior).
+ * - Unique-link flow (state present, TKT-001): lazily creates the response AND
+ *   persists the current form state atomically — never a blank row.
+ */
 export async function POST(req: NextRequest, { params }: Params) {
   try {
-    const body = createResponseSchema.safeParse(await req.json());
+    const body = saveResponseSchema.safeParse(await req.json());
     if (!body.success) {
       throw new ValidationError("Invalid request body");
     }
@@ -51,11 +57,35 @@ export async function POST(req: NextRequest, { params }: Params) {
     });
     if (!questionnaire) throw new NotFoundError("Questionnaire not found");
 
-    const response = await createResponse(
-      questionnaire.id,
-      body.data.token,
-      body.data.respondentLabel ?? null
-    );
+    const hasState =
+      (body.data.answers?.length ?? 0) > 0 ||
+      (body.data.groups?.length ?? 0) > 0 ||
+      body.data.status === "COMPLETED";
+
+    let response;
+    if (hasState) {
+      response = await createResponseWithState(
+        questionnaire.id,
+        body.data.token,
+        body.data.respondentLabel ?? null,
+        {
+          status: body.data.status,
+          answers: body.data.answers,
+          groups: body.data.groups,
+          respondentLabel: body.data.respondentLabel,
+        }
+      );
+      if (!response) throw new NotFoundError("Response not created");
+      // Remember which invitation this response came from (best effort).
+      await linkInvitationToResponse(body.data.token, response.id).catch(() => {});
+    } else {
+      response = await createResponse(
+        questionnaire.id,
+        body.data.token,
+        body.data.respondentLabel ?? null
+      );
+      if (!response) throw new NotFoundError("Response not created");
+    }
     return jsonOk(
       { response: { id: response.id, status: response.status, progress: response.progress } },
       201
