@@ -10,6 +10,7 @@ const TABLES = [
   "Option",
   "OptionSet",
   "QuestionMaster",
+  "LoginAttempt",
   "User",
 ] as const;
 
