@@ -12,5 +12,5 @@
 | TKT-011 | feature | small | admin-polish | backlog | null | null | false | Conditional field disabling in master and option set forms |
 | TKT-010 | feature | small | external-mapping | backlog | null | null | false | Option set nested key extraction from API responses |
 | TKT-012 | feature | small | questionnaire-extras | backlog | null | null | false | Questionnaire sample upload |
-| TKT-003 | bug | small | respondent-auth | backlog | null | null | false | Rate-limit respondent login attempts |
+| TKT-003 | bug | small | respondent-auth | done | jarvis | bug-TKT-003-rate-limit-respondent-lo | true | Rate-limit respondent login attempts |
 | TKT-004 | feature | small | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
