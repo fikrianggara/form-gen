@@ -59,8 +59,9 @@ doc_commit() { # message
 # ------------------------------------------------------------------ commands
 
 cmd_new() {
-  local title="$1" type="${2:-feature}"
+  local title="$1" type="${2:-feature}" size="${3:-small}" group="${4:-}"
   [[ "$type" == "feature" || "$type" == "bug" ]] || die "type must be feature|bug"
+  [[ "$size" == "small" || "$size" == "medium" || "$size" == "big" ]] || die "size must be small|medium|big"
   local id next tmp
   id="$(next_id)"
   next="$(date +%F)"
@@ -68,11 +69,13 @@ cmd_new() {
   sed -e "s/^id: TKT-000$/id: $id/" \
       -e "s|^title: .*|title: \"$title\"|" \
       -e "s|^type: .*|type: $type|" \
+      -e "s|^size: .*|size: $size|" \
+      -e "s|^group: .*|group: \"$group\"|" \
       -e "s|^created: .*|created: $next|" \
       -e "s|^updated: .*|updated: $next|" \
       "$TICKETS/TKT-000-template.md" > "$tmp"
   mv "$tmp" "$TICKETS/$id.md"
-  echo "created $id ($type): $title  → tickets/$id.md (status backlog)"
+  echo "created $id ($type/$size${group:+, group '$group'}): $title  → tickets/$id.md (status backlog)"
   cmd_list >/dev/null
 }
 
@@ -83,12 +86,30 @@ cmd_start() {
   status="$(get_field "$f" status)"
   [[ "$status" == "backlog" ]] || die "ticket $id is '$status', only backlog tickets can be started"
   git diff --quiet || die "working tree is dirty — commit or stash before starting a ticket"
-  local title type branch slug db
+  local title type size group branch slug db join_branch
   title="$(get_field "$f" title)"
   type="$(get_field "$f" type)"
+  size="$(get_field "$f" size)"
+  group="$(get_field "$f" group)"
   slug="$(slugify "$title")"
-  branch="${type}-${id}-${slug}"
   db="${TEST_DB_PREFIX}${id#TKT-}"
+  # Group-aware: a ticket in a group joins an ongoing sibling's branch → one group, one branch/run.
+  join_branch=""
+  if [[ -n "$group" ]]; then
+    for g in "$TICKETS"/TKT-*.md; do
+      [[ -f "$g" ]] || continue
+      [[ "$(basename "$g")" == "TKT-000-template.md" || "$g" == "$f" ]] && continue
+      [[ "$(get_field "$g" group)" == "$group" && "$(get_field "$g" status)" == "ongoing" ]] || continue
+      join_branch="$(get_field "$g" branch)"
+      break
+    done
+  fi
+  if [[ -n "$join_branch" ]]; then
+    branch="$join_branch"
+    echo "group '$group': joining ongoing sibling branch $branch (one group = one branch)"
+  else
+    branch="${type}-${id}-${slug}"
+  fi
   # 1. Flag ongoing on main (visible to all agents)
   git checkout -q main
   set_field "$f" status ongoing
@@ -96,8 +117,12 @@ cmd_start() {
   set_field "$f" branch "$branch"
   set_field "$f" updated "$(date +%F)"
   doc_commit "tkt: mark $id ongoing (branch $branch)"
-  # 2. Create the branch
-  git checkout -q -b "$branch"
+  # 2. Create the branch (or join the group's ongoing branch)
+  if [[ -n "$join_branch" ]]; then
+    git checkout -q "$branch"
+  else
+    git checkout -q -b "$branch"
+  fi
   # 3. Provision the per-ticket test DB
   cmd_db_create "$id"
   echo "started $id → branch $branch | test DB $db | status ongoing"
@@ -133,26 +158,28 @@ cmd_done() {
 cmd_status() {
   local f
   f="$(ticket_file "$1")"
-  sed -n '1,/^---$/p' "$f" | grep -E '^(id|title|type|status|assignee|branch|readyToMerge|created|updated):'
+  sed -n '1,/^---$/p' "$f" | grep -E '^(id|title|type|size|group|status|assignee|branch|readyToMerge|created|updated):'
 }
 
 cmd_list() {
   local out
-  out="| id | type | status | assignee | branch | ready | title |
-|---|-----|--------|----------|--------|-------|-------|
+  out="| id | type | size | group | status | assignee | branch | ready | title |
+|---|-----|------|-------|--------|----------|--------|-------|-------|
 "
   while IFS= read -r f; do
     [[ -f "$f" ]] || continue
     [[ "$(basename "$f")" == "TKT-000-template.md" ]] && continue
-    local id title type status assignee branch ready
+    local id title type size group status assignee branch ready
     id="$(get_field "$f" id)"
     title="$(get_field "$f" title)"
     type="$(get_field "$f" type)"
+    size="$(get_field "$f" size)"
+    group="$(get_field "$f" group)"
     status="$(get_field "$f" status)"
     assignee="$(get_field "$f" assignee)"
     branch="$(get_field "$f" branch)"
     ready="$(get_field "$f" readyToMerge)"
-    out+="| $id | $type | $status | ${assignee:-—} | ${branch:-—} | $ready | $title |
+    out+="| $id | $type | ${size:-—} | ${group:-—} | $status | ${assignee:-—} | ${branch:-—} | $ready | $title |
 "
   done < <(ls "$TICKETS"/TKT-*.md 2>/dev/null | sort -t- -k2 -n)
   printf '%s' "$out" > "$TICKETS/INDEX.md"
@@ -184,7 +211,7 @@ cmd_db_drop() {
 # ------------------------------------------------------------------ dispatch
 
 case "${1:-}" in
-  new)       [[ $# -ge 2 ]] || die "usage: ticket.sh new \"<title>\" [bug]"; cmd_new "$2" "${3:-feature}" ;;
+  new)       [[ $# -ge 2 ]] || die "usage: ticket.sh new \"<title>\" [bug] [size] [group]"; cmd_new "$2" "${3:-feature}" "${4:-small}" "${5:-}" ;;
   start)     [[ $# -eq 2 ]] || die "usage: ticket.sh start TKT-###"; cmd_start "$2" ;;
   done)      [[ $# -ge 3 ]] || die "usage: ticket.sh done TKT-### \"<summary>\""; cmd_done "$2" "$3" ;;
   status)    cmd_status "$2" ;;
@@ -194,7 +221,8 @@ case "${1:-}" in
   *) cat <<'EOF'
 usage: scripts/ticket.sh <command> [args]
 
-  new "<title>" [bug]       create a backlog ticket (next id)
+  new "<title>" [bug] [size] [group]
+                            create a backlog ticket (next id); size small|medium|big, group joins a shared branch
   start TKT-###             flag ongoing, create branch, provision test DB
   done TKT-### "<summary>"  flag done + readyToMerge + append notes
   status TKT-###            print ticket frontmatter
