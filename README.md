@@ -100,6 +100,9 @@ npm run dev                 # http://localhost:3000
 | `npm run typecheck`        | `tsc --noEmit`                                 |
 | `npm run db:migrate`       | Apply migrations (dev)                         |
 | `npm run db:seed`          | Seed demo data (idempotent)                    |
+| `npm run db:embed`         | Backfill question-master embeddings            |
+| `scripts/ticket.sh`        | Ticket lifecycle (`new \| start \| done \| status \| list \| db-create \| db-drop`) |
+| `scripts/merge-tickets.sh` | Merge finished ticket branches into `main`     |
 
 ## Project layout
 
