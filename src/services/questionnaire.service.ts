@@ -263,7 +263,16 @@ export async function addQuestion(input: AddQuestionInput) {
   };
 
   try {
-    return await db.questionnaireQuestion.create({ data });
+    return await db.questionnaireQuestion.create({
+      data,
+      // Include relations so the editor can render the new question
+      // immediately (TKT-015) without a page reload.
+      include: {
+        questionMaster: {
+          include: { optionSet: { select: { id: true, name: true } } },
+        },
+      },
+    });
   } catch (err) {
     if (isUniqueViolation(err)) {
       throw new AppError(

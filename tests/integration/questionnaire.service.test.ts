@@ -125,6 +125,19 @@ describe("questionnaire service", () => {
     expect(qq2.order).toBe(2);
   });
 
+  it("returns the created question with master relations so the editor can render it without a reload (TKT-015)", async () => {
+    const q = await createQuestionnaire({ title: "Q", slug: "qq-render" });
+    const m = await makeTextMaster("q_render");
+    const created = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id, required: true });
+
+    expect(created.id).toBeTruthy();
+    expect(created.questionMaster).toBeDefined();
+    expect(created.questionMaster.code).toBe("q_render");
+    expect(created.questionMaster.title).toBe("Text");
+    expect(created.questionMaster.questionType).toBe("TEXT");
+    expect(created.questionMaster.optionSet).toBeDefined();
+  });
+
   it("rejects adding the same master twice in the same group", async () => {
     const q = await createQuestionnaire({ title: "Q", slug: "qq2" });
     const m = await makeTextMaster("q_dup_m");

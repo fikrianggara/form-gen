@@ -18,7 +18,12 @@ import {
   setQuestionBlockAction,
   reorderBlockAction,
 } from "@/lib/actions/dashboard";
-import type { VisibilityRule, VisibilityRuleSet, VisibilityRuleClause } from "@/domain/types";
+import type {
+  AggregateConfig,
+  VisibilityRule,
+  VisibilityRuleSet,
+  VisibilityRuleClause,
+} from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
@@ -67,6 +72,36 @@ interface EditorProps {
 const OPERATORS = ["EQ", "NEQ", "GT", "GTE", "LT", "LTE", "CONTAINS", "ANY_OF", "NONE_OF"];
 
 const CHOICE_TYPES = ["RADIO", "CHECKBOX", "SELECT"];
+
+type CreatedQuestion = NonNullable<Awaited<ReturnType<typeof addQuestionAction>>["question"]>;
+
+/** Map an addQuestion result to the EditorQuestion shape for local state. */
+function toEditorQuestion(q: CreatedQuestion): EditorQuestion {
+  return {
+    id: q.id,
+    order: q.order,
+    required: q.required,
+    isRepeatable: q.isRepeatable,
+    isAggregate: q.isAggregate,
+    parentId: q.parentId,
+    visibilityRule: (q.visibilityRule as VisibilityRule | null) ?? null,
+    aggregateConfig: (q.aggregateConfig as AggregateConfig | null) ?? null,
+    aiSuggested: q.aiSuggested,
+    aiConfidence: q.aiConfidence,
+    aiLowConfidence: q.aiLowConfidence,
+    optionSetId: q.optionSetId,
+    blockId: q.blockId,
+    questionMaster: {
+      id: q.questionMaster.id,
+      code: q.questionMaster.code,
+      title: q.questionMaster.title,
+      description: q.questionMaster.description,
+      questionType: q.questionMaster.questionType,
+    },
+    masterOptionSetName: q.questionMaster.optionSet?.name ?? null,
+    children: [],
+  };
+}
 
 export function Editor({
   questionnaire: q,
@@ -487,7 +522,18 @@ export function Editor({
                   parentId: parentId || null,
                   optionSetId: optionSetVersionId || null,
                 });
-                if (!res?.error) {
+                if (!res?.error && res?.question) {
+                  const added = toEditorQuestion(res.question);
+                  if (added.parentId) {
+                    // Child question: append into the repeatable parent's children.
+                    setItems((prev) =>
+                      prev.map((t) =>
+                        t.id === added.parentId ? { ...t, children: [...t.children, added] } : t
+                      )
+                    );
+                  } else {
+                    setItems((prev) => [...prev, added]);
+                  }
                   setMasterId("");
                   setMasterVersionId("");
                   setOptionSetVersionId("");
@@ -682,11 +728,16 @@ export function Editor({
                 },
               }}
               onMove={(dir) => move(index, dir)}
-              onToggleRequired={(val) =>
+              onToggleRequired={(val) => {
+                // Update local state immediately so the UI reflects the change
+                // (TKT-015); the server action persists in the background.
+                setItems((prev) =>
+                  prev.map((t) => (t.id === item.id ? { ...t, required: val } : t))
+                );
                 run(() =>
                   updateQuestionSettingsAction({ questionId: item.id, questionnaireId: q.id, required: val })
-                )
-              }
+                );
+              }}
               onMasterVersionChange={(questionId, masterVersionId) =>
                 run(
                   () =>
@@ -796,11 +847,24 @@ export function Editor({
                       },
                     }}
                     onMove={() => undefined}
-                    onToggleRequired={(val) =>
+                    onToggleRequired={(val) => {
+                      // Update local state immediately (TKT-015); persist in the background.
+                      setItems((prev) =>
+                        prev.map((t) =>
+                          t.id === item.id
+                            ? {
+                                ...t,
+                                children: t.children.map((c) =>
+                                  c.id === child.id ? { ...c, required: val } : c
+                                ),
+                              }
+                            : t
+                        )
+                      );
                       run(() =>
                         updateQuestionSettingsAction({ questionId: child.id, questionnaireId: q.id, required: val })
-                      )
-                    }
+                      );
+                    }}
                     onMasterVersionChange={(questionId, masterVersionId) =>
                       run(
                         () =>

@@ -127,15 +127,15 @@ export async function addQuestionAction(input: {
   aggregateConfig?: AggregateConfig | null;
   parentId?: string | null;
   optionSetId?: string | null;
-}): Promise<{ error?: string }> {
+}): Promise<{ error?: string; question?: Awaited<ReturnType<typeof addQuestion>> }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
-    await addQuestion(input);
+    const question = await addQuestion(input);
+    revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+    return { question };
   } catch (err) {
     return actionError(err);
   }
-  revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
-  return {};
 }
 
 export async function updateQuestionMasterVersionAction(input: {
