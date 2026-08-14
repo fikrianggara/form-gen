@@ -115,18 +115,20 @@ export async function getResponseDetail(responseId: string) {
 
 // ------------------------------------------------------------ save logic
 
-export async function saveResponse(responseId: string, input: SaveResponseInput) {
-  const response = await db.response.findUnique({ where: { id: responseId } });
-  if (!response) throw new NotFoundError("Response not found");
-  if (response.status === "COMPLETED") {
-    throw new AppError(
-      "This response is already completed and can no longer be edited",
-      409,
-      "RESPONSE_COMPLETED"
-    );
-  }
+interface SavePlan {
+  meta: QuestionMeta[];
+  metaMap: Map<string, QuestionMeta>;
+  flatAnswers: Record<string, AnswerValue>;
+  groupRows: Map<string, Array<Array<AnswerInput>>>;
+  visibleIds: Set<string>;
+  computed: Array<{ questionId: string; value: number }>;
+  progress: number;
+  completed: boolean;
+}
 
-  const tree = await getQuestionnaireWithQuestions(response.questionnaireId);
+/** Validate + compute everything needed to persist a save (no writes). */
+async function buildSavePlan(questionnaireId: string, input: SaveResponseInput): Promise<SavePlan> {
+  const tree = await getQuestionnaireWithQuestions(questionnaireId);
   if (!tree) throw new NotFoundError("Questionnaire not found");
   assertActive(tree);
 
@@ -187,61 +189,132 @@ export async function saveResponse(responseId: string, input: SaveResponseInput)
     answeredSet
   );
 
-  const completed = input.status === "COMPLETED";
-  await db.$transaction(async (tx) => {
-    await tx.answer.deleteMany({ where: { responseId } });
-    await tx.answerGroup.deleteMany({ where: { responseId } });
+  return {
+    meta,
+    metaMap,
+    flatAnswers,
+    groupRows,
+    visibleIds,
+    computed,
+    progress,
+    completed: input.status === "COMPLETED",
+  };
+}
 
-    for (const [parentId, rows] of groupRows) {
-      for (let i = 0; i < rows.length; i++) {
-        const group = await tx.answerGroup.create({
-          data: {
-            responseId,
-            parentQuestionId: parentId,
-            rowIndex: i,
-          },
+type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+
+/** Write answers + status/progress for a response inside an existing transaction. */
+async function writePlan(
+  tx: Tx,
+  responseId: string,
+  input: SaveResponseInput,
+  plan: SavePlan
+): Promise<void> {
+  const { metaMap, groupRows, computed, progress, completed } = plan;
+
+  await tx.answer.deleteMany({ where: { responseId } });
+  await tx.answerGroup.deleteMany({ where: { responseId } });
+
+  for (const [parentId, rows] of groupRows) {
+    for (let i = 0; i < rows.length; i++) {
+      const group = await tx.answerGroup.create({
+        data: {
+          responseId,
+          parentQuestionId: parentId,
+          rowIndex: i,
+        },
+      });
+      for (const row of rows[i]) {
+        if (row.value === null || row.value === undefined) continue;
+        const data = valueToColumns(metaMap.get(row.questionId)?.questionType ?? "TEXT", row.value);
+        if (data === null) continue;
+        await tx.answer.create({
+          data: { responseId, questionId: row.questionId, answerGroupId: group.id, ...data },
         });
-        for (const row of rows[i]) {
-          if (row.value === null || row.value === undefined) continue;
-          const data = valueToColumns(metaMap.get(row.questionId)?.questionType ?? "TEXT", row.value);
-          if (data === null) continue;
-          await tx.answer.create({
-            data: { responseId, questionId: row.questionId, answerGroupId: group.id, ...data },
-          });
-        }
       }
     }
+  }
 
-    for (const a of input.answers ?? []) {
-      if (a.value === null || a.value === undefined) continue;
-      const type = metaMap.get(a.questionId)?.questionType ?? "TEXT";
-      const data = valueToColumns(type, a.value);
-      if (data === null) continue;
-      await tx.answer.create({
-        data: { responseId, questionId: a.questionId, ...data },
-      });
-    }
-
-    for (const c of computed) {
-      await tx.answer.create({
-        data: { responseId, questionId: c.questionId, numberValue: c.value, isComputed: true },
-      });
-    }
-
-    await tx.response.update({
-      where: { id: responseId },
-      data: {
-        status: completed ? "COMPLETED" : "DRAFT",
-        progress,
-        completedAt: completed ? new Date() : null,
-        ...(input.respondentLabel !== undefined
-          ? { respondentLabel: input.respondentLabel ?? null }
-          : {}),
-      },
+  for (const a of input.answers ?? []) {
+    if (a.value === null || a.value === undefined) continue;
+    const type = metaMap.get(a.questionId)?.questionType ?? "TEXT";
+    const data = valueToColumns(type, a.value);
+    if (data === null) continue;
+    await tx.answer.create({
+      data: { responseId, questionId: a.questionId, ...data },
     });
+  }
+
+  for (const c of computed) {
+    await tx.answer.create({
+      data: { responseId, questionId: c.questionId, numberValue: c.value, isComputed: true },
+    });
+  }
+
+  await tx.response.update({
+    where: { id: responseId },
+    data: {
+      status: completed ? "COMPLETED" : "DRAFT",
+      progress,
+      completedAt: completed ? new Date() : null,
+      ...(input.respondentLabel !== undefined
+        ? { respondentLabel: input.respondentLabel ?? null }
+        : {}),
+    },
+  });
+}
+
+export async function saveResponse(responseId: string, input: SaveResponseInput) {
+  const response = await db.response.findUnique({ where: { id: responseId } });
+  if (!response) throw new NotFoundError("Response not found");
+  if (response.status === "COMPLETED") {
+    throw new AppError(
+      "This response is already completed and can no longer be edited",
+      409,
+      "RESPONSE_COMPLETED"
+    );
+  }
+
+  const plan = await buildSavePlan(response.questionnaireId, input);
+  await db.$transaction(async (tx) => {
+    await writePlan(tx, responseId, input, plan);
   });
 
   return db.response.findUnique({ where: { id: responseId } });
+}
+
+/**
+ * TKT-001: lazily create a response ON FIRST SAVE, persisting the CURRENT
+ * form state atomically (never a blank row). Used by the unique-link flow
+ * where no Response exists until the respondent saves a draft or completes.
+ */
+export async function createResponseWithState(
+  questionnaireId: string,
+  respondentToken: string,
+  respondentLabel: string | null | undefined,
+  input: SaveResponseInput
+) {
+  const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
+  if (!q) throw new NotFoundError("Questionnaire not found");
+  assertActive(q);
+
+  const plan = await buildSavePlan(questionnaireId, input);
+
+  const created = await db.$transaction(async (tx) => {
+    const response = await tx.response.create({
+      data: {
+        questionnaireId,
+        respondentToken,
+        respondentLabel: respondentLabel ?? null,
+        status: "DRAFT",
+        progress: 0,
+      },
+    });
+    await writePlan(tx, response.id, input, plan);
+    return response;
+  });
+
+  return db.response.findUnique({ where: { id: created.id } });
 }
 
 // ------------------------------------------------------------- config
