@@ -163,12 +163,19 @@ export default function FormRenderer({ slug }: { slug: string }) {
     }));
   }, []);
 
-  // Visibility: evaluate top-level rules; children inherit the parent.
+  // Visibility: a question is visible when its block's entry rule passes
+  // (if it belongs to a block) AND its own rule passes; children inherit the
+  // parent's visibility.
   const visible = useMemo(() => {
     if (!config) return new Set<string>();
+    const blockVisible = new Set<string>();
+    for (const b of config.blocks ?? []) {
+      if (evaluateVisibility(b.entryRule, answers)) blockVisible.add(b.id);
+    }
     const set = new Set<string>();
     for (const q of config.questions) {
       if (q.parentId) continue;
+      if (q.blockId && !blockVisible.has(q.blockId)) continue;
       if (evaluateVisibility(q.visibilityRule, answers)) {
         set.add(q.id);
         for (const child of config.questions.filter((c) => c.parentId === q.id)) {
@@ -303,24 +310,46 @@ export default function FormRenderer({ slug }: { slug: string }) {
         }}
         className="space-y-4"
       >
-        {topLevel.map((q) => (
-          <QuestionBlock
-            key={q.id}
-            question={q}
-            visible={visible.has(q.id)}
-            value={answers[q.id] ?? null}
-            groupRows={groups[q.id] ?? []}
-            optionsFor={optionsFor}
-            onAnswer={(v) => setAnswer(q.id, v)}
-            onRowAnswer={(row, childId, v) => setRowAnswer(q.id, row, childId, v)}
-            onAddRow={() => addRow(q.id)}
-            onRemoveRow={(row) => removeRow(q.id, row)}
-            childrenOf={
-              q.isRepeatable ? config.questions.filter((c) => c.parentId === q.id) : []
+        {(() => {
+          const els: React.ReactNode[] = [];
+          let lastBlock: string | null = null;
+          for (const q of topLevel) {
+            const block = (config.blocks ?? []).find((b) => b.id === q.blockId);
+            if (block && q.blockId !== lastBlock) {
+              els.push(
+                <div
+                  key={`block-${block.id}`}
+                  className="rounded-xl border border-indigo-100 bg-indigo-50/60 px-4 py-3"
+                >
+                  <h3 className="font-semibold text-indigo-900">{block.title}</h3>
+                  {block.entryRule && (
+                    <p className="mt-0.5 text-xs text-indigo-600">This section appears conditionally.</p>
+                  )}
+                </div>
+              );
             }
-            aggregateValue={aggregateDisplay(q, config, answers, groups)}
-          />
-        ))}
+            lastBlock = q.blockId ?? null;
+            els.push(
+              <QuestionBlock
+                key={q.id}
+                question={q}
+                visible={visible.has(q.id)}
+                value={answers[q.id] ?? null}
+                groupRows={groups[q.id] ?? []}
+                optionsFor={optionsFor}
+                onAnswer={(v) => setAnswer(q.id, v)}
+                onRowAnswer={(row, childId, v) => setRowAnswer(q.id, row, childId, v)}
+                onAddRow={() => addRow(q.id)}
+                onRemoveRow={(row) => removeRow(q.id, row)}
+                childrenOf={
+                  q.isRepeatable ? config.questions.filter((c) => c.parentId === q.id) : []
+                }
+                aggregateValue={aggregateDisplay(q, config, answers, groups)}
+              />
+            );
+          }
+          return els;
+        })()}
 
         {error && (
           <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>

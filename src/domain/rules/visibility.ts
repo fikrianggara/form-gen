@@ -77,6 +77,8 @@ export function isRuleSatisfied(rule: VisibilityRuleClause, answer: AnswerValue)
 /**
  * Evaluate a full visibility rule against a map of questionId -> answer.
  * `null` / `undefined` rule means the question is always visible.
+ * Multi-set shape: visible when ANY set passes (sets combine with OR).
+ * Legacy single-set shape: visible per its condition.
  * Unknown dependency questions are treated as unanswered (rule unsatisfied),
  * which keeps behaviour safe when a questionnaire is edited mid-flight.
  */
@@ -84,15 +86,30 @@ export function evaluateVisibility(
   rule: VisibilityRule | null | undefined,
   answers: Record<string, AnswerValue>
 ): boolean {
-  if (!rule || !Array.isArray(rule.rules)) {
-    return true;
+  if (!rule) return true;
+  // Multi-set shape takes precedence when present.
+  if (Array.isArray(rule.sets)) {
+    if (rule.sets.length === 0) return true;
+    return rule.sets.some((set) => evaluateSet(set, answers));
   }
-  if (rule.rules.length === 0) {
+  // Legacy shape: a single set.
+  if (!Array.isArray(rule.rules)) return true;
+  return evaluateSet(
+    { condition: rule.condition ?? "ALL", rules: rule.rules },
+    answers
+  );
+}
+
+function evaluateSet(
+  set: { condition: "ALL" | "ANY"; rules: VisibilityRuleClause[] },
+  answers: Record<string, AnswerValue>
+): boolean {
+  if (set.rules.length === 0) {
     // Vacuous truth for ALL; a non-empty requirement for ANY.
-    return rule.condition === "ALL";
+    return set.condition === "ALL";
   }
-  const results = rule.rules.map((clause) =>
+  const results = set.rules.map((clause) =>
     isRuleSatisfied(clause, answers[clause.dependsOnQuestionId] ?? null)
   );
-  return rule.condition === "ANY" ? results.some(Boolean) : results.every(Boolean);
+  return set.condition === "ANY" ? results.some(Boolean) : results.every(Boolean);
 }

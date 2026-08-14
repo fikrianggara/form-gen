@@ -23,6 +23,7 @@ export interface EditorQuestion {
   aiConfidence: number | null;
   aiLowConfidence: boolean;
   optionSetId: string | null;
+  blockId: string | null;
   questionMaster: {
     id: string;
     code: string;
@@ -65,6 +66,7 @@ export default async function EditQuestionnairePage({
       aiConfidence: q.aiConfidence,
       aiLowConfidence: q.aiLowConfidence,
       optionSetId: q.optionSetId,
+      blockId: q.blockId,
       questionMaster: {
         id: q.questionMaster.id,
         code: q.questionMaster.code,
@@ -86,6 +88,7 @@ export default async function EditQuestionnairePage({
         aiConfidence: c.aiConfidence,
         aiLowConfidence: c.aiLowConfidence,
         optionSetId: c.optionSetId,
+        blockId: c.blockId,
         questionMaster: {
           id: c.questionMaster.id,
           code: c.questionMaster.code,
@@ -109,6 +112,12 @@ export default async function EditQuestionnairePage({
         slug: questionnaire.slug,
       }}
       questions={questions}
+      blocks={(questionnaire.blocks ?? []).map((b) => ({
+        id: b.id,
+        title: b.title,
+        order: b.order,
+        entryRule: b.entryRule as VisibilityRule | null,
+      }))}
       masters={masters.map((m) => ({
         id: m.id,
         code: m.code,

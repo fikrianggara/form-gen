@@ -17,6 +17,10 @@ import {
   updateQuestionMasterVersion,
   updateQuestionOptionSet,
   duplicateQuestionnaire,
+  createBlock,
+  updateBlock,
+  deleteBlock,
+  setQuestionBlock,
 } from "@/services/questionnaire.service";
 import {
   createQuestionMaster,
@@ -358,6 +362,67 @@ export async function resetPasswordAction(input: {
   }
   revalidatePath("/admin/users");
   return {};
+}
+
+// ------------------------------------------------------------------ blocks
+
+export async function createBlockAction(input: {
+  questionnaireId: string;
+  title: string;
+}): Promise<{ error?: string; blockId?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const block = await createBlock(input.questionnaireId, input.title);
+    revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+    return { blockId: block.id };
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function updateBlockAction(input: {
+  blockId: string;
+  questionnaireId: string;
+  title?: string;
+  entryRule?: VisibilityRule | null;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await updateBlock(input.blockId, { title: input.title, entryRule: input.entryRule });
+    revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+    return {};
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function deleteBlockAction(input: {
+  blockId: string;
+  questionnaireId: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await deleteBlock(input.blockId);
+    revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+    return {};
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function setQuestionBlockAction(input: {
+  questionId: string;
+  questionnaireId: string;
+  blockId: string | null;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await setQuestionBlock(input.questionId, input.blockId);
+    revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+    return {};
+  } catch (err) {
+    return actionError(err);
+  }
 }
 
 // -------------------------------------------------------------------- RAG

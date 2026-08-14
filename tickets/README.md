@@ -46,7 +46,7 @@ instruction from the owner).
 ## CLI reference
 
 ```bash
-scripts/ticket.sh new "<title>" [bug]      # create backlog ticket (next id)
+scripts/ticket.sh new "<title>" [bug] [size] [group]  # create backlog ticket (next id)
 scripts/ticket.sh start TKT-###            # flag ongoing, branch, test DB
 scripts/ticket.sh done TKT-### "<summary>" # flag done + readyToMerge + notes
 scripts/ticket.sh status TKT-###           # print ticket frontmatter
@@ -55,6 +55,32 @@ scripts/ticket.sh db-create TKT-###        # create + migrate ticket test DB
 scripts/ticket.sh db-drop TKT-###          # drop ticket test DB
 scripts/merge-tickets.sh [--force] [--push]# merge done branches into main
 ```
+
+## Ticket size & group
+
+Every ticket carries a **size** and a **group** in its frontmatter:
+
+- `size`: `small | medium | big` — an estimate of implementation effort, decided
+  when the ticket is analyzed/backlogged. INDEX.md shows it so anyone picking
+  work can see the weight at a glance.
+- `group`: an epic/branch group. Tickets in the same group are **worked on the
+  same branch** — the shared branch is created when the first ticket of the
+  group is started, and `start` on a later ticket of the same group **joins the
+  ongoing branch** instead of creating a new one (one group = one branch/run,
+  one merge). A ticket with no group gets its own branch as before.
+
+Groups in this project (see the `group` field per ticket):
+
+| group | tickets | theme |
+|-------|---------|-------|
+| respondent-auth | TKT-001..003 | accounts, verification, rate limit |
+| rule-engine | TKT-006..007 | visibility engine + question blocks |
+| external-mapping | TKT-009..010 | MSSD remapping, option keys |
+| questionnaire-extras | TKT-012..013 | sample upload, mailblast |
+| proposal | TKT-005 | survey proposal workflow |
+| ai-sourcing | TKT-008 | AI generation round 2 |
+| admin-polish | TKT-011 | conditional field disabling |
+| org-scoping | TKT-014 | organization scoping |
 
 ## Ticket file format
 

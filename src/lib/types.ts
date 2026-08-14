@@ -8,6 +8,12 @@ export interface QuestionnaireConfig {
   slug: string;
   status: "DRAFT" | "ACTIVE" | "CLOSED";
   acceptMultipleResponses: boolean;
+  blocks: Array<{
+    id: string;
+    title: string;
+    order: number;
+    entryRule: VisibilityRule | null;
+  }>;
   questions: ConfigQuestion[];
 }
 
@@ -20,6 +26,7 @@ export interface ConfigQuestion {
   aggregateConfig: AggregateConfig | null;
   visibilityRule: VisibilityRule | null;
   parentId: string | null;
+  blockId: string | null;
   questionMaster: {
     id: string;
     code: string;

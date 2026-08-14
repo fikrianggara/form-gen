@@ -22,9 +22,27 @@ export interface VisibilityRuleClause {
   value: string | number | string[];
 }
 
-export interface VisibilityRule {
+/**
+ * One rule set: clauses combined with `condition` (ALL = every clause, ANY = at
+ * least one). Multiple sets combine with OR (question visible if ANY set
+ * passes).
+ */
+export interface VisibilityRuleSet {
   condition: "ALL" | "ANY";
   rules: VisibilityRuleClause[];
+}
+
+/**
+ * Visibility rule.
+ * - Legacy shape: `{ condition, rules }` — a single set.
+ * - Multi-set shape: `{ sets: VisibilityRuleSet[] }` — OR between sets.
+ * The evaluator prefers `sets` when present; `condition`/`rules` are kept for
+ * backward compatibility with existing stored rules.
+ */
+export interface VisibilityRule {
+  condition?: "ALL" | "ANY";
+  rules?: VisibilityRuleClause[];
+  sets?: VisibilityRuleSet[];
 }
 
 export interface AggregateConfig {

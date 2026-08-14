@@ -2,6 +2,87 @@ import { describe, it, expect } from "vitest";
 import { evaluateVisibility, isRuleSatisfied } from "@/domain/rules/visibility";
 import type { VisibilityRule, AnswerValue } from "@/domain/types";
 
+describe("evaluateVisibility — legacy single-set shape", () => {
+  it("returns true for a null rule", () => {
+    expect(evaluateVisibility(null, {})).toBe(true);
+  });
+
+  it("ALL requires every clause", () => {
+    const rule: VisibilityRule = {
+      condition: "ALL",
+      rules: [
+        { operator: "EQ", value: "yes", dependsOnQuestionId: "a" },
+        { operator: "EQ", value: "yes", dependsOnQuestionId: "b" },
+      ],
+    };
+    expect(evaluateVisibility(rule, { a: "yes", b: "yes" })).toBe(true);
+    expect(evaluateVisibility(rule, { a: "yes", b: "no" })).toBe(false);
+  });
+
+  it("ANY requires at least one clause", () => {
+    const rule: VisibilityRule = {
+      condition: "ANY",
+      rules: [
+        { operator: "EQ", value: "yes", dependsOnQuestionId: "a" },
+        { operator: "EQ", value: "yes", dependsOnQuestionId: "b" },
+      ],
+    };
+    expect(evaluateVisibility(rule, { a: "no", b: "yes" })).toBe(true);
+    expect(evaluateVisibility(rule, { a: "no", b: "no" })).toBe(false);
+  });
+});
+
+describe("evaluateVisibility — multi-set shape (OR between sets)", () => {
+  it("is visible when ANY set passes", () => {
+    const rule: VisibilityRule = {
+      sets: [
+        { condition: "ALL", rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: "a" }] },
+        { condition: "ALL", rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: "b" }] },
+      ],
+    };
+    expect(evaluateVisibility(rule, { a: "no", b: "yes" })).toBe(true);
+    expect(evaluateVisibility(rule, { a: "yes", b: "no" })).toBe(true);
+    expect(evaluateVisibility(rule, { a: "no", b: "no" })).toBe(false);
+  });
+
+  it("supports mixed ALL/ANY conditions inside sets", () => {
+    const rule: VisibilityRule = {
+      sets: [
+        {
+          condition: "ALL",
+          rules: [
+            { operator: "EQ", value: "yes", dependsOnQuestionId: "a" },
+            { operator: "EQ", value: "yes", dependsOnQuestionId: "b" },
+          ],
+        },
+        { condition: "ANY", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: "c" }] },
+      ],
+    };
+    expect(evaluateVisibility(rule, { a: "yes", b: "yes", c: "zzz" })).toBe(true);
+    expect(evaluateVisibility(rule, { a: "yes", b: "no", c: "x" })).toBe(true);
+    expect(evaluateVisibility(rule, { a: "yes", b: "no", c: "zzz" })).toBe(false);
+  });
+
+  it("an empty sets array means always visible", () => {
+    expect(evaluateVisibility({ sets: [] }, {})).toBe(true);
+  });
+
+  it("empty set semantics: ALL is vacuous true, ANY is false", () => {
+    expect(evaluateVisibility({ sets: [{ condition: "ALL", rules: [] }] }, {})).toBe(true);
+    expect(evaluateVisibility({ sets: [{ condition: "ANY", rules: [] }] }, {})).toBe(false);
+  });
+
+  it("prefers the multi-set shape when both are present", () => {
+    const rule: VisibilityRule = {
+      condition: "ANY",
+      rules: [{ operator: "EQ", value: "legacy", dependsOnQuestionId: "a" }],
+      sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "new", dependsOnQuestionId: "b" }] }],
+    };
+    expect(evaluateVisibility(rule, { a: "legacy", b: "zzz" })).toBe(false);
+    expect(evaluateVisibility(rule, { b: "new" })).toBe(true);
+  });
+});
+
 describe("isRuleSatisfied", () => {
   it("EQ matches an equal string value", () => {
     expect(
