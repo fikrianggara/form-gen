@@ -135,8 +135,9 @@ cmd_start() {
 
 cmd_done() {
   local id="$1" summary="${2:-}"
-  [[ -n "$summary" ]] || die "usage: ticket.sh done TKT-### \"<summary of changes>\""
-  local f status branch prev
+  [[ -n "$summary" ]] || die "usage: ticket.sh done TKT-### \"<summary of changes>\" [--force]"
+  local f status branch prev unchecked placeholder force=0
+  [[ "${3:-}" == "--force" ]] && force=1
   git diff --quiet || die "working tree is dirty — commit or stash before finishing"
   # Status lives on main — read and update it there (branch copies go stale).
   prev="$(git branch --show-current)"
@@ -147,18 +148,21 @@ cmd_done() {
   branch="$(get_field "$f" branch)"
   [[ -n "$branch" ]] || die "ticket $id has no branch — was it started?"
 
-  # Acceptance-criteria check: surface unchecked boxes and template
-  # placeholders so the agent verifies the spec before marking done.
-  local unchecked placeholder
+  # Acceptance-criteria gate: the spec must be ticked (verified) before done.
+  # Auto-ticking would let agents claim verification they never performed, so
+  # the script requires the boxes to be checked manually. --force bypasses for
+  # genuinely N/A criteria.
   unchecked="$(grep -c '^\s*- \[ \]' "$f" || true)"
   placeholder="$(grep -c 'concrete, testable criteria' "$f" || true)"
-  if [[ "$placeholder" -gt 0 ]]; then
-    echo "WARNING: $id still has TEMPLATE acceptance criteria — replace the"
-    echo "         placeholder with concrete criteria and tick them before done."
-  elif [[ "$unchecked" -gt 0 ]]; then
-    echo "WARNING: $id has $unchecked unchecked acceptance-criteria box(es):"
-    grep '^\s*- \[ \]' "$f" | sed 's/^/         /'
-    echo "         Verify each is implemented and tick them before done."
+  if [[ "$placeholder" -gt 0 || "$unchecked" -gt 0 ]]; then
+    if [[ $force -eq 0 ]]; then
+      echo "ERROR: $id has $unchecked unchecked acceptance-criteria box(es) (or template placeholders)." >&2
+      echo "       Edit tickets/$id.md: replace placeholders with concrete criteria and" >&2
+      echo "       tick each [ ] you have verified, then re-run done." >&2
+      echo "       Pass --force only if the criteria are genuinely not applicable." >&2
+      die "acceptance criteria not verified"
+    fi
+    echo "WARNING: marking done with unchecked criteria (--force)."
   fi
 
   set_field "$f" status done

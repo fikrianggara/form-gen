@@ -18,9 +18,10 @@ and `tickets/INDEX.md` before doing anything.
 6. **Dev servers on port `3100 + ticket number`** (TKT-001 → 3101).
 7. **Keep the working tree clean before every `git checkout`** — uncommitted
    work can clobber another agent's branch switch.
-8. **Finish with the CLI**: after unit + integration tests pass,
-   `scripts/ticket.sh done TKT-### "summary of changes"`. Do NOT merge the
-   branch yourself.
+8. **Finish with the CLI**: before `scripts/ticket.sh done TKT-### "summary"`,
+   replace any template placeholders with concrete acceptance criteria and tick
+   every `- [ ]` box you actually verified — `done` REFUSES unchecked criteria
+   (`--force` only for genuinely N/A). Do NOT merge the branch yourself.
 9. **Merges happen via `scripts/merge-tickets.sh`** when all parallel work is
    done or the owner says merge.
 10. **If `main` moves while you work**, merge/rebase `main` into your branch
