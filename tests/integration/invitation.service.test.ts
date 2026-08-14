@@ -6,9 +6,11 @@ import {
   getInvitationByToken,
   markInvitationClicked,
   linkInvitationToResponse,
+  sendInvitations,
   INVITATION_TOKEN_LENGTH,
 } from "@/services/invitation.service";
 import { AppError } from "@/lib/errors";
+import type { MailTransport } from "@/services/mail.service";
 
 beforeEach(async () => {
   await truncateAll();
@@ -28,6 +30,8 @@ async function makeQuestionnaire(overrides: { sampleEmails?: string[] } = {}) {
     },
   });
 }
+
+const noopTransport: MailTransport = async () => {};
 
 describe("invitation service", () => {
   it("generates one invitation per sample email with a unique token", async () => {
@@ -107,5 +111,24 @@ describe("invitation service", () => {
     await expect(generateInvitations("missing-id", ["a@example.com"])).rejects.toBeInstanceOf(
       AppError
     );
+  });
+
+  it("mailblasts a unique link per sample email and records sentAt", async () => {
+    const q = await makeQuestionnaire({
+      sampleEmails: ["a@example.com", "b@example.com"],
+    });
+    const sent: string[] = [];
+    const transport: MailTransport = async (msg) => {
+      sent.push(msg.to);
+      expect(msg.html).toContain("/f/");
+      expect(msg.html).toContain("?invite=");
+    };
+    const result = await sendInvitations(q.id, transport);
+
+    expect(result).toHaveLength(2);
+    expect(sent.sort()).toEqual(["a@example.com", "b@example.com"]);
+    const invs = await db.invitation.findMany({ where: { questionnaireId: q.id } });
+    expect(invs.every((i) => i.sentAt !== null)).toBe(true);
+    expect(await db.response.count({ where: { questionnaireId: q.id } })).toBe(0);
   });
 });
