@@ -19,8 +19,10 @@ export default async function AdminOptionSetsPage() {
           source: s.source,
           apiUrl: s.apiUrl,
           apiMethod: s.apiMethod,
-          apiHeaders: s.apiHeaders as Record<string, string> | null,
+          apiHeaders: (s.apiHeaders ?? {}) as Record<string, string> | null,
           itemsPath: s.itemsPath,
+          apiLabelKey: s.apiLabelKey,
+          apiValueKey: s.apiValueKey,
           options: s.options.map((o) => ({ label: o.label, value: o.value })),
           version: s.version,
         }))}

@@ -85,6 +85,11 @@ export function MastersPanel({
   };
 
   const form = editing;
+  const [qtype, setQtype] = useState<string>(form?.questionType ?? "TEXT");
+  const isChoice = qtype === "RADIO" || qtype === "CHECKBOX" || qtype === "SELECT";
+  const isNumber = qtype === "NUMBER";
+  const isText = qtype === "TEXT" || qtype === "TEXTAREA";
+  const isRating = qtype === "RATING";
 
   return (
     <div className="space-y-6">
@@ -132,20 +137,26 @@ export function MastersPanel({
             <input name="title" required defaultValue={form?.title} className={inputClass} />
           </Field>
           <Field label="Type" required>
-            <select name="questionType" required defaultValue={form?.questionType ?? "TEXT"} className={inputClass}>
+            <select
+              name="questionType"
+              required
+              value={qtype}
+              onChange={(e) => setQtype(e.target.value)}
+              className={inputClass}
+            >
               {QUESTION_TYPES.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
           </Field>
-          <Field label="Description" hint="Shown under the question title">
+          <Field label="Description" hint="Shown next to an info icon in forms">
             <input name="description" defaultValue={form?.description ?? ""} className={inputClass} />
           </Field>
           <Field label="Placeholder">
-            <input name="placeholder" defaultValue={form?.description ?? ""} className={inputClass} />
+            <input name="placeholder" defaultValue={form?.description ?? ""} disabled={!isText} className={inputClass} />
           </Field>
           <Field label="Option set" hint="Required for RADIO / CHECKBOX / SELECT">
-            <select name="optionSetId" defaultValue={form?.optionSetId ?? ""} className={inputClass}>
+            <select name="optionSetId" defaultValue={form?.optionSetId ?? ""} disabled={!isChoice} className={inputClass}>
               <option value="">— None —</option>
               {optionSets.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
@@ -153,16 +164,16 @@ export function MastersPanel({
             </select>
           </Field>
           <Field label="Min (number types)">
-            <input name="minValue" type="number" className={inputClass} />
+            <input name="minValue" type="number" disabled={!isNumber} className={inputClass} />
           </Field>
           <Field label="Max (number types)">
-            <input name="maxValue" type="number" className={inputClass} />
+            <input name="maxValue" type="number" disabled={!isNumber} className={inputClass} />
           </Field>
           <Field label="Max length (text types)">
-            <input name="maxLength" type="number" className={inputClass} />
+            <input name="maxLength" type="number" disabled={!isText} className={inputClass} />
           </Field>
           <Field label="Rating max">
-            <input name="ratingMax" type="number" className={inputClass} defaultValue={5} />
+            <input name="ratingMax" type="number" disabled={!isRating} className={inputClass} defaultValue={5} />
           </Field>
           <label className="flex items-center gap-2 pt-6 text-sm text-gray-700">
             <input name="requiredDefault" type="checkbox" defaultChecked={form?.requiredDefault} className="accent-indigo-600" />

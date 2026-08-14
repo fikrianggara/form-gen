@@ -58,3 +58,38 @@ function pickString(rec: Record<string, unknown>, keys: string[]): string | null
   }
   return null;
 }
+
+/**
+ * Resolve a possibly-nested value by dotted key path, e.g. "user.name".
+ * Returns `undefined` when any segment is missing (never throws).
+ */
+export function getPath(item: unknown, path: string | null | undefined): unknown {
+  if (!path) return undefined;
+  let current: unknown = item;
+  for (const segment of path.split(".")) {
+    if (current === null || typeof current !== "object" || !(segment in (current as Record<string, unknown>))) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[segment];
+  }
+  return current;
+}
+
+/**
+ * Map one raw item to { label, value } using optional dotted keys.
+ * - labelKey/valueKey given: resolve via getPath and stringify.
+ * - missing key result: fall back to the standard key order, then the item.
+ */
+export function mapOptionItemWithKeys(
+  item: unknown,
+  labelKey: string | null | undefined,
+  valueKey: string | null | undefined
+): OptionItem {
+  const base = mapOptionItem(item);
+  const label = getPath(item, labelKey);
+  const value = getPath(item, valueKey);
+  return {
+    label: label === undefined || label === null ? base.label : String(label),
+    value: value === undefined || value === null ? base.value : String(value),
+  };
+}

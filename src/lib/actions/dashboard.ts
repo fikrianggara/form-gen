@@ -263,6 +263,8 @@ export async function saveOptionSetAction(input: {
   apiMethod?: string;
   apiHeaders?: string;
   itemsPath?: string;
+  apiLabelKey?: string;
+  apiValueKey?: string;
   options?: Array<{ label: string; value: string }>;
 }): Promise<{ error?: string }> {
   try {
@@ -276,6 +278,8 @@ export async function saveOptionSetAction(input: {
         apiMethod: input.apiMethod || "GET",
         apiHeaders,
         itemsPath: input.itemsPath || null,
+        apiLabelKey: input.apiLabelKey || null,
+        apiValueKey: input.apiValueKey || null,
         options: input.options,
       });
     } else {
@@ -286,6 +290,8 @@ export async function saveOptionSetAction(input: {
         apiMethod: input.apiMethod || "GET",
         apiHeaders,
         itemsPath: input.itemsPath || null,
+        apiLabelKey: input.apiLabelKey || null,
+        apiValueKey: input.apiValueKey || null,
         options: input.options,
       });
     }

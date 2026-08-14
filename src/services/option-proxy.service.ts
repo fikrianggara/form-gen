@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/errors";
-import { mapOptionItem, resolveItemsPath, type OptionItem } from "@/domain/options";
+import { mapOptionItemWithKeys, resolveItemsPath, type OptionItem } from "@/domain/options";
 
 const CACHE_TTL_MS = 60_000;
 
@@ -56,6 +56,8 @@ async function fetchExternalOptions(set: {
   apiMethod: string | null;
   apiHeaders: unknown;
   itemsPath: string | null;
+  apiLabelKey: string | null;
+  apiValueKey: string | null;
 }): Promise<OptionItem[]> {
   if (!set.apiUrl) throw new NotFoundError("Option set has no API URL");
 
@@ -81,7 +83,9 @@ async function fetchExternalOptions(set: {
     }
     const payload: unknown = await res.json();
     const rawItems = resolveItemsPath(payload, set.itemsPath);
-    return rawItems.map(mapOptionItem);
+    return rawItems.map((item) =>
+      mapOptionItemWithKeys(item, set.apiLabelKey, set.apiValueKey)
+    );
   } catch (err) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new Error(`External option API timed out after ${timeoutMs}ms`);

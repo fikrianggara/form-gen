@@ -14,6 +14,8 @@ export interface OptionSetRow {
   apiMethod: string | null;
   apiHeaders: Record<string, string> | null;
   itemsPath: string | null;
+  apiLabelKey: string | null;
+  apiValueKey: string | null;
   options: Array<{ label: string; value: string }>;
   version: number;
 }
@@ -100,6 +102,8 @@ export function OptionSetsPanel({
   };
 
   const form = editing;
+  const [source, setSource] = useState<"STATIC" | "EXTERNAL_API">(form?.source ?? "STATIC");
+  const isExternal = source === "EXTERNAL_API";
 
   return (
     <div className="space-y-6">
@@ -139,6 +143,8 @@ export function OptionSetsPanel({
                   apiMethod: String(fd.get("apiMethod") ?? "") || undefined,
                   apiHeaders: String(fd.get("apiHeaders") ?? "") || undefined,
                   itemsPath: String(fd.get("itemsPath") ?? "") || undefined,
+                  apiLabelKey: String(fd.get("apiLabelKey") ?? "") || undefined,
+                  apiValueKey: String(fd.get("apiValueKey") ?? "") || undefined,
                   options,
                 }),
               form ? "Option set saved" : "Option set created"
@@ -149,31 +155,44 @@ export function OptionSetsPanel({
             <input name="name" required defaultValue={form?.name} className={inputClass} />
           </Field>
           <Field label="Source" required>
-            <select name="source" required defaultValue={form?.source ?? "STATIC"} className={inputClass}>
+            <select
+              name="source"
+              required
+              value={source}
+              onChange={(e) => setSource(e.target.value as "STATIC" | "EXTERNAL_API")}
+              className={inputClass}
+            >
               <option value="STATIC">Static (stored options)</option>
               <option value="EXTERNAL_API">External API</option>
             </select>
           </Field>
           <Field label="API URL" hint="Required when source is External API">
-            <input name="apiUrl" defaultValue={form?.apiUrl ?? ""} className={inputClass} placeholder="https://api.example.com/items" />
+            <input name="apiUrl" defaultValue={form?.apiUrl ?? ""} disabled={!isExternal} className={inputClass} placeholder="https://api.example.com/items" />
           </Field>
           <Field label="API method">
-            <select name="apiMethod" defaultValue={form?.apiMethod ?? "GET"} className={inputClass}>
+            <select name="apiMethod" defaultValue={form?.apiMethod ?? "GET"} disabled={!isExternal} className={inputClass}>
               <option value="GET">GET</option>
               <option value="POST">POST</option>
             </select>
           </Field>
           <Field label="Items path" hint='JSON pointer, e.g. "data.items" (empty = root array)'>
-            <input name="itemsPath" defaultValue={form?.itemsPath ?? ""} className={inputClass} placeholder="data.items" />
+            <input name="itemsPath" defaultValue={form?.itemsPath ?? ""} disabled={!isExternal} className={inputClass} placeholder="data.items" />
+          </Field>
+          <Field label="Label key" hint='Dotted key inside each item, e.g. "user.name" (empty = auto)'>
+            <input name="apiLabelKey" defaultValue={form?.apiLabelKey ?? ""} disabled={!isExternal} className={inputClass} placeholder="user.name" />
+          </Field>
+          <Field label="Value key" hint='Dotted key inside each item, e.g. "attributes.code" (empty = auto)'>
+            <input name="apiValueKey" defaultValue={form?.apiValueKey ?? ""} disabled={!isExternal} className={inputClass} placeholder="attributes.code" />
           </Field>
           <Field label="API headers (JSON)" hint='e.g. {"Authorization":"Bearer xyz"}'>
-            <input name="apiHeaders" defaultValue={form?.apiHeaders ? JSON.stringify(form.apiHeaders) : ""} className={inputClass} />
+            <input name="apiHeaders" defaultValue={form?.apiHeaders ? JSON.stringify(form.apiHeaders) : ""} disabled={!isExternal} className={inputClass} />
           </Field>
           <div className="sm:col-span-2">
             <Field label="Static options" hint="One per line as label=value (or label,value)">
               <textarea
                 name="options"
                 rows={5}
+                disabled={isExternal}
                 className={inputClass}
                 defaultValue={form?.options.map((o) => `${o.label}=${o.value}`).join("\n") ?? ""}
               />
