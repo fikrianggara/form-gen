@@ -162,14 +162,15 @@ cmd_status() {
 }
 
 cmd_list() {
-  local out
+  local out rows
   out="| id | type | size | group | status | assignee | branch | ready | title |
 |---|-----|------|-------|--------|----------|--------|-------|-------|
 "
+  rows=""
   while IFS= read -r f; do
     [[ -f "$f" ]] || continue
     [[ "$(basename "$f")" == "TKT-000-template.md" ]] && continue
-    local id title type size group status assignee branch ready
+    local id title type size group status assignee branch ready rank
     id="$(get_field "$f" id)"
     title="$(get_field "$f" title)"
     type="$(get_field "$f" type)"
@@ -179,9 +180,19 @@ cmd_list() {
     assignee="$(get_field "$f" assignee)"
     branch="$(get_field "$f" branch)"
     ready="$(get_field "$f" readyToMerge)"
-    out+="| $id | $type | ${size:-—} | ${group:-—} | $status | ${assignee:-—} | ${branch:-—} | $ready | $title |
-"
+    case "${size:-small}" in
+      big) rank=0 ;;
+      medium) rank=1 ;;
+      *) rank=2 ;;
+    esac
+    rows+="${rank}|${group:-—}|$id|$type|${size:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title\n"
   done < <(ls "$TICKETS"/TKT-*.md 2>/dev/null | sort -t- -k2 -n)
+  # Sort by size (big → medium → small), then group, then id.
+  rows="$(printf '%b' "$rows" | sort -t'|' -k1,1n -k2,2 -k3,3n)"
+  while IFS='|' read -r _ _ id type size group status assignee branch ready title; do
+    out+="| $id | $type | $size | $group | $status | $assignee | $branch | $ready | $title |
+"
+  done <<< "$rows"
   printf '%s' "$out" > "$TICKETS/INDEX.md"
   echo "INDEX.md regenerated ($(grep -c '^| TKT-' "$TICKETS/INDEX.md" || true) tickets)"
 }
