@@ -19,7 +19,13 @@ done
 cd "$ROOT"
 git diff --quiet || { echo "error: working tree is dirty — commit or stash first" >&2; exit 1; }
 
-# 1. Any ongoing work?
+# Status lives on main — read it from there (a feature branch's ticket copy is stale).
+git checkout -q main
+git pull --ff-only >/dev/null 2>&1 || true
+
+get_field() { grep -m1 "^${2}:" "$1" | sed -e "s|^${2}: *||" -e 's| *#.*$||' -e 's|[[:space:]]*$||' | sed 's/^"//; s/"$//'; }
+
+# 1. Any ongoing work (from main's view)?
 ongoing="$(grep -l '^status: ongoing' "$TICKETS"/TKT-*.md 2>/dev/null || true)"
 if [[ -n "$ongoing" && $FORCE -eq 0 ]]; then
   echo "refusing to merge: ongoing tickets still in flight:" >&2
@@ -34,11 +40,6 @@ if [[ -z "$done_tickets" ]]; then
   echo "no done tickets to merge — nothing to do."
   exit 0
 fi
-
-get_field() { grep -m1 "^${2}:" "$1" | sed -e "s|^${2}: *||" -e 's| *#.*$||' -e 's|[[:space:]]*$||' | sed 's/^"//; s/"$//'; }
-
-git checkout -q main
-git pull --ff-only >/dev/null 2>&1 || true
 
 merged_any=0
 while IFS= read -r f; do
