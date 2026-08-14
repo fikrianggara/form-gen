@@ -223,8 +223,8 @@ describe("questionnaire service", () => {
     const qb = await addQuestion({ questionnaireId: q.id, questionMasterId: m2.id });
     const rule = {
       sets: [
-        { condition: "ALL", rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: qa.id }] },
-        { condition: "ANY", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] },
+        { condition: "ALL" as const, rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: qa.id }] },
+        { condition: "ANY" as const, rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] },
       ],
     };
     const updated = await updateQuestionSettings(qb.id, { visibilityRule: rule });

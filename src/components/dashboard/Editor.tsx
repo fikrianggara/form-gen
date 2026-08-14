@@ -12,7 +12,7 @@ import {
   removeQuestionAction,
   reorderQuestionsAction,
 } from "@/lib/actions/dashboard";
-import type { VisibilityRule } from "@/domain/types";
+import type { VisibilityRule, VisibilityRuleSet, VisibilityRuleClause } from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
@@ -672,18 +672,13 @@ function QuestionRow({
 }) {
   const [ruleOpen, setRuleOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [ruleCondition, setRuleCondition] = useState<"ALL" | "ANY">(
-    item.visibilityRule?.condition ?? "ALL"
-  );
-  const [ruleDependsOn, setRuleDependsOn] = useState(
-    item.visibilityRule?.rules[0]?.dependsOnQuestionId ?? ""
-  );
-  const [ruleOperator, setRuleOperator] = useState(
-    item.visibilityRule?.rules[0]?.operator ?? "EQ"
-  );
-  const [ruleValue, setRuleValue] = useState(
-    String(item.visibilityRule?.rules[0]?.value ?? "")
-  );
+  // Multi-set editor state: OR between sets, ALL/ANY within each set.
+  const [ruleSets, setRuleSets] = useState<VisibilityRuleSet[]>(() => {
+    const r = item.visibilityRule;
+    if (r && Array.isArray(r.sets)) return r.sets;
+    if (r && Array.isArray(r.rules)) return [{ condition: r.condition ?? "ALL", rules: r.rules }];
+    return [];
+  });
 
   const candidates = allQuestions.filter(
     (q) => q.id !== item.id && !q.parentId && !q.isAggregate
@@ -833,72 +828,163 @@ function QuestionRow({
 
       {ruleOpen && (
         <div className="mt-4 rounded-lg bg-gray-50 p-4">
-          <p className="mb-3 text-xs font-medium text-gray-500">Conditional visibility</p>
-          <div className="grid gap-3 sm:grid-cols-[100px_1fr_120px_1fr_auto]">
-            <select
-              className={inputClass}
-              value={ruleCondition}
-              onChange={(e) => setRuleCondition(e.target.value as "ALL" | "ANY")}
-            >
-              <option value="ALL">ALL of</option>
-              <option value="ANY">ANY of</option>
-            </select>
-            <select
-              className={inputClass}
-              value={ruleDependsOn}
-              onChange={(e) => setRuleDependsOn(e.target.value)}
-            >
-              <option value="">— depends on —</option>
-              {candidates.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.questionMaster.title}
-                </option>
-              ))}
-            </select>
-            <select
-              className={inputClass}
-              value={ruleOperator}
-              onChange={(e) =>
-                setRuleOperator(e.target.value as VisibilityRule["rules"][number]["operator"])
-              }
-            >
-              {OPERATORS.map((op) => (
-                <option key={op} value={op}>
-                  {op}
-                </option>
-              ))}
-            </select>
-            <input
-              className={inputClass}
-              placeholder="value (e.g. yes / 18)"
-              value={ruleValue}
-              onChange={(e) => setRuleValue(e.target.value)}
-            />
+          <p className="mb-3 text-xs font-medium text-gray-500">
+            Conditional visibility — rule sets combine with <b>OR</b> (show when ANY set matches); conditions
+            inside a set combine per <b>ALL/ANY</b>.
+          </p>
+          <div className="space-y-3">
+            {ruleSets.map((set, setIdx) => (
+              <div key={setIdx} className="rounded-lg border border-gray-200 bg-white p-3">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xs text-gray-400">Set {setIdx + 1}</span>
+                  <select
+                    className={inputClass}
+                    value={set.condition}
+                    onChange={(e) => {
+                      const next = [...ruleSets];
+                      next[setIdx] = { ...next[setIdx], condition: e.target.value as "ALL" | "ANY" };
+                      setRuleSets(next);
+                    }}
+                  >
+                    <option value="ALL">ALL of</option>
+                    <option value="ANY">ANY of</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="ml-auto text-xs text-red-600 hover:underline"
+                    onClick={() => setRuleSets((prev) => prev.filter((_, i) => i !== setIdx))}
+                  >
+                    Remove set
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {set.rules.map((clause, clauseIdx) => (
+                    <div key={clauseIdx} className="grid gap-2 sm:grid-cols-[1fr_120px_1fr_auto]">
+                      <select
+                        className={inputClass}
+                        value={clause.dependsOnQuestionId}
+                        onChange={(e) => {
+                          const next = [...ruleSets];
+                          next[setIdx] = {
+                            ...next[setIdx],
+                            rules: next[setIdx].rules.map((c, i) =>
+                              i === clauseIdx ? { ...c, dependsOnQuestionId: e.target.value } : c
+                            ),
+                          };
+                          setRuleSets(next);
+                        }}
+                      >
+                        <option value="">— depends on —</option>
+                        {candidates.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.questionMaster.title}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className={inputClass}
+                        value={clause.operator}
+                        onChange={(e) => {
+                          const next = [...ruleSets];
+                          next[setIdx] = {
+                            ...next[setIdx],
+                            rules: next[setIdx].rules.map((c, i) =>
+                              i === clauseIdx
+                                ? { ...c, operator: e.target.value as VisibilityRuleClause["operator"] }
+                                : c
+                            ),
+                          };
+                          setRuleSets(next);
+                        }}
+                      >
+                        {OPERATORS.map((op) => (
+                          <option key={op} value={op}>
+                            {op}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className={inputClass}
+                        placeholder="value (e.g. yes / 18)"
+                        value={Array.isArray(clause.value) ? clause.value.join(",") : String(clause.value ?? "")}
+                        onChange={(e) => {
+                          const next = [...ruleSets];
+                          next[setIdx] = {
+                            ...next[setIdx],
+                            rules: next[setIdx].rules.map((c, i) =>
+                              i === clauseIdx ? { ...c, value: e.target.value } : c
+                            ),
+                          };
+                          setRuleSets(next);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="text-xs text-red-600 hover:underline"
+                        onClick={() => {
+                          const next = [...ruleSets];
+                          next[setIdx] = {
+                            ...next[setIdx],
+                            rules: next[setIdx].rules.filter((_, i) => i !== clauseIdx),
+                          };
+                          setRuleSets(next);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs text-indigo-600 hover:underline"
+                    onClick={() =>
+                      setRuleSets((prev) =>
+                        prev.map((s, i) =>
+                          i === setIdx
+                            ? { ...s, rules: [...s.rules, { dependsOnQuestionId: "", operator: "EQ", value: "" }] }
+                            : s
+                        )
+                      )
+                    }
+                  >
+                    + Add clause
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              disabled={!ruleDependsOn}
+              onClick={() =>
+                setRuleSets((prev) => [...prev, { condition: "ALL", rules: [] }])
+              }
+            >
+              + Add rule set (OR)
+            </Button>
+            <Button
+              disabled={ruleSets.length === 0}
               onClick={() => {
-                const numeric =
-                  ruleOperator === "GT" || ruleOperator === "GTE" || ruleOperator === "LT" || ruleOperator === "LTE";
-                const parsedValue = numeric && ruleValue !== "" ? Number(ruleValue) : ruleValue;
-                onSaveRule(
-                  ruleDependsOn
-                    ? {
-                        condition: ruleCondition,
-                        rules: [
-                          {
-                            dependsOnQuestionId: ruleDependsOn,
-                            operator: ruleOperator as VisibilityRule["rules"][number]["operator"],
-                            value: parsedValue,
-                          },
-                        ],
-                      }
-                    : null
-                );
+                const parsed = ruleSets.map((set) => ({
+                  condition: set.condition,
+                  rules: set.rules
+                    .filter((c) => c.dependsOnQuestionId && c.operator)
+                    .map((c) => {
+                      const numeric =
+                        c.operator === "GT" || c.operator === "GTE" || c.operator === "LT" || c.operator === "LTE";
+                      const raw = String(c.value ?? "").trim();
+                      return {
+                        dependsOnQuestionId: c.dependsOnQuestionId,
+                        operator: c.operator,
+                        value: numeric && raw !== "" ? Number(raw) : raw,
+                      };
+                    }),
+                }));
+                onSaveRule(parsed.some((s) => s.rules.length > 0) ? { sets: parsed } : null);
                 setRuleOpen(false);
               }}
             >
-              Save rule
+              Save rules
             </Button>
             {item.visibilityRule && (
               <Button variant="ghost" onClick={() => { onSaveRule(null); setRuleOpen(false); }}>
