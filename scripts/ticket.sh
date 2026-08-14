@@ -116,6 +116,9 @@ cmd_start() {
   set_field "$f" assignee "$DEFAULT_ASSIGNEE"
   set_field "$f" branch "$branch"
   set_field "$f" updated "$(date +%F)"
+  # Regenerate INDEX.md so agents reading it see the assignment immediately
+  # (a stale index showing backlog invites another agent to grab the ticket).
+  cmd_list >/dev/null
   doc_commit "tkt: mark $id ongoing (branch $branch)"
   # 2. Create the branch (or join the group's ongoing branch)
   if [[ -n "$join_branch" ]]; then
@@ -150,6 +153,8 @@ cmd_done() {
     echo ""
     echo "> **done** ($(date +%F)): $summary"
   } >> "$f"
+  # Regenerate INDEX.md so agents reading it see done immediately.
+  cmd_list >/dev/null
   doc_commit "tkt: $id done — ready to merge"
   git checkout -q "$prev"
   echo "marked $id done (readyToMerge=true). Branch $branch left unmerged; merge with scripts/merge-tickets.sh"
