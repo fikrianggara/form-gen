@@ -20,6 +20,7 @@ import {
   createBlock,
   updateBlock,
   deleteBlock,
+  reorderBlocks,
   setQuestionBlock,
 } from "@/services/questionnaire.service";
 import {
@@ -424,6 +425,20 @@ export async function setQuestionBlockAction(input: {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
     await setQuestionBlock(input.questionId, input.blockId);
+    revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
+    return {};
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function reorderBlockAction(input: {
+  questionnaireId: string;
+  orderedIds: string[];
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await reorderBlocks(input.questionnaireId, input.orderedIds);
     revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
     return {};
   } catch (err) {
