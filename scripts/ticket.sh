@@ -133,16 +133,16 @@ cmd_start() {
 cmd_done() {
   local id="$1" summary="${2:-}"
   [[ -n "$summary" ]] || die "usage: ticket.sh done TKT-### \"<summary of changes>\""
-  local f
+  local f status branch prev
+  git diff --quiet || die "working tree is dirty — commit or stash before finishing"
+  # Status lives on main — read and update it there (branch copies go stale).
+  prev="$(git branch --show-current)"
+  git checkout -q main
   f="$(ticket_file "$id")"
-  local status branch prev
   status="$(get_field "$f" status)"
   [[ "$status" == "ongoing" ]] || die "ticket $id is '$status', only ongoing tickets can be finished"
   branch="$(get_field "$f" branch)"
   [[ -n "$branch" ]] || die "ticket $id has no branch — was it started?"
-  git diff --quiet || die "working tree is dirty — commit or stash before finishing"
-  prev="$(git branch --show-current)"
-  git checkout -q main
   set_field "$f" status done
   set_field "$f" readyToMerge true
   set_field "$f" updated "$(date +%F)"
