@@ -2,6 +2,8 @@
 id: TKT-000
 title: "Template ticket"
 type: feature            # feature | bug
+size: small              # small | medium | big
+group: ""                # epic/branch group (see tickets/README.md)
 status: backlog          # backlog | ongoing | done | merged | cancelled
 assignee: null           # agent name once assigned
 branch: null             # feat/TKT-000-slug once started
