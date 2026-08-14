@@ -38,7 +38,10 @@ next_id() {
     [[ -f "$f" ]] || continue
     local n
     n="$(basename "$f" | sed 's/^TKT-//; s/\.md$//')"
-    [[ "$n" =~ ^[0-9]+$ ]] && [[ "$n" -gt "$max" ]] && max="$n"
+    if [[ "$n" =~ ^[0-9]+$ ]]; then
+      local v=$((10#$n))
+      [[ "$v" -gt "$max" ]] && max="$v"
+    fi
   done
   printf "TKT-%03d" $((max + 1))
 }
