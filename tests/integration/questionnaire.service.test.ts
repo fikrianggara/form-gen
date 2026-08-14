@@ -165,6 +165,75 @@ describe("questionnaire service", () => {
     expect(updated.visibilityRule).toMatchObject({ condition: "ALL" });
   });
 
+  it("rejects a visibility rule that references a missing question", async () => {
+    const q = await createQuestionnaire({ title: "Q", slug: "qq-rule-missing" });
+    const m = await makeTextMaster("q_rule_missing_dep");
+    const qa = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    await expect(
+      updateQuestionSettings(qa.id, {
+        visibilityRule: {
+          sets: [
+            { condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: "ghost" }] },
+          ],
+        },
+      })
+    ).rejects.toThrow(/ghost/);
+  });
+
+  it("rejects a self-referencing visibility rule", async () => {
+    const q = await createQuestionnaire({ title: "Q", slug: "qq-rule-self" });
+    const m = await makeTextMaster("q_rule_self_dep");
+    const qa = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    await expect(
+      updateQuestionSettings(qa.id, {
+        visibilityRule: {
+          sets: [
+            { condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] },
+          ],
+        },
+      })
+    ).rejects.toThrow(/itself/);
+  });
+
+  it("rejects a dependency cycle across questions", async () => {
+    const q = await createQuestionnaire({ title: "Q", slug: "qq-rule-cycle" });
+    const m1 = await makeTextMaster("q_rule_cycle_a");
+    const m2 = await makeTextMaster("q_rule_cycle_b");
+    const qa = await addQuestion({ questionnaireId: q.id, questionMasterId: m1.id });
+    const qb = await addQuestion({ questionnaireId: q.id, questionMasterId: m2.id });
+    await updateQuestionSettings(qa.id, {
+      visibilityRule: {
+        sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qb.id }] }],
+      },
+    });
+    await expect(
+      updateQuestionSettings(qb.id, {
+        visibilityRule: {
+          sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] }],
+        },
+      })
+    ).rejects.toThrow(/cycle/);
+  });
+
+  it("persists a multi-set visibility rule and round-trips it through the config", async () => {
+    const q = await createQuestionnaire({ title: "Q", slug: "qq-rule-multi" });
+    const m1 = await makeRadioMaster("q_rule_multi_a");
+    const m2 = await makeTextMaster("q_rule_multi_b");
+    const qa = await addQuestion({ questionnaireId: q.id, questionMasterId: m1.id });
+    const qb = await addQuestion({ questionnaireId: q.id, questionMasterId: m2.id });
+    const rule = {
+      sets: [
+        { condition: "ALL", rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: qa.id }] },
+        { condition: "ANY", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] },
+      ],
+    };
+    const updated = await updateQuestionSettings(qb.id, { visibilityRule: rule });
+    expect(updated.visibilityRule).toEqual(rule);
+    const config = await getQuestionnaireConfig(q.slug);
+    const qbConfig = config.questions.find((x) => x.id === qb.id);
+    expect(qbConfig?.visibilityRule).toEqual(rule);
+  });
+
   it("removes a question and its children", async () => {
     const q = await createQuestionnaire({ title: "Q", slug: "qq8" });
     const m1 = await makeTextMaster("q_rm_group");
@@ -305,16 +374,24 @@ describe("version selection and duplication", () => {
     const set = await createOptionSet({ name: "DupSet", source: "STATIC", options: [{ label: "A", value: "a" }] });
     const master = await createQuestionMaster({ code: "q_dup1", title: "Dup master", questionType: "RADIO", optionSetId: set.id });
     const childMaster = await createQuestionMaster({ code: "q_dup2", title: "Child", questionType: "TEXT" });
+    const depMaster = await createQuestionMaster({ code: "q_dup3", title: "Dep", questionType: "TEXT" });
     const q = await createQuestionnaire({ title: "Original", slug: "orig-1", acceptMultipleResponses: false });
     const parent = await addQuestion({
       questionnaireId: q.id,
       questionMasterId: master.id,
       isRepeatable: true,
-      visibilityRule: {
-        condition: "ALL",
-        rules: [{ dependsOnQuestionId: "x", operator: "EQ", value: "yes" }],
-      },
     });
+    const dep = await addQuestion({
+      questionnaireId: q.id,
+      questionMasterId: depMaster.id,
+    });
+    // A real rule on the parent depending on `dep`.
+    const parentRule = {
+      sets: [
+        { condition: "ALL", rules: [{ dependsOnQuestionId: dep.id, operator: "EQ", value: "yes" }] },
+      ],
+    };
+    await updateQuestionSettings(parent.id, { visibilityRule: parentRule });
     await addQuestion({
       questionnaireId: q.id,
       questionMasterId: childMaster.id,
@@ -329,23 +406,26 @@ describe("version selection and duplication", () => {
     expect(copy.status).toBe("DRAFT");
     expect(copy.slug).not.toBe(q.slug);
     expect(copy.acceptMultipleResponses).toBe(false);
-    expect(questionCount).toBe(2);
+    expect(questionCount).toBe(3);
 
     const loaded = await getQuestionnaireWithQuestions(copy.id);
     const parentCopy = loaded?.questions.find((x) => x.isRepeatable);
+    const depCopy = loaded?.questions.find((x) => !x.isRepeatable && x.parentId === null && !x.isAggregate);
     expect(parentCopy).toBeTruthy();
     expect(parentCopy?.children).toHaveLength(1);
     expect(parentCopy?.children[0]?.required).toBe(true);
     expect(parentCopy?.children[0]?.optionSetId).toBe(set.id);
+    // The copied rule must reference the COPIED dependency id, not the original.
+    expect(depCopy).toBeTruthy();
     expect(parentCopy?.visibilityRule).toEqual({
-      condition: "ALL",
-      rules: [{ dependsOnQuestionId: "x", operator: "EQ", value: "yes" }],
+      sets: [{ condition: "ALL", rules: [{ dependsOnQuestionId: depCopy!.id, operator: "EQ", value: "yes" }] }],
     });
+    expect((parentCopy?.visibilityRule as any)?.sets?.[0]?.rules?.[0]?.dependsOnQuestionId).not.toBe(dep.id);
 
     // Original untouched.
     const original = await getQuestionnaireWithQuestions(q.id);
     expect(original?.status).toBe("ACTIVE");
-    expect(original?.questions.filter((x) => x.parentId === null)).toHaveLength(1);
+    expect(original?.questions.filter((x) => x.parentId === null)).toHaveLength(2);
   });
 
   it("duplicates with a unique slug each time", async () => {

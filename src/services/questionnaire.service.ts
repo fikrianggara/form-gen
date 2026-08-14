@@ -2,9 +2,49 @@ import { Prisma } from "@prisma/client";
 import type { QuestionnaireStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
-import type { AggregateConfig, VisibilityRule } from "@/domain/types";
+import type { AggregateConfig, VisibilityRule, VisibilityRuleClause } from "@/domain/types";
+import { validateVisibilityRule, detectVisibilityCycles } from "@/domain/rules/validation";
 
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;
+
+/** Rule validation (local + global cycle check) scoped to a questionnaire. */
+async function validateQuestionnaireRule(
+  questionnaireId: string,
+  questionId: string | null,
+  rule: VisibilityRule | null
+): Promise<void> {
+  const questions = await db.questionnaireQuestion.findMany({
+    where: { questionnaireId },
+    select: {
+      id: true,
+      parentId: true,
+      isAggregate: true,
+      visibilityRule: true,
+    },
+  });
+  const ids = questions.map((q) => q.id);
+  const topLevelIds = new Set(
+    questions.filter((q) => !q.parentId && !q.isAggregate).map((q) => q.id)
+  );
+  const errors = validateVisibilityRule(rule, {
+    questionId,
+    questionIds: new Set(ids),
+    topLevelIds,
+  });
+  const ruleMap = new Map<string, VisibilityRule | null>();
+  for (const q of questions) {
+    ruleMap.set(q.id, (q.visibilityRule as VisibilityRule | null) ?? null);
+  }
+  if (questionId) ruleMap.set(questionId, rule);
+  errors.push(...detectVisibilityCycles(ruleMap, new Set(ids)));
+  if (errors.length > 0) {
+    throw new AppError(
+      `Invalid visibility rule: ${errors.join("; ")}`,
+      422,
+      "INVALID_VISIBILITY_RULE"
+    );
+  }
+}
 
 export interface QuestionnaireInput {
   title: string;
@@ -172,6 +212,9 @@ export async function addQuestion(input: AddQuestionInput) {
     const optionSet = await db.optionSet.findUnique({ where: { id: input.optionSetId } });
     if (!optionSet) throw new NotFoundError("Option set version not found");
   }
+  if (input.visibilityRule) {
+    await validateQuestionnaireRule(input.questionnaireId, null, input.visibilityRule);
+  }
 
   // Postgres treats NULLs as distinct in unique constraints, so top-level
   // duplicates (parentId NULL) must be caught explicitly.
@@ -246,6 +289,9 @@ export async function updateQuestionSettings(
       422,
       "NESTED_REPEATABLE"
     );
+  }
+  if (input.visibilityRule !== undefined) {
+    await validateQuestionnaireRule(existing.questionnaireId, questionId, input.visibilityRule);
   }
 
   return db.questionnaireQuestion.update({
@@ -373,6 +419,22 @@ export async function duplicateQuestionnaire(id: string) {
       }
     }
 
+    // Second pass: rewrite rules/aggregates with the COMPLETE id map (a rule
+    // may reference a question created later than its owner).
+    const allCopied = [
+      ...existing.questions,
+      ...existing.questions.flatMap((q) => q.children),
+    ];
+    for (const q of allCopied) {
+      await tx.questionnaireQuestion.update({
+        where: { id: idMap.get(q.id)! },
+        data: {
+          visibilityRule: jsonOrNull(remapVisibilityRule(q.visibilityRule, idMap)),
+          aggregateConfig: jsonOrNull(remapAggregateConfig(q.aggregateConfig, idMap)),
+        },
+      });
+    }
+
     return {
       questionnaire: copy,
       questionCount: idMap.size,
@@ -444,4 +506,29 @@ function isUniqueViolation(err: unknown): boolean {
 function jsonOrNull<T>(value: T | null | undefined): Prisma.InputJsonValue | typeof Prisma.DbNull {
   if (value === null || value === undefined) return Prisma.DbNull;
   return value as Prisma.InputJsonValue;
+}
+
+/** Remap a copied visibility rule's dependency ids through the copy id map. */
+function remapVisibilityRule(rule: unknown, idMap: Map<string, string>): unknown {
+  if (!rule || typeof rule !== "object") return rule;
+  const r = rule as VisibilityRule;
+  const remapClause = (clause: VisibilityRuleClause) => ({
+    ...clause,
+    dependsOnQuestionId: idMap.get(clause.dependsOnQuestionId) ?? clause.dependsOnQuestionId,
+  });
+  if (Array.isArray(r.sets)) {
+    return { ...r, sets: r.sets.map((s) => ({ ...s, rules: s.rules.map(remapClause) })) };
+  }
+  if (Array.isArray(r.rules)) {
+    return { ...r, rules: r.rules.map(remapClause) };
+  }
+  return r;
+}
+
+/** Remap a copied aggregate config's source question id through the copy id map. */
+function remapAggregateConfig(agg: unknown, idMap: Map<string, string>): unknown {
+  if (!agg || typeof agg !== "object") return agg;
+  const a = agg as AggregateConfig;
+  if (!a.sourceQuestionId) return a;
+  return { ...a, sourceQuestionId: idMap.get(a.sourceQuestionId) ?? a.sourceQuestionId };
 }
