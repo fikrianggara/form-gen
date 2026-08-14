@@ -137,6 +137,7 @@ export function getQuestionnaireWithQuestions(id: string) {
   return db.questionnaire.findUnique({
     where: { id },
     include: {
+      blocks: { orderBy: { order: "asc" } },
       questions: {
         orderBy: { order: "asc" },
         include: {
@@ -378,6 +379,20 @@ export async function duplicateQuestionnaire(id: string) {
       },
     });
 
+    // Copy blocks first so questions can reference their copied block.
+    const blockIdMap = new Map<string, string>();
+    for (const b of existing.blocks ?? []) {
+      const created = await tx.questionnaireBlock.create({
+        data: {
+          questionnaireId: copy.id,
+          title: b.title,
+          order: b.order,
+          entryRule: jsonOrNull(remapVisibilityRule(b.entryRule, new Map())), // placeholder, remapped below
+        },
+      });
+      blockIdMap.set(b.id, created.id);
+    }
+
     const idMap = new Map<string, string>();
     for (const q of existing.questions) {
       const created = await tx.questionnaireQuestion.create({
@@ -394,6 +409,7 @@ export async function duplicateQuestionnaire(id: string) {
           aiConfidence: q.aiConfidence,
           aiLowConfidence: q.aiLowConfidence,
           optionSetId: q.optionSetId,
+          blockId: q.blockId ? (blockIdMap.get(q.blockId) ?? null) : null,
         },
       });
       idMap.set(q.id, created.id);
@@ -432,6 +448,15 @@ export async function duplicateQuestionnaire(id: string) {
           visibilityRule: jsonOrNull(remapVisibilityRule(q.visibilityRule, idMap)),
           aggregateConfig: jsonOrNull(remapAggregateConfig(q.aggregateConfig, idMap)),
         },
+      });
+    }
+    // Block entry rules also reference question ids — remap them too.
+    for (const b of existing.blocks ?? []) {
+      const copiedBlockId = blockIdMap.get(b.id);
+      if (!copiedBlockId) continue;
+      await tx.questionnaireBlock.update({
+        where: { id: copiedBlockId },
+        data: { entryRule: jsonOrNull(remapVisibilityRule(b.entryRule, idMap)) },
       });
     }
 
@@ -531,4 +556,83 @@ function remapAggregateConfig(agg: unknown, idMap: Map<string, string>): unknown
   const a = agg as AggregateConfig;
   if (!a.sourceQuestionId) return a;
   return { ...a, sourceQuestionId: idMap.get(a.sourceQuestionId) ?? a.sourceQuestionId };
+}
+
+// ------------------------------------------------------------------ blocks
+
+export async function createBlock(questionnaireId: string, title: string) {
+  const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
+  if (!q) throw new NotFoundError("Questionnaire not found");
+  const max = await db.questionnaireBlock.aggregate({
+    where: { questionnaireId },
+    _max: { order: true },
+  });
+  return db.questionnaireBlock.create({
+    data: { questionnaireId, title: title.trim(), order: (max._max.order ?? 0) + 1 },
+  });
+}
+
+export async function updateBlock(
+  id: string,
+  input: { title?: string; entryRule?: VisibilityRule | null }
+) {
+  const existing = await db.questionnaireBlock.findUnique({ where: { id } });
+  if (!existing) throw new NotFoundError("Block not found");
+  if (input.entryRule !== undefined) {
+    await validateQuestionnaireRule(existing.questionnaireId, null, input.entryRule);
+  }
+  return db.questionnaireBlock.update({
+    where: { id },
+    data: {
+      ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+      ...(input.entryRule !== undefined ? { entryRule: jsonOrNull(input.entryRule) } : {}),
+    },
+  });
+}
+
+export async function deleteBlock(id: string) {
+  const existing = await db.questionnaireBlock.findUnique({ where: { id } });
+  if (!existing) throw new NotFoundError("Block not found");
+  await db.questionnaireBlock.delete({ where: { id } }); // questions get blockId = null
+}
+
+export async function reorderBlocks(questionnaireId: string, orderedIds: string[]) {
+  const blocks = await db.questionnaireBlock.findMany({
+    where: { questionnaireId },
+    select: { id: true },
+  });
+  if (orderedIds.length !== blocks.length) {
+    throw new AppError("Block list mismatch", 422, "BLOCK_REORDER_MISMATCH");
+  }
+  await db.$transaction(
+    orderedIds.map((id, index) =>
+      db.questionnaireBlock.update({ where: { id }, data: { order: index + 1 } })
+    )
+  );
+}
+
+export async function setQuestionBlock(questionId: string, blockId: string | null) {
+  const question = await db.questionnaireQuestion.findUnique({
+    where: { id: questionId },
+    include: { block: true },
+  });
+  if (!question) throw new NotFoundError("Question not found");
+  if (blockId) {
+    const block = await db.questionnaireBlock.findUnique({ where: { id: blockId } });
+    if (!block || block.questionnaireId !== question.questionnaireId) {
+      throw new AppError("Block does not belong to this questionnaire", 422, "BLOCK_MISMATCH");
+    }
+  }
+  return db.questionnaireQuestion.update({
+    where: { id: questionId },
+    data: { blockId },
+  });
+}
+
+/** Blocks of a questionnaire, ordered. */
+export function listBlocks(questionnaireId: string) {
+  return db.questionnaireBlock.findMany({
+    where: { questionnaireId },
+    orderBy: { order: "asc" },
+  });
 }

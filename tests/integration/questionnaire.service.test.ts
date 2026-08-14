@@ -14,6 +14,12 @@ import {
   updateQuestionMasterVersion,
   updateQuestionOptionSet,
   duplicateQuestionnaire,
+  createBlock,
+  updateBlock,
+  deleteBlock,
+  reorderBlocks,
+  setQuestionBlock,
+  listBlocks,
 } from "@/services/questionnaire.service";
 import { createQuestionMaster, createOptionSet, updateOptionSet, deleteOptionSet, updateQuestionMaster } from "@/services/master-data.service";
 import { getQuestionnaireConfig } from "@/services/response.service";
@@ -444,5 +450,104 @@ describe("version selection and duplication", () => {
     const q = await createQuestionnaire({ title: "G", slug: "guard-1" });
     await addQuestion({ questionnaireId: q.id, questionMasterId: master.id, optionSetId: set.id });
     await expect(deleteOptionSet(set.id)).rejects.toThrow(/used/);
+  });
+});
+
+describe("question blocks", () => {
+  it("creates blocks with incrementing order", async () => {
+    const q = await createQuestionnaire({ title: "B", slug: "blk-1" });
+    const b1 = await createBlock(q.id, "Demographics");
+    const b2 = await createBlock(q.id, "Feedback");
+    expect(b1.order).toBe(1);
+    expect(b2.order).toBe(2);
+    const list = await listBlocks(q.id);
+    expect(list.map((b) => b.title)).toEqual(["Demographics", "Feedback"]);
+  });
+
+  it("moves a question into and out of a block", async () => {
+    const q = await createQuestionnaire({ title: "B", slug: "blk-2" });
+    const b = await createBlock(q.id, "Section A");
+    const m = await createQuestionMaster({ code: "q_blk", title: "Q", questionType: "TEXT" });
+    const placed = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    const moved = await setQuestionBlock(placed.id, b.id);
+    expect(moved.blockId).toBe(b.id);
+    const cleared = await setQuestionBlock(placed.id, null);
+    expect(cleared.blockId).toBeNull();
+  });
+
+  it("rejects moving a question into a block of another questionnaire", async () => {
+    const q1 = await createQuestionnaire({ title: "B1", slug: "blk-3" });
+    const q2 = await createQuestionnaire({ title: "B2", slug: "blk-4" });
+    const b = await createBlock(q1.id, "A");
+    const m = await createQuestionMaster({ code: "q_blk2", title: "Q", questionType: "TEXT" });
+    const placed = await addQuestion({ questionnaireId: q2.id, questionMasterId: m.id });
+    await expect(setQuestionBlock(placed.id, b.id)).rejects.toThrow(/Block does not belong/);
+  });
+
+  it("validates a block entry rule against the questionnaire's questions", async () => {
+    const q = await createQuestionnaire({ title: "B", slug: "blk-5" });
+    const b = await createBlock(q.id, "Conditional");
+    await expect(
+      updateBlock(b.id, {
+        entryRule: {
+          sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: "ghost" }] }],
+        },
+      })
+    ).rejects.toThrow(/ghost/);
+    const m = await createQuestionMaster({ code: "q_blk3", title: "Q", questionType: "TEXT" });
+    const placed = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    const ok = await updateBlock(b.id, {
+      entryRule: {
+        sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: placed.id }] }],
+      },
+    });
+    expect(ok.entryRule).toBeTruthy();
+  });
+
+  it("exposes blocks and blockId through the public config", async () => {
+    const q = await createQuestionnaire({ title: "B", slug: "blk-6" });
+    const b = await createBlock(q.id, "Section");
+    const m = await createQuestionMaster({ code: "q_blk4", title: "Q", questionType: "TEXT" });
+    const placed = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    await setQuestionBlock(placed.id, b.id);
+    const config = (await getQuestionnaireConfig(q.slug))!;
+    expect(config.blocks.map((x) => x.title)).toEqual(["Section"]);
+    expect(config.questions.find((x) => x.id === placed.id)?.blockId).toBe(b.id);
+  });
+
+  it("duplicates blocks, block membership and remapped entry rules", async () => {
+    const q = await createQuestionnaire({ title: "B", slug: "blk-7" });
+    const m1 = await createQuestionMaster({ code: "q_blk5", title: "Q1", questionType: "TEXT" });
+    const m2 = await createQuestionMaster({ code: "q_blk6", title: "Q2", questionType: "TEXT" });
+    const dep = await addQuestion({ questionnaireId: q.id, questionMasterId: m1.id });
+    const block = await createBlock(q.id, "Entry");
+    const inBlock = await addQuestion({ questionnaireId: q.id, questionMasterId: m2.id });
+    await setQuestionBlock(inBlock.id, block.id);
+    await updateBlock(block.id, {
+      entryRule: {
+        sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: dep.id }] }],
+      },
+    });
+    const { questionnaire: copy } = await duplicateQuestionnaire(q.id);
+    const loaded = await getQuestionnaireWithQuestions(copy.id);
+    expect(loaded?.blocks).toHaveLength(1);
+    const copiedBlock = loaded?.blocks[0];
+    const copiedQuestion = loaded?.questions.find((x) => x.questionMaster.code === "q_blk6");
+    expect(copiedQuestion?.blockId).toBe(copiedBlock?.id);
+    const depCopy = loaded?.questions.find((x) => x.questionMaster.code === "q_blk5");
+    expect(copiedBlock?.entryRule).toEqual({
+      sets: [{ condition: "ALL", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: depCopy?.id }] }],
+    });
+  });
+
+  it("deleting a block unassigns its questions", async () => {
+    const q = await createQuestionnaire({ title: "B", slug: "blk-8" });
+    const b = await createBlock(q.id, "Gone");
+    const m = await createQuestionMaster({ code: "q_blk7", title: "Q", questionType: "TEXT" });
+    const placed = await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    await setQuestionBlock(placed.id, b.id);
+    await deleteBlock(b.id);
+    const after = await db.questionnaireQuestion.findUnique({ where: { id: placed.id } });
+    expect(after?.blockId).toBeNull();
   });
 });

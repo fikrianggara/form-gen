@@ -11,11 +11,16 @@ import {
   updateQuestionOptionSetAction,
   removeQuestionAction,
   reorderQuestionsAction,
+  createBlockAction,
+  updateBlockAction,
+  deleteBlockAction,
+  setQuestionBlockAction,
 } from "@/lib/actions/dashboard";
 import type { VisibilityRule, VisibilityRuleSet, VisibilityRuleClause } from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
+import { RuleSetsEditor } from "@/components/dashboard/RuleSetsEditor";
 import type { EditorQuestion } from "@/app/dashboard/questionnaires/[id]/edit/page";
 
 interface EditorProps {
@@ -28,6 +33,7 @@ interface EditorProps {
     slug: string;
   };
   questions: EditorQuestion[];
+  blocks: Array<{ id: string; title: string; order: number; entryRule: VisibilityRule | null }>;
   masters: Array<{
     id: string;
     code: string;
@@ -62,6 +68,7 @@ const CHOICE_TYPES = ["RADIO", "CHECKBOX", "SELECT"];
 export function Editor({
   questionnaire: q,
   questions,
+  blocks,
   masters,
   masterVersions,
   optionSets,
@@ -69,6 +76,9 @@ export function Editor({
 }: EditorProps) {
   const toast = useToast();
   const [items, setItems] = useState(questions);
+  const [blockTitle, setBlockTitle] = useState("");
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [blockDraftSets, setBlockDraftSets] = useState<VisibilityRuleSet[]>([]);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -413,6 +423,114 @@ export function Editor({
         </div>
       </Card>
 
+      {/* Blocks */}
+      <Card className="p-4">
+        <h3 className="mb-3 font-semibold">Blocks (sections)</h3>
+        <div className="mb-3 flex gap-2">
+          <input
+            className={inputClass}
+            placeholder="Block title, e.g. Demographics"
+            value={blockTitle}
+            onChange={(e) => setBlockTitle(e.target.value)}
+          />
+          <Button
+            disabled={!blockTitle.trim() || pending}
+            onClick={() =>
+              run(async () => {
+                const res = await createBlockAction({ questionnaireId: q.id, title: blockTitle.trim() });
+                if (!res?.error) setBlockTitle("");
+                return res;
+              }, "Block created")
+            }
+          >
+            Add block
+          </Button>
+        </div>
+        {blocks.length === 0 && (
+          <p className="text-xs text-gray-400">No blocks yet — questions can be grouped into sections.</p>
+        )}
+        <div className="space-y-2">
+          {blocks.map((b) => {
+            const isEditing = editingBlockId === b.id;
+            return (
+              <div key={b.id} className="rounded-lg border border-gray-200 p-3">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="font-medium text-gray-800">{b.title}</span>
+                  {b.entryRule && <Badge tone="indigo">conditional entry</Badge>}
+                  <button
+                    type="button"
+                    className="ml-auto text-xs text-indigo-600 hover:underline"
+                    onClick={() => {
+                      if (isEditing) {
+                        setEditingBlockId(null);
+                        return;
+                      }
+                      const r = b.entryRule;
+                      setBlockDraftSets(
+                        r && Array.isArray(r.sets)
+                          ? r.sets
+                          : r && Array.isArray(r.rules)
+                            ? [{ condition: r.condition ?? "ALL", rules: r.rules }]
+                            : []
+                      );
+                      setEditingBlockId(b.id);
+                    }}
+                  >
+                    {isEditing ? "Close" : b.entryRule ? "Edit rule" : "Add entry rule"}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-xs text-red-600 hover:underline"
+                    onClick={() =>
+                      run(
+                        () => deleteBlockAction({ blockId: b.id, questionnaireId: q.id }),
+                        "Block deleted (questions moved out)"
+                      )
+                    }
+                  >
+                    Delete
+                  </button>
+                </div>
+                {isEditing && (
+                  <div className="mt-3 rounded-lg bg-gray-50 p-3">
+                    <p className="mb-2 text-xs text-gray-500">
+                      Block shows when ANY rule set matches; conditions inside a set combine per ALL/ANY.
+                    </p>
+                    <RuleSetsEditor
+                      sets={blockDraftSets}
+                      onChange={setBlockDraftSets}
+                      candidates={items
+                        .filter((x) => !x.parentId && !x.isAggregate)
+                        .map((x) => ({ id: x.id, label: x.questionMaster.title }))}
+                    />
+                    <div className="mt-3">
+                      <Button
+                        disabled={blockDraftSets.length === 0}
+                        onClick={() =>
+                          run(
+                            () =>
+                              updateBlockAction({
+                                blockId: b.id,
+                                questionnaireId: q.id,
+                                entryRule: blockDraftSets.some((s) => s.rules.length > 0)
+                                  ? { sets: blockDraftSets }
+                                  : null,
+                              }),
+                            "Entry rule saved"
+                          )
+                        }
+                      >
+                        Save entry rule
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Question list */}
       <div className="space-y-3">
         {items.map((item, index) => (
@@ -424,6 +542,7 @@ export function Editor({
               allQuestions={items}
               masterVersions={masterVersions}
               optionSets={optionSets}
+              blocks={blocks}
               dragging={dragId === item.id}
               dragOver={dragOverId === item.id}
               dragHandlers={{
@@ -487,6 +606,17 @@ export function Editor({
                   "Option set version updated"
                 )
               }
+              onMoveBlock={(questionId, blockId) =>
+                run(
+                  () =>
+                    setQuestionBlockAction({
+                      questionnaireId: q.id,
+                      questionId,
+                      blockId,
+                    }),
+                  "Block updated"
+                )
+              }
               onSaveRule={(rule) =>
                 run(
                   () =>
@@ -517,6 +647,7 @@ export function Editor({
                     allQuestions={items}
                     masterVersions={masterVersions}
                     optionSets={optionSets}
+                    blocks={blocks}
                     dragging={dragId === child.id}
                     dragOver={dragOverId === child.id}
                     dragHandlers={{
@@ -589,6 +720,17 @@ export function Editor({
                         "Option set version updated"
                       )
                     }
+                    onMoveBlock={(questionId, blockId) =>
+                      run(
+                        () =>
+                          setQuestionBlockAction({
+                            questionnaireId: q.id,
+                            questionId,
+                            blockId,
+                          }),
+                        "Block updated"
+                      )
+                    }
                     onSaveRule={(rule) =>
                       run(
                         () =>
@@ -642,8 +784,10 @@ function QuestionRow({
   onRemove,
   onMasterVersionChange,
   onOptionSetChange,
+  onMoveBlock,
   masterVersions,
   optionSets,
+  blocks,
   dragging,
   dragOver,
   dragHandlers,
@@ -658,8 +802,10 @@ function QuestionRow({
   onRemove: () => void;
   onMasterVersionChange: (questionId: string, masterVersionId: string) => void;
   onOptionSetChange: (questionId: string, optionSetId: string | null) => void;
+  onMoveBlock: (questionId: string, blockId: string | null) => void;
   masterVersions: Array<{ id: string; code: string; version: number; isLatest: boolean; title: string }>;
   optionSets: Array<{ id: string; name: string; version: number; isLatest: boolean; source: string }>;
+  blocks: Array<{ id: string; title: string }>;
   dragging: boolean;
   dragOver: boolean;
   dragHandlers: {
@@ -807,6 +953,23 @@ function QuestionRow({
                   {setVersions.map((o) => (
                     <option key={o.id} value={o.id}>
                       v{o.version}{o.isLatest ? " (latest)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {!item.parentId && blocks.length > 0 && (
+              <label className="flex items-center gap-1.5">
+                <span className="text-gray-400">block:</span>
+                <select
+                  className="rounded-lg border border-gray-300 px-1.5 py-1 text-xs"
+                  value={item.blockId ?? ""}
+                  onChange={(e) => onMoveBlock(item.id, e.target.value || null)}
+                >
+                  <option value="">— none —</option>
+                  {blocks.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.title}
                     </option>
                   ))}
                 </select>

@@ -259,6 +259,12 @@ export async function getQuestionnaireConfig(slug: string) {
     slug: tree.slug,
     status: tree.status,
     acceptMultipleResponses: tree.acceptMultipleResponses,
+    blocks: (tree.blocks ?? []).map((b) => ({
+      id: b.id,
+      title: b.title,
+      order: b.order,
+      entryRule: b.entryRule as VisibilityRule | null,
+    })),
     questions: tree.questions.map((qq) => {
       const master = qq.questionMaster;
       const isChoice = ["RADIO", "CHECKBOX", "SELECT"].includes(master.questionType);
@@ -273,6 +279,7 @@ export async function getQuestionnaireConfig(slug: string) {
         aggregateConfig: qq.aggregateConfig as AggregateConfig | null,
         visibilityRule: qq.visibilityRule as VisibilityRule | null,
         parentId: qq.parentId,
+        blockId: qq.blockId,
         questionMaster: {
           id: master.id,
           code: master.code,

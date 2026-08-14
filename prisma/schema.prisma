@@ -116,10 +116,27 @@ model Questionnaire {
   slug                    String                   @unique
   status                  QuestionnaireStatus      @default(DRAFT)
   acceptMultipleResponses Boolean                  @default(true)
+  requiresAccount         Boolean                  @default(false)
   questions               QuestionnaireQuestion[]
+  blocks                  QuestionnaireBlock[]
   responses               Response[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+}
+
+model QuestionnaireBlock {
+  id               String                 @id @default(cuid())
+  questionnaireId  String
+  questionnaire    Questionnaire          @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  title            String
+  order            Int                    @default(0)
+  /** Multi-set visibility rule; block shows only when it passes. */
+  entryRule        Json?
+  questions        QuestionnaireQuestion[]
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  @@index([questionnaireId, order])
 }
 
 model QuestionnaireQuestion {
@@ -142,6 +159,8 @@ model QuestionnaireQuestion {
   aiLowConfidence  Boolean            @default(false)
   optionSetId      String?
   optionSet        OptionSet?         @relation(fields: [optionSetId], references: [id])
+  blockId          String?
+  block            QuestionnaireBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
   answers          Answer[]
   answerGroups     AnswerGroup[]
 
