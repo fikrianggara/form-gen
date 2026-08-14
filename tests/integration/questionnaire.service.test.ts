@@ -221,10 +221,10 @@ describe("questionnaire service", () => {
     const m2 = await makeTextMaster("q_rule_multi_b");
     const qa = await addQuestion({ questionnaireId: q.id, questionMasterId: m1.id });
     const qb = await addQuestion({ questionnaireId: q.id, questionMasterId: m2.id });
-    const rule = {
+    const rule: import("@/domain/types").VisibilityRule = {
       sets: [
-        { condition: "ALL" as const, rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: qa.id }] },
-        { condition: "ANY" as const, rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] },
+        { condition: "ALL", rules: [{ operator: "EQ", value: "yes", dependsOnQuestionId: qa.id }] },
+        { condition: "ANY", rules: [{ operator: "EQ", value: "x", dependsOnQuestionId: qa.id }] },
       ],
     };
     const updated = await updateQuestionSettings(qb.id, { visibilityRule: rule });
