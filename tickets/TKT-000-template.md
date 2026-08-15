@@ -3,6 +3,7 @@ id: TKT-000
 title: "Template ticket"
 type: feature            # feature | bug
 size: small              # small | medium | big
+severity: P2             # P0 (blocker) | P1 (high) | P2 (normal)
 group: ""                # epic/branch group (see tickets/README.md)
 status: backlog          # backlog | ongoing | done | merged | cancelled
 assignee: null           # agent name once assigned

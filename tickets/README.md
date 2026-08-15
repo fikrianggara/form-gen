@@ -46,7 +46,7 @@ instruction from the owner).
 ## CLI reference
 
 ```bash
-scripts/ticket.sh new "<title>" [bug] [size] [group]  # create backlog ticket (next id)
+scripts/ticket.sh new "<title>" [bug] [size] [group] [severity]  # create backlog ticket (next id); severity P0|P1|P2
 scripts/ticket.sh start TKT-###            # flag ongoing, branch, test DB
 scripts/ticket.sh done TKT-### "<summary>" # flag done + readyToMerge + notes
 scripts/ticket.sh status TKT-###           # print ticket frontmatter
@@ -63,6 +63,10 @@ Every ticket carries a **size** and a **group** in its frontmatter:
 - `size`: `small | medium | big` — an estimate of implementation effort, decided
   when the ticket is analyzed/backlogged. INDEX.md shows it so anyone picking
   work can see the weight at a glance.
+- `severity`: `P0 | P1 | P2` — business/risk priority, decided when the ticket
+  is analyzed/backlogged. P0 = blocker (shipping-breaking, security, data
+  integrity), P1 = high (should be scheduled soon), P2 = normal (nice-to-have /
+  planned capability). INDEX.md shows it as the `sev` column.
 - `group`: an epic/branch group. Tickets in the same group are **worked on the
   same branch** — the shared branch is created when the first ticket of the
   group is started, and `start` on a later ticket of the same group **joins the

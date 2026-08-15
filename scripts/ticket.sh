@@ -59,9 +59,10 @@ doc_commit() { # message
 # ------------------------------------------------------------------ commands
 
 cmd_new() {
-  local title="$1" type="${2:-feature}" size="${3:-small}" group="${4:-}"
+  local title="$1" type="${2:-feature}" size="${3:-small}" group="${4:-}" severity="${5:-P2}"
   [[ "$type" == "feature" || "$type" == "bug" ]] || die "type must be feature|bug"
   [[ "$size" == "small" || "$size" == "medium" || "$size" == "big" ]] || die "size must be small|medium|big"
+  [[ "$severity" == "P0" || "$severity" == "P1" || "$severity" == "P2" ]] || die "severity must be P0|P1|P2"
   local id next tmp
   id="$(next_id)"
   next="$(date +%F)"
@@ -70,12 +71,13 @@ cmd_new() {
       -e "s|^title: .*|title: \"$title\"|" \
       -e "s|^type: .*|type: $type|" \
       -e "s|^size: .*|size: $size|" \
+      -e "s|^severity: .*|severity: $severity|" \
       -e "s|^group: .*|group: \"$group\"|" \
       -e "s|^created: .*|created: $next|" \
       -e "s|^updated: .*|updated: $next|" \
       "$TICKETS/TKT-000-template.md" > "$tmp"
   mv "$tmp" "$TICKETS/$id.md"
-  echo "created $id ($type/$size${group:+, group '$group'}): $title  → tickets/$id.md (status backlog)"
+  echo "created $id ($type/$size/$severity${group:+, group '$group'}): $title  → tickets/$id.md (status backlog)"
   cmd_list >/dev/null
 }
 
@@ -183,23 +185,24 @@ cmd_done() {
 cmd_status() {
   local f
   f="$(ticket_file "$1")"
-  sed -n '1,/^---$/p' "$f" | grep -E '^(id|title|type|size|group|status|assignee|branch|readyToMerge|created|updated):'
+  sed -n '1,/^---$/p' "$f" | grep -E '^(id|title|type|size|severity|group|status|assignee|branch|readyToMerge|created|updated):'
 }
 
 cmd_list() {
   local out rows
-  out="| id | type | size | group | status | assignee | branch | ready | title |
-|---|-----|------|-------|--------|----------|--------|-------|-------|
+  out="| id | type | size | sev | group | status | assignee | branch | ready | title |
+|---|-----|------|-----|-------|--------|----------|--------|-------|-------|
 "
   rows=""
   while IFS= read -r f; do
     [[ -f "$f" ]] || continue
     [[ "$(basename "$f")" == "TKT-000-template.md" ]] && continue
-    local id title type size group status assignee branch ready rank
+    local id title type size severity group status assignee branch ready rank
     id="$(get_field "$f" id)"
     title="$(get_field "$f" title)"
     type="$(get_field "$f" type)"
     size="$(get_field "$f" size)"
+    severity="$(get_field "$f" severity)"
     group="$(get_field "$f" group)"
     status="$(get_field "$f" status)"
     assignee="$(get_field "$f" assignee)"
@@ -210,12 +213,12 @@ cmd_list() {
       medium) rank=1 ;;
       *) rank=2 ;;
     esac
-    rows+="${rank}|${group:-—}|$id|$type|${size:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title\n"
+    rows+="${rank}|${group:-—}|$id|$type|${size:-—}|${severity:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title\n"
   done < <(ls "$TICKETS"/TKT-*.md 2>/dev/null | sort -t- -k2 -n)
   # Sort by size (big → medium → small), then group, then id.
   rows="$(printf '%b' "$rows" | sort -t'|' -k1,1n -k2,2 -k3,3n)"
-  while IFS='|' read -r _ _ id type size group status assignee branch ready title; do
-    out+="| $id | $type | $size | $group | $status | $assignee | $branch | $ready | $title |
+  while IFS='|' read -r _ _ id type size severity group status assignee branch ready title; do
+    out+="| $id | $type | $size | $severity | $group | $status | $assignee | $branch | $ready | $title |
 "
   done <<< "$rows"
   printf '%s' "$out" > "$TICKETS/INDEX.md"
@@ -247,7 +250,7 @@ cmd_db_drop() {
 # ------------------------------------------------------------------ dispatch
 
 case "${1:-}" in
-  new)       [[ $# -ge 2 ]] || die "usage: ticket.sh new \"<title>\" [bug] [size] [group]"; cmd_new "$2" "${3:-feature}" "${4:-small}" "${5:-}" ;;
+  new)       [[ $# -ge 2 ]] || die "usage: ticket.sh new \"<title>\" [bug] [size] [group] [severity]"; cmd_new "$2" "${3:-feature}" "${4:-small}" "${5:-}" "${6:-P2}" ;;
   start)     [[ $# -eq 2 ]] || die "usage: ticket.sh start TKT-###"; cmd_start "$2" ;;
   done)      [[ $# -ge 3 ]] || die "usage: ticket.sh done TKT-### \"<summary>\""; cmd_done "$2" "$3" ;;
   status)    cmd_status "$2" ;;
@@ -257,8 +260,9 @@ case "${1:-}" in
   *) cat <<'EOF'
 usage: scripts/ticket.sh <command> [args]
 
-  new "<title>" [bug] [size] [group]
-                            create a backlog ticket (next id); size small|medium|big, group joins a shared branch
+  new "<title>" [bug] [size] [group] [severity]
+                            create a backlog ticket (next id); size small|medium|big,
+                            severity P0|P1|P2 (default P2), group joins a shared branch
   start TKT-###             flag ongoing, create branch, provision test DB
   done TKT-### "<summary>"  flag done + readyToMerge + append notes
   status TKT-###            print ticket frontmatter
