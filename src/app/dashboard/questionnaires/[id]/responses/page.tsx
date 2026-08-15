@@ -5,8 +5,16 @@ import { listResponses } from "@/services/response.service";
 import { Badge, ProgressBar } from "@/components/ui";
 import { ResponseActionsMenu } from "@/components/dashboard/ResponseActionsMenu";
 import { IconDownload, IconChart, IconArrowLeft } from "@/components/icons";
+import type { ResponseStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<ResponseStatus, "gray" | "green" | "amber" | "indigo"> = {
+  DRAFT: "gray",
+  SUBMITTED: "green",
+  EDITED: "amber",
+  APPROVED: "indigo",
+};
 
 export default async function ResponsesPage({
   params,
@@ -84,7 +92,7 @@ export default async function ResponsesPage({
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 text-gray-900">{r.respondentLabel ?? "Anonymous"}</td>
                   <td className="px-4 py-3">
-                    <Badge tone={r.status === "COMPLETED" ? "green" : "gray"}>{r.status}</Badge>
+                    <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -99,6 +107,7 @@ export default async function ResponsesPage({
                       questionnaireId={params.id}
                       responseId={r.id}
                       respondentLabel={r.respondentLabel}
+                      status={r.status}
                     />
                   </td>
                 </tr>

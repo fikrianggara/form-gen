@@ -234,3 +234,13 @@ export function IconMore(props: IconProps) {
     </svg>
   );
 }
+
+/** Approve / check — circled check. */
+export function IconCheck(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m8 12 3 3 5-6" />
+    </svg>
+  );
+}

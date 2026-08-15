@@ -3,19 +3,26 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
-import { deleteResponseAction, mailblastRespondentAction } from "@/lib/actions/responses";
+import {
+  deleteResponseAction,
+  mailblastRespondentAction,
+  approveResponseAction,
+} from "@/lib/actions/responses";
 import {
   IconMore,
   IconEye,
   IconPencil,
   IconMail,
   IconTrash,
+  IconCheck,
 } from "@/components/icons";
+import type { ResponseStatus } from "@prisma/client";
 
 interface ResponseActionsMenuProps {
   questionnaireId: string;
   responseId: string;
   respondentLabel: string | null;
+  status: ResponseStatus;
 }
 
 /**
@@ -26,6 +33,7 @@ export function ResponseActionsMenu({
   questionnaireId,
   responseId,
   respondentLabel,
+  status,
 }: ResponseActionsMenuProps) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -78,6 +86,20 @@ export function ResponseActionsMenu({
       close();
     });
   };
+
+  const runApprove = () => {
+    startTransition(async () => {
+      const res = await approveResponseAction({ questionnaireId, responseId });
+      if (res.error) {
+        toast.error("Approve failed", res.error);
+      } else {
+        toast.success("Response approved", "The response was approved and locked.");
+      }
+      close();
+    });
+  };
+
+  const canApprove = status === "SUBMITTED" || status === "EDITED";
 
   return (
     <div ref={ref} className="relative inline-block text-left">
@@ -141,6 +163,17 @@ export function ResponseActionsMenu({
                 <IconMail size={14} />
                 Mailblast
               </button>
+              {canApprove && (
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={runApprove}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  <IconCheck size={14} />
+                  Approve
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setConfirmDelete(true)}
