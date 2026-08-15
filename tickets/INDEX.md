@@ -13,7 +13,7 @@
 | TKT-013 | feature | medium | P2 | questionnaire-extras | backlog | null | null | false | Mailblast respondent emails |
 | TKT-017 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-017-responses-page-view-edit | false | Responses page: view/edit/delete/mailblast actions in a popup menu per respondent |
 | TKT-002 | feature | medium | P2 | respondent-auth | cancelled | null | null | false | Email verification and password reset for respondents |
-| TKT-023 | feature | medium | P0 | respondent-auth | backlog | null | null | false | Rate-limit public response submission endpoints |
+| TKT-023 | feature | medium | P0 | respondent-auth | ongoing | jarvis | feature-TKT-023-rate-limit-public-respon | false | Rate-limit public response submission endpoints |
 | TKT-011 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-011-small-wins | false | Conditional field disabling in master and option set forms |
 | TKT-015 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-015-questionnaire-editor-add | false | Questionnaire editor: added question and required toggle do not update until page reload |
 | TKT-018 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-018-system-wide-action-icons | false | System-wide action icons (view, add, edit, delete, logout, login, etc.) |
