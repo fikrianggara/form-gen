@@ -75,16 +75,16 @@ export default async function ResponsesPage({
           No responses yet.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
               <tr>
-                <th className="px-4 py-3">Respondent</th>
+                <th className="px-4 py-3 first:rounded-tl-xl">Respondent</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 w-48">Progress</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3">Updated</th>
-                <th className="px-4 py-3"></th>
+                <th className="px-4 py-3 last:rounded-tr-xl"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
