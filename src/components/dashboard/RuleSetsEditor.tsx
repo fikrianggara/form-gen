@@ -2,6 +2,7 @@
 
 import type { VisibilityRuleClause, VisibilityRuleSet } from "@/domain/types";
 import { Button, inputClass } from "@/components/ui";
+import { IconPlus, IconTrash } from "@/components/icons";
 
 export const OPERATORS: VisibilityRuleClause["operator"][] = [
   "EQ",
@@ -56,9 +57,10 @@ export function RuleSetsEditor({
             </select>
             <button
               type="button"
-              className="ml-auto text-xs text-red-600 hover:underline"
+              className="ml-auto inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
               onClick={() => onChange(sets.filter((_, i) => i !== setIdx))}
             >
+              <IconTrash size={13} />
               Remove set
             </button>
           </div>
@@ -100,31 +102,33 @@ export function RuleSetsEditor({
                 />
                 <button
                   type="button"
-                  className="text-xs text-red-600 hover:underline"
+                  className="inline-flex items-center text-xs text-red-600 hover:underline"
                   onClick={() =>
                     updateSet(setIdx, { rules: set.rules.filter((_, i) => i !== clauseIdx) })
                   }
                 >
-                  ✕
+                  <IconTrash size={13} />
                 </button>
               </div>
             ))}
             <button
               type="button"
-              className="text-xs text-indigo-600 hover:underline"
+              className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
               onClick={() =>
                 updateSet(setIdx, {
                   rules: [...set.rules, { dependsOnQuestionId: "", operator: "EQ", value: "" }],
                 })
               }
             >
-              + Add clause
+              <IconPlus size={13} />
+              Add clause
             </button>
           </div>
         </div>
       ))}
       <Button variant="secondary" onClick={() => onChange([...sets, { condition: "ALL", rules: [] }])}>
-        + Add rule set (OR)
+        <IconPlus size={15} className="mr-2" />
+        Add rule set (OR)
       </Button>
     </div>
   );

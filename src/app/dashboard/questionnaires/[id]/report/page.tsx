@@ -4,6 +4,7 @@ import { getQuestionnaireReport } from "@/services/report.service";
 import type { QuestionStat } from "@/services/report.service";
 import { Badge, Card, ProgressBar } from "@/components/ui";
 import type { QuestionType } from "@prisma/client";
+import { IconDownload, IconArrowLeft } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -56,21 +57,24 @@ export default async function ReportPage({
         <div className="flex items-center gap-2">
           <a
             href={`/api/questionnaires/${report.questionnaire.slug}/export?format=json`}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
+            <IconDownload size={15} />
             Export API
           </a>
           <a
             href={`/api/questionnaires/${report.questionnaire.slug}/export?format=xlsx`}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
           >
+            <IconDownload size={15} />
             Export Excel
           </a>
           <Link
             href={`/dashboard/questionnaires/${params.id}/responses`}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
-            ← Responses
+            <IconArrowLeft size={15} />
+            Responses
           </Link>
         </div>
       </div>

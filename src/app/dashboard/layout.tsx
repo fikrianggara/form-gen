@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/http";
 import { logoutAction } from "@/lib/actions/auth";
 import { redirect } from "next/navigation";
+import { IconLogOut } from "@/components/icons";
 
 export default async function DashboardLayout({
   children,
@@ -58,8 +59,9 @@ export default async function DashboardLayout({
             <form action={logoutAction}>
               <button
                 type="submit"
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
               >
+                <IconLogOut size={15} />
                 Sign out
               </button>
             </form>

@@ -12,6 +12,7 @@ import { sumValues } from "@/domain/rules/aggregate";
 import { extractAnswerValue } from "@/domain/answers";
 import { Button, Card, ProgressBar, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
+import { IconPlus, IconTrash, IconInfo } from "@/components/icons";
 
 interface ExternalOptions {
   [optionSetId: string]: Array<{ label: string; value: string }>;
@@ -500,8 +501,9 @@ function QuestionBlock({
                 <button
                   type="button"
                   onClick={() => onRemoveRow(rowIndex)}
-                  className="text-xs text-red-600 hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
                 >
+                  <IconTrash size={13} />
                   Remove
                 </button>
               </div>
@@ -520,7 +522,8 @@ function QuestionBlock({
             </div>
           ))}
           <Button type="button" variant="secondary" onClick={onAddRow}>
-            + Add row
+            <IconPlus size={15} className="mr-2" />
+            Add row
           </Button>
         </div>
       </Card>
@@ -575,7 +578,7 @@ function QuestionInput({
         }
       }}
     >
-      ⓘ
+      <IconInfo size={14} />
     </span>
   ) : null;
   const description =

@@ -7,6 +7,7 @@ import { useToast } from "@/components/toast";
 import { updateResponseAction } from "@/lib/actions/responses";
 import { extractAnswerValue } from "@/domain/answers";
 import type { QuestionType } from "@prisma/client";
+import { IconPlus } from "@/components/icons";
 
 type Config = NonNullable<Awaited<ReturnType<typeof import("@/services/response.service").getQuestionnaireConfig>>>;
 type Detail = NonNullable<Awaited<ReturnType<typeof import("@/services/response.service").getResponseDetail>>>;
@@ -169,7 +170,8 @@ export function ResponseEditForm({
               </div>
             ))}
             <Button variant="secondary" disabled={pending} onClick={() => addGroupRow(parent.id, config.questions)}>
-              + Add row
+              <IconPlus size={15} className="mr-2" />
+              Add row
             </Button>
           </Card>
         );

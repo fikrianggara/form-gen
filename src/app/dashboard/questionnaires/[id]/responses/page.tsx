@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { listResponses } from "@/services/response.service";
 import { Badge, ProgressBar } from "@/components/ui";
 import { ResponseActionsMenu } from "@/components/dashboard/ResponseActionsMenu";
+import { IconDownload, IconChart, IconArrowLeft } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -32,27 +33,31 @@ export default async function ResponsesPage({
         <div className="flex items-center gap-2">
           <a
             href={`/api/questionnaires/${questionnaire.slug}/export?format=json`}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
+            <IconDownload size={15} />
             Export API
           </a>
           <a
             href={`/api/questionnaires/${questionnaire.slug}/export?format=xlsx`}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
+            <IconDownload size={15} />
             Export Excel
           </a>
           <Link
             href={`/dashboard/questionnaires/${questionnaire.id}/report`}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
+            <IconChart size={15} />
             Report
           </Link>
           <Link
             href={`/dashboard/questionnaires/${questionnaire.id}/edit`}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
-            ← Back to editor
+            <IconArrowLeft size={15} />
+            Back to editor
           </Link>
         </div>
       </div>

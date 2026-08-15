@@ -3,6 +3,7 @@ import { listQuestionnaires } from "@/services/questionnaire.service";
 import NewQuestionnaireForm from "@/components/dashboard/NewQuestionnaireForm";
 import DuplicateQuestionnaireButton from "@/components/dashboard/DuplicateQuestionnaireButton";
 import { Badge } from "@/components/ui";
+import { IconPlus, IconEye, IconList, IconChart, IconPencil } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +22,10 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-bold">Questionnaires</h1>
         <Link
           href="/dashboard/new"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
-          + New
+          <IconPlus size={16} />
+          New
         </Link>
       </div>
 
@@ -54,27 +56,31 @@ export default async function DashboardPage() {
                   <div className="flex shrink-0 gap-2">
                     <Link
                       href={`/f/${q.slug}`}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                     >
+                      <IconEye size={14} />
                       View
                     </Link>
                     <Link
                       href={`/dashboard/questionnaires/${q.id}/responses`}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                     >
+                      <IconList size={14} />
                       Responses
                     </Link>
                     <DuplicateQuestionnaireButton questionnaireId={q.id} />
                     <Link
                       href={`/dashboard/questionnaires/${q.id}/report`}
-                      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
                     >
+                      <IconChart size={14} />
                       Report
                     </Link>
                     <Link
                       href={`/dashboard/questionnaires/${q.id}/edit`}
-                      className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                      className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
                     >
+                      <IconPencil size={14} />
                       Edit
                     </Link>
                   </div>
