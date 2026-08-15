@@ -58,12 +58,14 @@ export async function createQuestionnaireAction(input: {
   acceptMultipleResponses: boolean;
 }): Promise<{ error?: string }> {
   try {
-    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
     await createQuestionnaire({
       title: input.title,
       slug: input.slug,
       description: input.description || null,
       acceptMultipleResponses: input.acceptMultipleResponses,
+      createdBy: session!.sub,
     });
   } catch (err) {
     return actionError(err);

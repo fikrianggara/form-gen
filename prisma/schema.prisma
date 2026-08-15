@@ -48,6 +48,7 @@ model User {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  questionnaires Questionnaire[] @relation("QuestionnaireCreator")
 }
 
 model LoginAttempt {
@@ -131,12 +132,17 @@ model Questionnaire {
   requiresAccount         Boolean                  @default(false)
   /** Sample respondent emails for unique-link distribution (TKT-001). */
   sampleEmails            Json?                    @default("[]")
+  /** Creator user (TKT-017): null for legacy rows — manageable by any admin/operator. */
+  createdBy               String?
+  creator                 User?                    @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   invitations             Invitation[]
   questions               QuestionnaireQuestion[]
   blocks                  QuestionnaireBlock[]
   responses               Response[]
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
+
+  @@index([createdBy])
 }
 
 /** One unique form link per sample email (TKT-001). No Response until save. */
