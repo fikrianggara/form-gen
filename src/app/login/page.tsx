@@ -6,6 +6,7 @@ import Link from "next/link";
 import { loginAction, type LoginState } from "@/lib/actions/auth";
 import { Button, Card, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
+import { IconLogIn } from "@/components/icons";
 
 const initialState: LoginState = { error: null };
 
@@ -60,6 +61,7 @@ export default function LoginPage() {
           )}
 
           <Button type="submit" disabled={pending} className="w-full">
+            <IconLogIn size={16} className="mr-2" />
             {pending ? "Signing in…" : "Sign in"}
           </Button>
         </form>
