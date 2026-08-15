@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/http";
 import { requirePermission } from "@/lib/auth/rbac";

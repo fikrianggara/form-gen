@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import type { SessionPayload } from "@/lib/auth/session";
-import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/errors";
+import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { requireAuth } from "@/lib/auth/rbac";
 
 /**
