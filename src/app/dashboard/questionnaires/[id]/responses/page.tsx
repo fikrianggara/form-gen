@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { listResponses } from "@/services/response.service";
 import { Badge, ProgressBar } from "@/components/ui";
+import { ResponseActionsMenu } from "@/components/dashboard/ResponseActionsMenu";
 
 export const dynamic = "force-dynamic";
 
@@ -89,12 +90,11 @@ export default async function ResponsesPage({
                   <td className="px-4 py-3 text-gray-500">{r.createdAt.toLocaleString()}</td>
                   <td className="px-4 py-3 text-gray-500">{r.updatedAt.toLocaleString()}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/dashboard/questionnaires/${params.id}/responses/${r.id}`}
-                      className="text-indigo-600 hover:underline"
-                    >
-                      View
-                    </Link>
+                    <ResponseActionsMenu
+                      questionnaireId={params.id}
+                      responseId={r.id}
+                      respondentLabel={r.respondentLabel}
+                    />
                   </td>
                 </tr>
               ))}
