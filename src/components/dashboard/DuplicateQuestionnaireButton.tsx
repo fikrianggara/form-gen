@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { duplicateQuestionnaireAction } from "@/lib/actions/dashboard";
+import { IconCopy } from "@/components/icons";
 
 export default function DuplicateQuestionnaireButton({
   questionnaireId,
@@ -24,9 +25,10 @@ export default function DuplicateQuestionnaireButton({
           }
         })
       }
-      className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+      className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
       title="Create a draft copy of this questionnaire"
     >
+      <IconCopy size={14} />
       {pending ? "…" : "Duplicate"}
     </button>
   );
