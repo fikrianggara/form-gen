@@ -48,7 +48,10 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
           className="grid gap-4 sm:grid-cols-4"
           onSubmit={(e) => {
             e.preventDefault();
-            const fd = new FormData(e.currentTarget);
+            // Capture the form BEFORE the async gap: React nulls
+            // e.currentTarget once the handler returns (TKT-027).
+            const form = e.currentTarget;
+            const fd = new FormData(form);
             run(async () => {
               const res = await createUserAction({
                 email: String(fd.get("email") ?? ""),
@@ -56,7 +59,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                 password: String(fd.get("password") ?? ""),
                 role: String(fd.get("role")) as "ADMIN" | "OPERATOR",
               });
-              if (!res?.error) e.currentTarget.reset();
+              if (!res?.error) form.reset();
               return res;
             }, "User created");
           }}
