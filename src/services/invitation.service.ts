@@ -11,6 +11,9 @@ import {
 /** Length of the opaque unique-link token. */
 export const INVITATION_TOKEN_LENGTH = 32;
 
+/** How long an invitation link stays valid after creation (env-tunable). */
+export const INVITATION_TTL_DAYS = Number(process.env.INVITATION_TTL_DAYS ?? 30);
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function normalizeEmail(email: string): string {
@@ -49,7 +52,14 @@ export async function generateInvitations(
     unique.map((email) =>
       db.invitation.create({
         data: { questionnaireId, email, token: generateToken() },
-        select: { id: true, email: true, token: true, clickedAt: true, responseId: true },
+        select: {
+          id: true,
+          email: true,
+          token: true,
+          clickedAt: true,
+          revokedAt: true,
+          responseId: true,
+        },
       })
     )
   );
@@ -79,6 +89,71 @@ export async function linkInvitationToResponse(token: string, responseId: string
   return db.invitation.update({
     where: { token },
     data: { responseId },
+  });
+}
+
+function assertInvitationOpen(inv: { revokedAt: Date | null; createdAt: Date }): void {
+  if (inv.revokedAt) {
+    throw new AppError("This invitation link has been revoked.", 403, "INVITATION_REVOKED");
+  }
+  const ttlMs = INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000;
+  if (inv.createdAt.getTime() + ttlMs < Date.now()) {
+    throw new AppError("This invitation link has expired.", 410, "INVITATION_EXPIRED");
+  }
+}
+
+/**
+ * TKT-020: strict single-use gate for CREATING a new response with an
+ * invitation token. Rejects revoked/expired tokens and any token already
+ * linked to a response — a second POST can no longer mint another row.
+ */
+export async function validateInvitationForCreate(token: string) {
+  const invitation = await getInvitationByToken(token);
+  if (!invitation) {
+    throw new AppError("Invitation not found", 404, "INVITATION_NOT_FOUND");
+  }
+  assertInvitationOpen(invitation);
+  if (invitation.responseId) {
+    throw new AppError(
+      "This invitation link has already been used.",
+      409,
+      "INVITATION_ALREADY_USED"
+    );
+  }
+  return invitation;
+}
+
+/**
+ * TKT-020: form-open gate. Rejects revoked/expired tokens, and tokens whose
+ * linked response is already COMPLETED. Draft-linked tokens still open the
+ * form so the respondent can resume editing — the POST gate prevents new rows.
+ */
+export async function validateInvitationForForm(token: string) {
+  const invitation = await getInvitationByToken(token);
+  if (!invitation) {
+    throw new AppError("Invitation not found", 404, "INVITATION_NOT_FOUND");
+  }
+  assertInvitationOpen(invitation);
+  if (invitation.responseId) {
+    const response = await db.response.findUnique({ where: { id: invitation.responseId } });
+    if (response?.status === "COMPLETED") {
+      throw new AppError(
+        "This invitation link has already been used.",
+        409,
+        "INVITATION_ALREADY_USED"
+      );
+    }
+  }
+  return invitation;
+}
+
+/** Admin revoke: invalidate the token immediately (row kept for audit). */
+export async function revokeInvitation(invitationId: string) {
+  const existing = await db.invitation.findUnique({ where: { id: invitationId } });
+  if (!existing) throw new NotFoundError("Invitation not found");
+  return db.invitation.update({
+    where: { id: invitationId },
+    data: { revokedAt: new Date() },
   });
 }
 
@@ -136,6 +211,7 @@ export async function sendInvitations(
             token: true,
             sentAt: true,
             clickedAt: true,
+            revokedAt: true,
             responseId: true,
           },
         });
@@ -149,6 +225,7 @@ export async function sendInvitations(
           token: true,
           sentAt: true,
           clickedAt: true,
+          revokedAt: true,
           responseId: true,
         },
       });
