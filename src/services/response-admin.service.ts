@@ -9,7 +9,7 @@ import {
 } from "@/services/mail.service";
 import { saveResponse } from "@/services/response.service";
 import type { SaveResponseInput } from "@/services/response.service";
-import type { ResponseActorType, ResponseAuditAction, ResponseStatus } from "@prisma/client";
+import type { ResponseActorType } from "@prisma/client";
 
 /**
  * Admin/operator response actions (TKT-017, TKT-024). Permission gating happens
