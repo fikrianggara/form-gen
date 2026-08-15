@@ -29,6 +29,16 @@ import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
 import { RuleSetsEditor } from "@/components/dashboard/RuleSetsEditor";
 import type { EditorQuestion } from "@/app/dashboard/questionnaires/[id]/edit/page";
+import {
+  IconPlus,
+  IconTrash,
+  IconPencil,
+  IconInfo,
+  IconWarning,
+  IconGrip,
+  IconChevronUp,
+  IconChevronDown,
+} from "@/components/icons";
 
 interface EditorProps {
   questionnaire: {
@@ -547,6 +557,7 @@ export function Editor({
               }, "Question added")
             }
           >
+            <IconPlus size={15} className="mr-2" />
             Add question
           </Button>
         </div>
@@ -572,6 +583,7 @@ export function Editor({
               }, "Block created")
             }
           >
+            <IconPlus size={15} className="mr-2" />
             Add block
           </Button>
         </div>
@@ -592,7 +604,7 @@ export function Editor({
                       className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
                       aria-label="Move block up"
                     >
-                      ▲
+                      <IconChevronUp size={14} />
                     </button>
                     <button
                       type="button"
@@ -601,14 +613,14 @@ export function Editor({
                       className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
                       aria-label="Move block down"
                     >
-                      ▼
+                      <IconChevronDown size={14} />
                     </button>
                   </div>
                   <span className="font-medium text-gray-800">{b.title}</span>
                   {b.entryRule && <Badge tone="indigo">conditional entry</Badge>}
                   <button
                     type="button"
-                    className="ml-auto text-xs text-indigo-600 hover:underline"
+                    className="ml-auto inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
                     onClick={() => {
                       if (isEditing) {
                         setEditingBlockId(null);
@@ -625,11 +637,12 @@ export function Editor({
                       setEditingBlockId(b.id);
                     }}
                   >
+                    <IconPencil size={13} />
                     {isEditing ? "Close" : b.entryRule ? "Edit rule" : "Add entry rule"}
                   </button>
                   <button
                     type="button"
-                    className="text-xs text-red-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
                     onClick={() =>
                       run(
                         () => deleteBlockAction({ blockId: b.id, questionnaireId: q.id }),
@@ -637,6 +650,7 @@ export function Editor({
                       )
                     }
                   >
+                    <IconTrash size={13} />
                     Delete
                   </button>
                 </div>
@@ -1020,7 +1034,7 @@ function QuestionRow({
             draggable
             onDragStart={dragHandlers.onDragStart}
           >
-            ⠿
+            <IconGrip size={16} />
           </span>
           <div className="flex flex-col gap-1">
             <button
@@ -1030,7 +1044,7 @@ function QuestionRow({
               className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
               aria-label="Move up"
             >
-              ▲
+              <IconChevronUp size={14} />
             </button>
             <button
               type="button"
@@ -1039,7 +1053,7 @@ function QuestionRow({
               className="text-gray-400 hover:text-gray-700 disabled:opacity-30"
               aria-label="Move down"
             >
-              ▼
+              <IconChevronDown size={14} />
             </button>
           </div>
         </div>
@@ -1054,7 +1068,7 @@ function QuestionRow({
                 aria-label="Question description"
                 title="Question description"
               >
-                ⓘ
+                <IconInfo size={14} />
               </button>
             )}
             <Badge tone="gray">{item.questionMaster.code}</Badge>
@@ -1066,10 +1080,11 @@ function QuestionRow({
                 <Badge tone="indigo">AI {item.aiConfidence !== null ? item.aiConfidence.toFixed(2) : ""}</Badge>
                 {item.aiLowConfidence && (
                   <span
-                    className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
+                    className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700"
                     title="The system was not confident this question matches the generation prompt — review before publishing."
                   >
-                    ⚠ low confidence
+                    <IconWarning size={13} />
+                    low confidence
                   </span>
                 )}
               </>
@@ -1144,12 +1159,18 @@ function QuestionRow({
             )}
             <button
               type="button"
-              className="underline hover:text-indigo-600"
+              className="inline-flex items-center gap-1 underline hover:text-indigo-600"
               onClick={() => setRuleOpen((v) => !v)}
             >
+              <IconPencil size={13} />
               {item.visibilityRule ? "Edit rule" : "Add rule"}
             </button>
-            <button type="button" className="text-red-600 underline hover:text-red-700" onClick={onRemove}>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-red-600 underline hover:text-red-700"
+              onClick={onRemove}
+            >
+              <IconTrash size={13} />
               Remove
             </button>
           </div>
@@ -1181,9 +1202,10 @@ function QuestionRow({
                   </select>
                   <button
                     type="button"
-                    className="ml-auto text-xs text-red-600 hover:underline"
+                    className="ml-auto inline-flex items-center gap-1 text-xs text-red-600 hover:underline"
                     onClick={() => setRuleSets((prev) => prev.filter((_, i) => i !== setIdx))}
                   >
+                    <IconTrash size={13} />
                     Remove set
                   </button>
                 </div>
@@ -1250,7 +1272,7 @@ function QuestionRow({
                       />
                       <button
                         type="button"
-                        className="text-xs text-red-600 hover:underline"
+                        className="inline-flex items-center text-xs text-red-600 hover:underline"
                         onClick={() => {
                           const next = [...ruleSets];
                           next[setIdx] = {
@@ -1260,13 +1282,13 @@ function QuestionRow({
                           setRuleSets(next);
                         }}
                       >
-                        ✕
+                        <IconTrash size={13} />
                       </button>
                     </div>
                   ))}
                   <button
                     type="button"
-                    className="text-xs text-indigo-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
                     onClick={() =>
                       setRuleSets((prev) =>
                         prev.map((s, i) =>
@@ -1277,7 +1299,8 @@ function QuestionRow({
                       )
                     }
                   >
-                    + Add clause
+                    <IconPlus size={13} />
+                    Add clause
                   </button>
                 </div>
               </div>
@@ -1290,7 +1313,8 @@ function QuestionRow({
                 setRuleSets((prev) => [...prev, { condition: "ALL", rules: [] }])
               }
             >
-              + Add rule set (OR)
+              <IconPlus size={15} className="mr-2" />
+              Add rule set (OR)
             </Button>
             <Button
               disabled={ruleSets.length === 0}

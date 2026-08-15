@@ -130,7 +130,8 @@ cmd_start() {
   cmd_db_create "$id"
   echo "started $id → branch $branch | test DB $db | status ongoing"
   echo "test command: DATABASE_URL=\"$DB_URL_BASE/$db\" npx vitest run"
-  echo "server port: $((3100 + ${id#TKT-}))"
+  # Leading zeros parse as octal in bash arithmetic ("018" → error) — force base 10.
+  echo "server port: $((3100 + 10#${id#TKT-}))"
 }
 
 cmd_done() {

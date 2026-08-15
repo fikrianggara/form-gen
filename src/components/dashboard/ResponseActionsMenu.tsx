@@ -4,6 +4,13 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/toast";
 import { deleteResponseAction, mailblastRespondentAction } from "@/lib/actions/responses";
+import {
+  IconMore,
+  IconEye,
+  IconPencil,
+  IconMail,
+  IconTrash,
+} from "@/components/icons";
 
 interface ResponseActionsMenuProps {
   questionnaireId: string;
@@ -80,11 +87,7 @@ export function ResponseActionsMenu({
         onClick={() => setOpen((v) => !v)}
         className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="5" cy="12" r="1.6" />
-          <circle cx="12" cy="12" r="1.6" />
-          <circle cx="19" cy="12" r="1.6" />
-        </svg>
+        <IconMore size={16} />
       </button>
 
       {open && (
@@ -118,10 +121,7 @@ export function ResponseActionsMenu({
                 onClick={close}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
+                <IconEye size={14} />
                 View
               </Link>
               <Link
@@ -129,9 +129,7 @@ export function ResponseActionsMenu({
                 onClick={close}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                </svg>
+                <IconPencil size={14} />
                 Edit
               </Link>
               <button
@@ -140,10 +138,7 @@ export function ResponseActionsMenu({
                 onClick={runMailblast}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="2" y="4" width="20" height="16" rx="2" />
-                  <path d="m22 7-10 6L2 7" />
-                </svg>
+                <IconMail size={14} />
                 Mailblast
               </button>
               <button
@@ -151,9 +146,7 @@ export function ResponseActionsMenu({
                 onClick={() => setConfirmDelete(true)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                </svg>
+                <IconTrash size={14} />
                 Delete
               </button>
             </>
