@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { saveOptionSetAction, deleteOptionSetAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
+import { IconBolt, IconPencil, IconTrash, IconPlus } from "@/components/icons";
 
 export interface OptionSetRow {
   id: string;
@@ -200,6 +201,7 @@ export function OptionSetsPanel({
           </div>
           <div className="flex items-center gap-2 sm:col-span-2">
             <Button type="submit" disabled={pending}>
+              <IconPlus size={15} className="mr-2" />
               {form ? `Save as v${form.version + 1}` : "Create option set"}
             </Button>
             {form && (
@@ -308,13 +310,28 @@ function OptionSetRowView({
                 onClick={onTest}
                 disabled={testing}
               >
-                {testing ? "Testing…" : "⏻ Test"}
+                {testing ? (
+                  "Testing…"
+                ) : (
+                  <>
+                    <IconBolt size={13} />
+                    Test
+                  </>
+                )}
               </button>
             )}
-            <button className="text-indigo-600 hover:underline" onClick={onEdit}>
+            <button
+              className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+              onClick={onEdit}
+            >
+              <IconPencil size={13} />
               Edit (v{set.version + 1})
             </button>
-            <button className="text-red-600 hover:underline" onClick={onDelete}>
+            <button
+              className="inline-flex items-center gap-1 text-red-600 hover:underline"
+              onClick={onDelete}
+            >
+              <IconTrash size={13} />
               Delete
             </button>
           </div>

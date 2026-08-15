@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { createUserAction, updateUserAction, resetPasswordAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
+import { IconPencil, IconKey, IconPlus } from "@/components/icons";
 
 export interface UserRow {
   id: string;
@@ -76,7 +77,10 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
             </select>
           </Field>
           <div className="sm:col-span-4 flex justify-end">
-            <Button type="submit" disabled={pending}>Create user</Button>
+            <Button type="submit" disabled={pending}>
+              <IconPlus size={15} className="mr-2" />
+              Create user
+            </Button>
           </div>
         </form>
       </Card>
@@ -208,20 +212,22 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                     <div className="flex items-center gap-3">
                       <button
                         type="button"
-                        className="text-xs text-indigo-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
                         onClick={() => {
                           setEditId(u.id);
                           setEditName(u.name);
                           setEditEmail(u.email);
                         }}
                       >
+                        <IconPencil size={13} />
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="text-xs text-indigo-600 hover:underline"
+                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
                         onClick={() => setResetId(u.id)}
                       >
+                        <IconKey size={13} />
                         Reset password
                       </button>
                     </div>

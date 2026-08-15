@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { saveQuestionMasterAction, deleteQuestionMasterAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
+import { IconPencil, IconTrash, IconInfo, IconPlus } from "@/components/icons";
 
 const QUESTION_TYPES = ["TEXT", "TEXTAREA", "NUMBER", "DATE", "RADIO", "CHECKBOX", "SELECT", "RATING"];
 
@@ -181,6 +182,7 @@ export function MastersPanel({
           </label>
           <div className="flex items-end gap-2 sm:col-span-3">
             <Button type="submit" disabled={pending}>
+              <IconPlus size={15} className="mr-2" />
               {form ? `Save as v${form.version + 1}` : "Create master"}
             </Button>
             {form && (
@@ -281,7 +283,7 @@ function MasterRowView({
                 aria-label="Master description"
                 title="Master description"
               >
-                ⓘ
+                <IconInfo size={14} />
               </button>
             )}
           </span>
@@ -300,10 +302,18 @@ function MasterRowView({
         </td>
         <td className="px-4 py-3">
           <div className="flex gap-3 text-xs">
-            <button className="text-indigo-600 hover:underline" onClick={onEdit}>
+            <button
+              className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+              onClick={onEdit}
+            >
+              <IconPencil size={13} />
               Edit (v{master.version + 1})
             </button>
-            <button className="text-red-600 hover:underline" onClick={onDelete}>
+            <button
+              className="inline-flex items-center gap-1 text-red-600 hover:underline"
+              onClick={onDelete}
+            >
+              <IconTrash size={13} />
               Delete
             </button>
           </div>
