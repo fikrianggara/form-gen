@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 const TABLES = [
   "Answer",
   "AnswerGroup",
+  "ResponseAudit",
   "Response",
   "QuestionnaireQuestion",
   "Questionnaire",

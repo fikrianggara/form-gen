@@ -19,8 +19,8 @@ describe("computeCompletionStats", () => {
 
   it("computes completion rate and average progress", () => {
     const stats = computeCompletionStats([
-      { status: "COMPLETED", progress: 100, createdAt: new Date() },
-      { status: "COMPLETED", progress: 100, createdAt: new Date() },
+      { status: "SUBMITTED", progress: 100, createdAt: new Date() },
+      { status: "SUBMITTED", progress: 100, createdAt: new Date() },
       { status: "DRAFT", progress: 33, createdAt: new Date() },
       { status: "DRAFT", progress: 0, createdAt: new Date() },
     ]);
@@ -37,6 +37,18 @@ describe("computeCompletionStats", () => {
     ]);
     expect(stats.completionRate).toBe(0);
     expect(stats.averageProgress).toBe(10);
+  });
+
+  it("counts EDITED and APPROVED as completed (TKT-024)", () => {
+    const stats = computeCompletionStats([
+      { status: "SUBMITTED", progress: 100, createdAt: new Date() },
+      { status: "EDITED", progress: 100, createdAt: new Date() },
+      { status: "APPROVED", progress: 100, createdAt: new Date() },
+      { status: "DRAFT", progress: 0, createdAt: new Date() },
+    ]);
+    expect(stats.completed).toBe(3);
+    expect(stats.drafts).toBe(1);
+    expect(stats.completionRate).toBe(75);
   });
 });
 
