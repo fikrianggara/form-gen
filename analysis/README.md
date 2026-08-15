@@ -15,9 +15,10 @@
 
 ## Version table
 
-| Version | Date       | Scope                                                  | Changes vs previous |
-| ------- | ---------- | ------------------------------------------------------ | ------------------- |
-| v01     | 2026-08-15 | Baseline: full-system gap analysis after TKT-017 merge | — (initial)         |
+| Version | Date       | Scope | Changes vs previous |
+|---------|------------|-------|---------------------|
+| v01     | 2026-08-15 | Baseline: full-system gap analysis after TKT-017 merge | — (initial) |
+| v02     | 2026-08-15 | Owner review decisions + ticket mapping | All findings decided; severity added to tooling; 8 new tickets (TKT-019..026); TKT-002 cancelled; TKT-012 re-scoped |
 
 ## How to review a finding
 
@@ -35,24 +36,24 @@ Each finding is a section `F-###` containing:
 
 ## Decision ledger (quick view)
 
-| ID    | Title                                                    | Severity | Status | Owner decision |
-| ----- | -------------------------------------------------------- | -------- | ------ | -------------- |
-| F-001 | Mailer has no real SMTP transport                        | P0       | open   | pending        |
-| F-002 | Invitation links are relative URLs                       | P0       | open   | pending        |
-| F-003 | Invitation tokens: no expiry, no single-use              | P0       | open   | pending        |
-| F-004 | Public response endpoints unthrottled                    | P0       | open   | pending        |
-| F-005 | Admin edit of COMPLETED responses blocked by save engine | P0       | open   | pending        |
-| F-006 | `requiresAccount` dead schema field                      | P1       | open   | pending        |
-| F-007 | TKT-002 stale (respondent accounts cancelled)            | P1       | open   | pending        |
-| F-008 | No audit trail on admin response edits                   | P1       | open   | pending        |
-| F-009 | `Invitation.responseId` not a relation                   | P1       | open   | pending        |
-| F-010 | Mail HTML not escaped                                    | P1       | open   | pending        |
-| F-011 | INDEX.md bookkeeping lagged TKT-017 merge                | P1       | open   | pending        |
-| F-012 | No organization scoping (TKT-014)                        | P2       | open   | pending        |
-| F-013 | No CI pipeline for the gate chain                        | P2       | open   | pending        |
-| F-014 | TKT-008 AI round 2 not started                           | P2       | open   | pending        |
-| F-015 | TKT-012 blocked on unanswered clarification              | P2       | open   | pending        |
+| ID | Title | Severity | Status | Owner decision | Ticket |
+|----|-------|----------|--------|----------------|--------|
+| F-001 | Mailer has no real SMTP transport | P0 | decided (defer) | Console logging is fine now; real SMTP later, not high priority | — (later) |
+| F-002 | Invitation links are relative URLs | P0 | decided | Proceed | TKT-019 |
+| F-003 | Invitation tokens: no expiry, no single-use | P0 | decided | Proceed | TKT-020 |
+| F-004 | Public response endpoints unthrottled | P0 | decided | Proceed | TKT-023 |
+| F-005 | Admin edit of COMPLETED responses blocked | P0 | decided | Status workflow: draft / submitted / edited / approved, DB-persisted | TKT-024 |
+| F-006 | `requiresAccount` dead schema field | P1 | decided | Drop column in migration | TKT-025 |
+| F-007 | TKT-002 stale (respondent accounts cancelled) | P1 | decided | Cancel the ticket | TKT-002 (cancelled) |
+| F-008 | No audit trail on admin response edits | P1 | decided | Proceed + implement F-005 | TKT-024 |
+| F-009 | `Invitation.responseId` not a relation | P1 | decided | Proceed | TKT-022 |
+| F-010 | Mail HTML not escaped | P1 | decided | Proceed | TKT-021 |
+| F-011 | INDEX.md bookkeeping lagged TKT-017 merge | P1 | done | Proceed — resolved (TKT-017/018 merged) | — |
+| F-012 | No organization scoping (TKT-014) | P2 | decided | Proceed TKT-014; coder agent's work | TKT-014 |
+| F-013 | No CI pipeline for the gate chain | P2 | decided | Local integration now; CI can be added later | TKT-026 |
+| F-014 | TKT-008 AI round 2 not started | P2 | decided | Proceed recommendation | TKT-008 |
+| F-015 | TKT-012 blocked on unanswered clarification | P2 | decided | Sample = sampling frame; Excel upload; organization_name + contact (phone/email) | TKT-012 (re-scoped) |
 
 ## Latest snapshot
 
-Current: `analysis/v01_2026-08-15.md` (mirrored in `analysis/LATEST.md`)
+Current: `analysis/v02_2026-08-15.md` (mirrored in `analysis/LATEST.md`)
