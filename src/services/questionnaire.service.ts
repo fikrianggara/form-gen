@@ -53,6 +53,8 @@ export interface QuestionnaireInput {
   acceptMultipleResponses?: boolean;
   /** Sample respondent emails for unique-link distribution (TKT-001). */
   sampleEmails?: string[];
+  /** Creator user id (TKT-017); null/absent = legacy unowned. */
+  createdBy?: string | null;
 }
 
 export interface AddQuestionInput {
@@ -92,6 +94,7 @@ export async function createQuestionnaire(input: QuestionnaireInput) {
         slug: input.slug.trim().toLowerCase(),
         acceptMultipleResponses: input.acceptMultipleResponses ?? true,
         sampleEmails: (input.sampleEmails ?? []) as unknown as object,
+        createdBy: input.createdBy ?? null,
       },
     });
   } catch (err) {
