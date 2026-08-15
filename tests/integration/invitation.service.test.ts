@@ -224,9 +224,9 @@ describe("invitation hardening (TKT-020)", () => {
     expect(result.id).toBe(inv.id);
   });
 
-  it("rejects form open once the linked response is COMPLETED", async () => {
+  it("rejects form open once the linked response is SUBMITTED", async () => {
     const { q, inv } = await makeInvitation();
-    await linkResponse(q, inv, "COMPLETED");
+    await linkResponse(q, inv, "SUBMITTED");
     try {
       await validateInvitationForForm(inv.token);
     } catch (err) {
