@@ -57,7 +57,7 @@ export interface ConfigQuestion {
 /** Response as returned by the public API. */
 export interface ResponseDto {
   id: string;
-  status: "DRAFT" | "COMPLETED";
+  status: "DRAFT" | "SUBMITTED" | "EDITED" | "APPROVED";
   progress: number;
   completedAt: string | null;
   answers?: Array<{

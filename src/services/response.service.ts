@@ -159,7 +159,7 @@ async function buildSavePlan(questionnaireId: string, input: SaveResponseInput):
     const answered = isQuestionAnswered(q, flatAnswers, groupRows);
     if (!answered) missing.push(q.id);
   }
-  if (input.status === "COMPLETED" && missing.length > 0) {
+  if (input.status === "SUBMITTED" && missing.length > 0) {
     const labels = missing.map((id) => meta.find((m) => m.id === id)?.id ?? id);
     throw new AppError(
       `Required questions are missing an answer: ${labels.join(", ")}`,
@@ -197,7 +197,7 @@ async function buildSavePlan(questionnaireId: string, input: SaveResponseInput):
     visibleIds,
     computed,
     progress,
-    completed: input.status === "COMPLETED",
+    completed: input.status === "SUBMITTED",
   };
 }
 
@@ -254,7 +254,7 @@ async function writePlan(
   await tx.response.update({
     where: { id: responseId },
     data: {
-      status: completed ? "COMPLETED" : "DRAFT",
+      status: completed ? "SUBMITTED" : "DRAFT",
       progress,
       completedAt: completed ? new Date() : null,
       ...(input.respondentLabel !== undefined
@@ -264,20 +264,42 @@ async function writePlan(
   });
 }
 
-export async function saveResponse(responseId: string, input: SaveResponseInput) {
+export async function saveResponse(
+  responseId: string,
+  input: SaveResponseInput,
+  opts?: { requireDraft?: boolean }
+) {
+  const requireDraft = opts?.requireDraft ?? true;
   const response = await db.response.findUnique({ where: { id: responseId } });
   if (!response) throw new NotFoundError("Response not found");
-  if (response.status === "COMPLETED") {
+  // Respondent-side immutability: once submitted/edited/approved, only
+  // admins/operators move the response forward (TKT-024). The admin edit path
+  // passes requireDraft:false to reuse the same write logic.
+  if (requireDraft && response.status !== "DRAFT") {
     throw new AppError(
-      "This response is already completed and can no longer be edited",
+      "This response is no longer editable by the respondent",
       409,
-      "RESPONSE_COMPLETED"
+      "RESPONSE_LOCKED"
     );
   }
 
   const plan = await buildSavePlan(response.questionnaireId, input);
+  const target = plan.completed ? "SUBMITTED" : "DRAFT";
   await db.$transaction(async (tx) => {
     await writePlan(tx, responseId, input, plan);
+    // Audit the DRAFT → SUBMITTED transition by the respondent (TKT-024).
+    if (target === "SUBMITTED" && response.status !== "SUBMITTED") {
+      await tx.responseAudit.create({
+        data: {
+          responseId,
+          actorType: "RESPONDENT",
+          actorLabel: response.respondentLabel ?? input.respondentLabel ?? null,
+          action: "SUBMIT",
+          fromStatus: response.status,
+          toStatus: "SUBMITTED",
+        },
+      });
+    }
   });
 
   return db.response.findUnique({ where: { id: responseId } });
@@ -311,6 +333,19 @@ export async function createResponseWithState(
       },
     });
     await writePlan(tx, response.id, input, plan);
+    // Lazily-created response that was submitted on first save: audit it.
+    if (plan.completed) {
+      await tx.responseAudit.create({
+        data: {
+          responseId: response.id,
+          actorType: "RESPONDENT",
+          actorLabel: respondentLabel ?? null,
+          action: "SUBMIT",
+          fromStatus: "DRAFT",
+          toStatus: "SUBMITTED",
+        },
+      });
+    }
     return response;
   });
 
