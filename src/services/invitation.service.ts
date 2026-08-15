@@ -134,8 +134,9 @@ export async function validateInvitationForCreate(token: string) {
 
 /**
  * TKT-020: form-open gate. Rejects revoked/expired tokens, and tokens whose
- * linked response is already COMPLETED. Draft-linked tokens still open the
- * form so the respondent can resume editing — the POST gate prevents new rows.
+ * linked response is no longer a draft (SUBMITTED/EDITED/APPROVED after the
+ * TKT-024 status workflow). Draft-linked tokens still open the form so the
+ * respondent can resume editing — the POST gate prevents new rows.
  */
 export async function validateInvitationForForm(token: string) {
   const invitation = await getInvitationByToken(token);
@@ -145,7 +146,7 @@ export async function validateInvitationForForm(token: string) {
   assertInvitationOpen(invitation);
   if (invitation.responseId) {
     const response = await db.response.findUnique({ where: { id: invitation.responseId } });
-    if (response?.status === "COMPLETED") {
+    if (response && response.status !== "DRAFT") {
       throw new AppError(
         "This invitation link has already been used.",
         409,

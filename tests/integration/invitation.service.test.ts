@@ -152,9 +152,9 @@ describe("invitation hardening (TKT-020)", () => {
         questionnaireId: q.id,
         respondentToken: inv.token,
         respondentLabel: "a@example.com",
-        status: status as "DRAFT" | "COMPLETED",
-        progress: status === "COMPLETED" ? 100 : 0,
-        completedAt: status === "COMPLETED" ? new Date() : null,
+        status: status as "DRAFT" | "SUBMITTED",
+        progress: status === "SUBMITTED" ? 100 : 0,
+        completedAt: status === "SUBMITTED" ? new Date() : null,
       },
     });
     await linkInvitationToResponse(inv.token, response.id);
