@@ -7,6 +7,9 @@ import {
   markInvitationClicked,
   linkInvitationToResponse,
   sendInvitations,
+  validateInvitationForCreate,
+  validateInvitationForForm,
+  revokeInvitation,
   INVITATION_TOKEN_LENGTH,
 } from "@/services/invitation.service";
 import { AppError } from "@/lib/errors";
@@ -130,5 +133,111 @@ describe("invitation service", () => {
     const invs = await db.invitation.findMany({ where: { questionnaireId: q.id } });
     expect(invs.every((i) => i.sentAt !== null)).toBe(true);
     expect(await db.response.count({ where: { questionnaireId: q.id } })).toBe(0);
+  });
+});
+
+describe("invitation hardening (TKT-020)", () => {
+  async function makeInvitation(overrides: { createdAt?: Date } = {}) {
+    const q = await makeQuestionnaire();
+    const [inv] = await generateInvitations(q.id, ["a@example.com"]);
+    if (overrides.createdAt) {
+      await db.invitation.update({ where: { id: inv.id }, data: { createdAt: overrides.createdAt } });
+    }
+    return { q, inv };
+  }
+
+  async function linkResponse(q: { id: string }, inv: { token: string }, status = "DRAFT") {
+    const response = await db.response.create({
+      data: {
+        questionnaireId: q.id,
+        respondentToken: inv.token,
+        respondentLabel: "a@example.com",
+        status: status as "DRAFT" | "COMPLETED",
+        progress: status === "COMPLETED" ? 100 : 0,
+        completedAt: status === "COMPLETED" ? new Date() : null,
+      },
+    });
+    await linkInvitationToResponse(inv.token, response.id);
+    return response;
+  }
+
+  function expectCode(err: unknown, code: string) {
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).code).toBe(code);
+  }
+
+  it("passes a fresh, unused invitation for create validation", async () => {
+    const { inv } = await makeInvitation();
+    const result = await validateInvitationForCreate(inv.token);
+    expect(result.id).toBe(inv.id);
+    expect(result.questionnaire.slug).toBeTruthy();
+  });
+
+  it("rejects an unknown token with INVITATION_NOT_FOUND", async () => {
+    await expect(validateInvitationForCreate("no-such-token")).rejects.toBeInstanceOf(AppError);
+    try {
+      await validateInvitationForCreate("no-such-token");
+    } catch (err) {
+      expectCode(err, "INVITATION_NOT_FOUND");
+      expect((err as AppError).statusCode).toBe(404);
+    }
+  });
+
+  it("rejects an expired invitation with INVITATION_EXPIRED", async () => {
+    const { inv } = await makeInvitation({
+      createdAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000),
+    });
+    try {
+      await validateInvitationForCreate(inv.token);
+    } catch (err) {
+      expectCode(err, "INVITATION_EXPIRED");
+      expect((err as AppError).statusCode).toBe(410);
+    }
+  });
+
+  it("rejects a revoked invitation with INVITATION_REVOKED", async () => {
+    const { inv } = await makeInvitation();
+    await revokeInvitation(inv.id);
+    try {
+      await validateInvitationForCreate(inv.token);
+    } catch (err) {
+      expectCode(err, "INVITATION_REVOKED");
+      expect((err as AppError).statusCode).toBe(403);
+    }
+  });
+
+  it("rejects reusing a token already linked to a response (strict single-use)", async () => {
+    const { q, inv } = await makeInvitation();
+    await linkResponse(q, inv);
+    try {
+      await validateInvitationForCreate(inv.token);
+    } catch (err) {
+      expectCode(err, "INVITATION_ALREADY_USED");
+      expect((err as AppError).statusCode).toBe(409);
+    }
+  });
+
+  it("allows form open (resume) when the linked response is still a draft", async () => {
+    const { q, inv } = await makeInvitation();
+    await linkResponse(q, inv, "DRAFT");
+    const result = await validateInvitationForForm(inv.token);
+    expect(result.id).toBe(inv.id);
+  });
+
+  it("rejects form open once the linked response is COMPLETED", async () => {
+    const { q, inv } = await makeInvitation();
+    await linkResponse(q, inv, "COMPLETED");
+    try {
+      await validateInvitationForForm(inv.token);
+    } catch (err) {
+      expectCode(err, "INVITATION_ALREADY_USED");
+    }
+  });
+
+  it("records revokedAt when an invitation is revoked", async () => {
+    const { inv } = await makeInvitation();
+    expect(inv.revokedAt).toBeNull();
+    const revoked = await revokeInvitation(inv.id);
+    expect(revoked?.revokedAt).toBeInstanceOf(Date);
   });
 });

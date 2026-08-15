@@ -4,7 +4,11 @@ import { saveResponseSchema } from "@/lib/schemas";
 import { jsonOk, jsonError, isValidRespondentToken } from "@/lib/http";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { createResponse, createResponseWithState } from "@/services/response.service";
-import { linkInvitationToResponse } from "@/services/invitation.service";
+import {
+  getInvitationByToken,
+  linkInvitationToResponse,
+  validateInvitationForCreate,
+} from "@/services/invitation.service";
 
 interface Params {
   params: { slug: string };
@@ -56,6 +60,14 @@ export async function POST(req: NextRequest, { params }: Params) {
       select: { id: true },
     });
     if (!questionnaire) throw new NotFoundError("Questionnaire not found");
+
+    // TKT-020: when the token IS an invitation link, enforce expiry/revoke and
+    // strict single-use BEFORE minting another response row. Anonymous
+    // respondent tokens (no invitation) keep their existing behavior.
+    const invitation = await getInvitationByToken(body.data.token);
+    if (invitation) {
+      await validateInvitationForCreate(body.data.token);
+    }
 
     const hasState =
       (body.data.answers?.length ?? 0) > 0 ||
