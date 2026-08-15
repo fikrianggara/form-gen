@@ -244,3 +244,13 @@ export function IconCheck(props: IconProps) {
     </svg>
   );
 }
+
+/** Ban / disable — circled slash. */
+export function IconBan(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m4.9 4.9 14.2 14.2" />
+    </svg>
+  );
+}

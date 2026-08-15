@@ -9,6 +9,7 @@ import {
   authenticate,
   listUsers,
   getUserById,
+  isUserActive,
 } from "@/services/user.service";
 import { AppError } from "@/lib/errors";
 import bcrypt from "bcryptjs";
@@ -124,6 +125,63 @@ describe("user service", () => {
     const user = await db.user.findUnique({ where: { email: "off@example.com" } });
     await setUserActive(user!.id, false);
     expect(await authenticate("off@example.com", "Secret123!")).toBeNull();
+  });
+
+  // ---------------------------------------------------------- TKT-029
+
+  it("isUserActive is true for an active user", async () => {
+    const user = await createUser({ email: "on@example.com", name: "On", password: "Secret123!", role: "OPERATOR" });
+    expect(await isUserActive(user.id)).toBe(true);
+  });
+
+  it("isUserActive is false for a disabled user", async () => {
+    const user = await createUser({ email: "dis@example.com", name: "Dis", password: "Secret123!", role: "OPERATOR" });
+    await setUserActive(user.id, false);
+    expect(await isUserActive(user.id)).toBe(false);
+  });
+
+  it("isUserActive is false for a missing user", async () => {
+    expect(await isUserActive("does-not-exist")).toBe(false);
+  });
+
+  it("setUserActive refuses to disable the last active ADMIN", async () => {
+    const admin = await createUser({ email: "only-admin@example.com", name: "Sole", password: "Secret123!", role: "ADMIN" });
+    await expect(setUserActive(admin.id, false)).rejects.toMatchObject({
+      statusCode: 409,
+      code: "LAST_ACTIVE_ADMIN",
+    });
+    // Still active after the refusal.
+    expect(await isUserActive(admin.id)).toBe(true);
+  });
+
+  it("setUserActive allows disabling an ADMIN when another active ADMIN exists", async () => {
+    await createUser({ email: "admin1@example.com", name: "A1", password: "Secret123!", role: "ADMIN" });
+    const admin2 = await createUser({ email: "admin2@example.com", name: "A2", password: "Secret123!", role: "ADMIN" });
+    await setUserActive(admin2.id, false);
+    expect(await isUserActive(admin2.id)).toBe(false);
+  });
+
+  it("setUserActive allows disabling an OPERATOR (not an admin guard case)", async () => {
+    const op = await createUser({ email: "op@example.com", name: "Op", password: "Secret123!", role: "OPERATOR" });
+    await setUserActive(op.id, false);
+    expect(await isUserActive(op.id)).toBe(false);
+  });
+
+  it("setUserActive refuses to disable your own account (actorId === id)", async () => {
+    const admin = await createUser({ email: "self@example.com", name: "Self", password: "Secret123!", role: "ADMIN" });
+    await createUser({ email: "other-admin@example.com", name: "Other", password: "Secret123!", role: "ADMIN" });
+    await expect(setUserActive(admin.id, false, { actorId: admin.id })).rejects.toMatchObject({
+      statusCode: 409,
+      code: "SELF_DISABLE",
+    });
+    expect(await isUserActive(admin.id)).toBe(true);
+  });
+
+  it("setUserActive allows another admin to disable a user", async () => {
+    const admin = await createUser({ email: "target@example.com", name: "Target", password: "Secret123!", role: "ADMIN" });
+    await createUser({ email: "actor@example.com", name: "Actor", password: "Secret123!", role: "ADMIN" });
+    await setUserActive(admin.id, false, { actorId: (await db.user.findUnique({ where: { email: "actor@example.com" } }))!.id });
+    expect(await isUserActive(admin.id)).toBe(false);
   });
 
   it("throws AppError when updating a missing user", async () => {
