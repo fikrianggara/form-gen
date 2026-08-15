@@ -6,6 +6,13 @@ import {
   recordLoginFailure,
   recordLoginSuccess,
   LOGIN_MAX_FAILURES,
+  assertResponseSubmissionAllowed,
+  recordResponseSubmission,
+  RESPONSE_MAX_PER_TOKEN_IP,
+  RESPONSE_MAX_PER_IP,
+  RESPONSE_MAX_PER_QUESTIONNAIRE,
+  RESPONSE_WINDOW_MS,
+  RESPONSE_Q_WINDOW_MS,
 } from "@/services/rate-limit.service";
 import { AppError } from "@/lib/errors";
 
@@ -76,5 +83,90 @@ describe("rate limit service", () => {
       data: { createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
     });
     await expect(assertLoginAllowed("a@example.com", "1.2.3.4")).resolves.toBeUndefined();
+  });
+});
+
+describe("response submission rate limit (TKT-023)", () => {
+  const TOKEN = "resp-token-abc";
+  const IP = "203.0.113.10";
+  const QID = "questionnaire-1";
+
+  async function seedEvents(key: string, count: number) {
+    await db.rateLimitEvent.createMany({
+      data: Array.from({ length: count }, () => ({ key })),
+    });
+  }
+
+  it("allows submissions under the per-token/IP limit", async () => {
+    await seedEvents(`submit:${TOKEN}:${IP}`, RESPONSE_MAX_PER_TOKEN_IP - 1);
+    await expect(
+      assertResponseSubmissionAllowed(TOKEN, IP, QID)
+    ).resolves.toBeUndefined();
+  });
+
+  it("blocks with 429 RATE_LIMITED once the per-token/IP limit is hit", async () => {
+    await seedEvents(`submit:${TOKEN}:${IP}`, RESPONSE_MAX_PER_TOKEN_IP);
+    try {
+      await assertResponseSubmissionAllowed(TOKEN, IP, QID);
+      throw new Error("expected to throw");
+    } catch (err) {
+      expect(err).toBeInstanceOf(AppError);
+      expect((err as AppError).code).toBe("RATE_LIMITED");
+      expect((err as AppError).statusCode).toBe(429);
+    }
+  });
+
+  it("scopes the token/IP limit per respondent", async () => {
+    await seedEvents(`submit:${TOKEN}:${IP}`, RESPONSE_MAX_PER_TOKEN_IP);
+    await expect(
+      assertResponseSubmissionAllowed("other-token", IP, QID)
+    ).resolves.toBeUndefined();
+  });
+
+  it("blocks a fresh token once the IP cap is exceeded", async () => {
+    await seedEvents(`submit:ip:${IP}`, RESPONSE_MAX_PER_IP);
+    await expect(
+      assertResponseSubmissionAllowed("brand-new-token", IP, QID)
+    ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it("blocks submissions once the per-questionnaire cap is exceeded", async () => {
+    await seedEvents(`submit:q:${QID}`, RESPONSE_MAX_PER_QUESTIONNAIRE);
+    await expect(
+      assertResponseSubmissionAllowed("another-token", "198.51.100.7", QID)
+    ).rejects.toBeInstanceOf(AppError);
+  });
+
+  it("expires submission events after the window passes", async () => {
+    await seedEvents(`submit:${TOKEN}:${IP}`, RESPONSE_MAX_PER_TOKEN_IP);
+    await db.rateLimitEvent.updateMany({
+      data: { createdAt: new Date(Date.now() - RESPONSE_WINDOW_MS - 1000) },
+    });
+    await expect(
+      assertResponseSubmissionAllowed(TOKEN, IP, QID)
+    ).resolves.toBeUndefined();
+  });
+
+  it("records events for the token/IP, IP, and questionnaire keys", async () => {
+    await recordResponseSubmission(TOKEN, IP, QID);
+    const keys = (
+      await db.rateLimitEvent.findMany({
+        select: { key: true },
+        orderBy: { createdAt: "asc" },
+      })
+    ).map((e) => e.key);
+    expect(keys).toContain(`submit:${TOKEN}:${IP}`);
+    expect(keys).toContain(`submit:ip:${IP}`);
+    expect(keys).toContain(`submit:q:${QID}`);
+  });
+
+  it("allows a fresh questionnaire in the next hour window", async () => {
+    await seedEvents(`submit:q:${QID}`, RESPONSE_MAX_PER_QUESTIONNAIRE);
+    await db.rateLimitEvent.updateMany({
+      data: { createdAt: new Date(Date.now() - RESPONSE_Q_WINDOW_MS - 1000) },
+    });
+    await expect(
+      assertResponseSubmissionAllowed("another-token", "198.51.100.7", QID)
+    ).resolves.toBeUndefined();
   });
 });
