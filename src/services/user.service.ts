@@ -84,10 +84,40 @@ export async function updateUser(id: string, input: UpdateUserInput): Promise<Us
   });
 }
 
-export async function setUserActive(id: string, isActive: boolean): Promise<User> {
+export async function setUserActive(
+  id: string,
+  isActive: boolean,
+  opts: { actorId?: string } = {}
+): Promise<User> {
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("User not found");
+
+  // TKT-029 guards: never lock out the system.
+  if (!isActive) {
+    if (opts.actorId && opts.actorId === id) {
+      throw new AppError("You cannot disable your own account", 409, "SELF_DISABLE");
+    }
+    if (existing.role === "ADMIN") {
+      const otherActiveAdmins = await db.user.count({
+        where: { role: "ADMIN", isActive: true, id: { not: id } },
+      });
+      if (otherActiveAdmins === 0) {
+        throw new AppError(
+          "Cannot disable the last active admin — the system needs at least one admin",
+          409,
+          "LAST_ACTIVE_ADMIN"
+        );
+      }
+    }
+  }
+
   return db.user.update({ where: { id }, data: { isActive } });
+}
+
+/** TKT-029: whether a user is currently active (false for missing users too). */
+export async function isUserActive(id: string): Promise<boolean> {
+  const user = await db.user.findUnique({ where: { id }, select: { isActive: true } });
+  return user?.isActive ?? false;
 }
 
 export async function resetPassword(id: string, newPassword: string): Promise<void> {

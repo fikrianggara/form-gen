@@ -378,9 +378,11 @@ export async function updateUserAction(input: {
   isActive?: boolean;
 }): Promise<{ error?: string }> {
   try {
-    requirePermission(await getSession(), "MANAGE_USERS");
+    const session = await getSession();
+    requirePermission(session, "MANAGE_USERS");
     if (input.isActive !== undefined) {
-      await setUserActive(input.id, input.isActive);
+      // TKT-029: pass the actor so the self-disable guard can fire.
+      await setUserActive(input.id, input.isActive, { actorId: session!.sub });
     } else {
       await updateUser(input.id, {
         name: input.name,

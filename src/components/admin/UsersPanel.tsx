@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createUserAction, updateUserAction, resetPasswordAction } from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { IconPencil, IconKey, IconPlus } from "@/components/icons";
+import { IconMore, IconPencil, IconKey, IconPlus, IconCheck, IconBan } from "@/components/icons";
 
 export interface UserRow {
   id: string;
@@ -13,6 +13,140 @@ export interface UserRow {
   role: "ADMIN" | "OPERATOR";
   isActive: boolean;
   createdAt: string;
+}
+
+/** Per-row kebab action menu (TKT-028): Edit / Reset password / Enable-Disable.
+ * Closes on outside click / Escape. Disable uses an inline confirm state,
+ * mirroring ResponseActionsMenu. */
+function UserActionsMenu({
+  user,
+  onEdit,
+  onResetPassword,
+}: {
+  user: UserRow;
+  onEdit: () => void;
+  onResetPassword: () => void;
+}) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [confirmDisable, setConfirmDisable] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const close = () => {
+    setOpen(false);
+    setConfirmDisable(false);
+  };
+
+  const runToggle = () => {
+    startTransition(async () => {
+      const res = await updateUserAction({ id: user.id, isActive: !user.isActive });
+      if (res?.error) {
+        toast.error("Action failed", res.error);
+      } else {
+        toast.success(user.isActive ? "User disabled" : "User enabled");
+      }
+      close();
+    });
+  };
+
+  const target = user.isActive ? "Disable" : "Enable";
+
+  return (
+    <div ref={ref} className="relative inline-block text-left">
+      <button
+        type="button"
+        aria-label={`Actions for ${user.name}`}
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+      >
+        <IconMore size={16} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg">
+          {confirmDisable ? (
+            <>
+              <p className="px-3 py-2 text-xs font-medium text-gray-700">
+                {user.isActive ? `Disable ${user.name}?` : `Enable ${user.name}?`}
+              </p>
+              <div className="flex gap-1 px-2 pb-1">
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={runToggle}
+                  className={`flex-1 rounded-lg px-2 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50 ${
+                    user.isActive ? "bg-red-600" : "bg-emerald-600"
+                  }`}
+                >
+                  {target}
+                </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setConfirmDisable(false)}
+                  className="flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  onEdit();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <IconPencil size={14} />
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  close();
+                  onResetPassword();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <IconKey size={14} />
+                Reset password
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDisable(true)}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                  user.isActive ? "text-red-600" : "text-emerald-700"
+                }`}
+              >
+                {user.isActive ? <IconBan size={14} /> : <IconCheck size={14} />}
+                {target}
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function UsersPanel({ users }: { users: UserRow[] }) {
@@ -93,7 +227,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3">Actions</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -138,23 +272,14 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      run(
-                        () => updateUserAction({ id: u.id, isActive: !u.isActive }),
-                        u.isActive ? "User disabled" : "User enabled"
-                      )
-                    }
-                  >
-                    <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "active" : "disabled"}</Badge>
-                  </button>
+                  {/* TKT-028: display-only badge — the toggle lives in the actions menu. */}
+                  <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "active" : "disabled"}</Badge>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
                   {resetId === u.id ? (
                     <form
-                      className="flex items-center gap-2"
+                      className="flex items-center justify-end gap-2"
                       onSubmit={(e) => {
                         e.preventDefault();
                         run(async () => {
@@ -184,7 +309,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                       </Button>
                     </form>
                   ) : editId === u.id ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-end gap-2">
                       <Button
                         type="button"
                         variant="secondary"
@@ -209,27 +334,16 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
-                        onClick={() => {
+                    <div className="flex justify-end">
+                      <UserActionsMenu
+                        user={u}
+                        onEdit={() => {
                           setEditId(u.id);
                           setEditName(u.name);
                           setEditEmail(u.email);
                         }}
-                      >
-                        <IconPencil size={13} />
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline"
-                        onClick={() => setResetId(u.id)}
-                      >
-                        <IconKey size={13} />
-                        Reset password
-                      </button>
+                        onResetPassword={() => setResetId(u.id)}
+                      />
                     </div>
                   )}
                 </td>
