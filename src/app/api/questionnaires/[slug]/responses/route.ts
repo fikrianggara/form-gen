@@ -91,7 +91,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     const hasState =
       (body.data.answers?.length ?? 0) > 0 ||
       (body.data.groups?.length ?? 0) > 0 ||
-      body.data.status === "COMPLETED";
+      body.data.status === "SUBMITTED";
 
     let response;
     if (hasState) {

@@ -1,11 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getResponseDetail } from "@/services/response.service";
+import { listResponseAudits } from "@/services/response-admin.service";
 import { Badge, Card } from "@/components/ui";
 import { extractAnswerValue } from "@/domain/answers";
-import type { QuestionType } from "@prisma/client";
+import type { QuestionType, ResponseStatus } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+
+const STATUS_TONE: Record<ResponseStatus, "gray" | "green" | "amber" | "indigo"> = {
+  DRAFT: "gray",
+  SUBMITTED: "green",
+  EDITED: "amber",
+  APPROVED: "indigo",
+};
+
+const ACTION_LABEL: Record<string, string> = {
+  SUBMIT: "Submitted by respondent",
+  ADMIN_EDIT: "Edited by admin/operator",
+  APPROVE: "Approved by admin/operator",
+};
 
 function renderValue(type: QuestionType, answer: {
   textValue: string | null;
@@ -30,6 +44,8 @@ export default async function ResponseDetailPage({
 }) {
   const detail = await getResponseDetail(params.rid);
   if (!detail) notFound();
+
+  const audits = await listResponseAudits(params.rid);
 
   const byId = new Map(
     detail.answers
@@ -56,10 +72,30 @@ export default async function ResponseDetailPage({
       </div>
 
       <div className="flex gap-3">
-        <Badge tone={detail.status === "COMPLETED" ? "green" : "gray"}>{detail.status}</Badge>
+        <Badge tone={STATUS_TONE[detail.status]}>{detail.status}</Badge>
         <Badge tone="indigo">{detail.progress}% complete</Badge>
-        {detail.completedAt && <Badge tone="green">Completed {detail.completedAt.toLocaleString()}</Badge>}
+        {detail.completedAt && <Badge tone="green">Submitted {detail.completedAt.toLocaleString()}</Badge>}
       </div>
+
+      {audits.length > 0 && (
+        <Card className="p-5">
+          <h2 className="mb-3 font-semibold">History</h2>
+          <ul className="space-y-2">
+            {audits.map((a) => (
+              <li key={a.id} className="flex items-center gap-3 text-xs text-gray-600">
+                <Badge tone="gray">{a.fromStatus} → {a.toStatus}</Badge>
+                <span className="font-medium text-gray-800">
+                  {ACTION_LABEL[a.action] ?? a.action}
+                </span>
+                <span className="text-gray-400">
+                  by {a.actorLabel ?? (a.actorType === "RESPONDENT" ? "respondent" : "user")}
+                </span>
+                <span className="ml-auto text-gray-400">{a.createdAt.toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {detail.answers

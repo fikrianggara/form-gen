@@ -82,7 +82,7 @@ async function seedResponses(s: Survey) {
   // Alice: complete with everything + two expense rows
   const a = await createResponse(s.q.id, TOKEN_A, "Alice");
   await saveResponse(a.id, {
-    status: "COMPLETED",
+    status: "SUBMITTED",
     answers: [
       { questionId: s.qName.id, value: "Alice" },
       { questionId: s.qMood.id, value: "happy" },
@@ -104,7 +104,7 @@ async function seedResponses(s: Survey) {
   // Bob: complete without age
   const b = await createResponse(s.q.id, TOKEN_B, "Bob");
   await saveResponse(b.id, {
-    status: "COMPLETED",
+    status: "SUBMITTED",
     answers: [
       { questionId: s.qName.id, value: "Bob" },
       { questionId: s.qMood.id, value: "sad" },
@@ -219,7 +219,7 @@ describe("report service — export", () => {
     const alice = payload?.rows.find((r) => r.responseId !== undefined && r.respondentLabel === "Alice");
     expect(alice).toMatchObject({
       respondentLabel: "Alice",
-      status: "COMPLETED",
+      status: "SUBMITTED",
       progress: 100,
     });
     expect(alice?.[s.qAge.id]).toBe(25);

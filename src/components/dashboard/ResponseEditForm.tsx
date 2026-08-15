@@ -104,7 +104,7 @@ export function ResponseEditForm({
     );
   };
 
-  const save = (complete: boolean) => {
+  const save = () => {
     startTransition(async () => {
       const answers = Object.entries(values)
         .filter(([, v]) => v !== null && v !== undefined)
@@ -117,7 +117,6 @@ export function ResponseEditForm({
         questionnaireId,
         responseId,
         data: {
-          status: complete ? "COMPLETED" : "DRAFT",
           answers,
           groups: groupsPayload as never,
           respondentLabel: detail.respondentLabel,
@@ -126,7 +125,7 @@ export function ResponseEditForm({
       if (res.error) {
         toast.error("Save failed", res.error);
       } else {
-        toast.success(complete ? "Response completed" : "Draft saved", "Changes persisted.");
+        toast.success("Changes saved", "The response was moved to 'edited' and recorded in its history.");
         router.push(`/dashboard/questionnaires/${questionnaireId}/responses/${responseId}`);
       }
     });
@@ -178,13 +177,12 @@ export function ResponseEditForm({
       })}
 
       <div className="flex items-center gap-3">
-        <Button disabled={pending} onClick={() => save(false)}>
-          Save draft
+        <Button disabled={pending} onClick={save}>
+          Save changes
         </Button>
-        <Button variant="secondary" disabled={pending} onClick={() => save(true)}>
-          Save & complete
-        </Button>
-        <span className="text-xs text-gray-500">Required-field validation runs on save.</span>
+        <span className="text-xs text-gray-500">
+          Saving records you as the editor and moves the response to “edited”.
+        </span>
       </div>
     </div>
   );

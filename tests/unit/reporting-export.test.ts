@@ -40,7 +40,7 @@ const questions: ExportQuestion[] = [
 const response = (over: Partial<ExportResponse> = {}): ExportResponse => ({
   id: "r1",
   respondentLabel: "Alice",
-  status: "COMPLETED",
+  status: "SUBMITTED",
   progress: 100,
   completedAt: "2026-08-13T10:00:00.000Z",
   createdAt: "2026-08-12T09:00:00.000Z",
@@ -78,7 +78,7 @@ describe("buildExportTable", () => {
     expect(row).toMatchObject({
       responseId: "r1",
       respondentLabel: "Alice",
-      status: "COMPLETED",
+      status: "SUBMITTED",
       progress: 100,
       q_name: "Alice",
       q_mood: "happy",

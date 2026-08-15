@@ -7,9 +7,10 @@ import { toAppError } from "@/lib/errors";
 import { assertCanManageQuestionnaire } from "@/services/access-control.service";
 import {
   deleteResponse,
+  editResponseAsAdmin,
+  approveResponse,
   mailblastRespondent,
 } from "@/services/response-admin.service";
-import { saveResponse } from "@/services/response.service";
 import type { SaveResponseInput } from "@/services/response.service";
 
 function actionError(err: unknown): { error: string } {
@@ -49,7 +50,11 @@ export async function mailblastRespondentAction(input: {
   }
 }
 
-/** Save an edited response (owner/admin only). */
+/**
+ * Save an edited response (owner/admin only, TKT-024). Records the acting
+ * user and moves the response to EDITED — the admin path no longer goes
+ * through the respondent immutability guard.
+ */
 export async function updateResponseAction(input: {
   questionnaireId: string;
   responseId: string;
@@ -59,7 +64,32 @@ export async function updateResponseAction(input: {
     const session = await getSession();
     requirePermission(session, "MANAGE_QUESTIONNAIRES");
     await assertCanManageQuestionnaire(session, input.questionnaireId);
-    await saveResponse(input.responseId, input.data);
+    await editResponseAsAdmin(input.responseId, input.data, {
+      userId: session.sub,
+      name: session.name,
+      role: session.role,
+    });
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/responses`);
+  return {};
+}
+
+/** Approve a submitted/edited response (owner/admin only, TKT-024). */
+export async function approveResponseAction(input: {
+  questionnaireId: string;
+  responseId: string;
+}): Promise<{ error?: string }> {
+  try {
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
+    await assertCanManageQuestionnaire(session, input.questionnaireId);
+    await approveResponse(input.responseId, {
+      userId: session.sub,
+      name: session.name,
+      role: session.role,
+    });
   } catch (err) {
     return actionError(err);
   }

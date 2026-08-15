@@ -139,7 +139,7 @@ describe("response service — lazy create with current state (TKT-001)", () => 
     await setQuestionnaireStatus(q.id, "ACTIVE");
     await expect(
       createResponseWithState(q.id, TOKEN, "a@example.com", {
-        status: "COMPLETED",
+        status: "SUBMITTED",
         answers: [{ questionId: qName.id, value: "Alice" }],
       })
     ).rejects.toThrow(/required/i);
@@ -162,16 +162,20 @@ describe("response service — progress & completion", () => {
     await setQuestionnaireStatus(q.id, "ACTIVE");
     const resp = await createResponse(q.id, TOKEN);
     const completed = await saveResponse(resp.id, {
-      status: "COMPLETED",
+      status: "SUBMITTED",
       answers: [
         { questionId: qName.id, value: "Alice" },
         { questionId: qMood.id, value: "happy" },
         { questionId: qNote.id, value: "hi" },
       ],
     });
-    expect(completed?.status).toBe("COMPLETED");
+    expect(completed?.status).toBe("SUBMITTED");
     expect(completed?.progress).toBe(100);
     expect(completed?.completedAt).toBeTruthy();
+    // TKT-024: respondent submission leaves an audit record.
+    const audits = await db.responseAudit.findMany({ where: { responseId: resp.id } });
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({ actorType: "RESPONDENT", action: "SUBMIT" });
   });
 
   it("rejects completion when a required visible answer is missing", async () => {
@@ -180,18 +184,18 @@ describe("response service — progress & completion", () => {
     const resp = await createResponse(q.id, TOKEN);
     await expect(
       saveResponse(resp.id, {
-        status: "COMPLETED",
+        status: "SUBMITTED",
         answers: [{ questionId: qName.id, value: "Alice" }],
       })
     ).rejects.toThrow(/required/i);
   });
 
-  it("rejects saving to a completed response", async () => {
+  it("rejects saving to a submitted response (respondent immutability)", async () => {
     const { q, qName, qMood, qNote } = await buildSurvey({ slug: "immut-1" });
     await setQuestionnaireStatus(q.id, "ACTIVE");
     const resp = await createResponse(q.id, TOKEN);
     await saveResponse(resp.id, {
-      status: "COMPLETED",
+      status: "SUBMITTED",
       answers: [
         { questionId: qName.id, value: "Alice" },
         { questionId: qMood.id, value: "happy" },
@@ -200,7 +204,7 @@ describe("response service — progress & completion", () => {
     });
     await expect(
       saveResponse(resp.id, { answers: [{ questionId: qName.id, value: "Bob" }] })
-    ).rejects.toThrow(/completed/i);
+    ).rejects.toThrow(/no longer editable/i);
   });
 
   it("ignores hidden questions for required validation", async () => {
@@ -222,10 +226,10 @@ describe("response service — progress & completion", () => {
     const resp = await createResponse(q.id, TOKEN);
     // Switch = no → Detail is hidden → completion succeeds without Detail.
     const completed = await saveResponse(resp.id, {
-      status: "COMPLETED",
+      status: "SUBMITTED",
       answers: [{ questionId: qSwitch.id, value: "no" }],
     });
-    expect(completed?.status).toBe("COMPLETED");
+    expect(completed?.status).toBe("SUBMITTED");
     expect(completed?.progress).toBe(100);
   });
 });
@@ -250,7 +254,7 @@ describe("response service — repeatable groups & aggregates", () => {
 
     const resp = await createResponse(q.id, TOKEN);
     const saved = await saveResponse(resp.id, {
-      status: "COMPLETED",
+      status: "SUBMITTED",
       groups: [
         {
           parentQuestionId: qGroup.id,
@@ -261,7 +265,7 @@ describe("response service — repeatable groups & aggregates", () => {
         },
       ],
     });
-    expect(saved?.status).toBe("COMPLETED");
+    expect(saved?.status).toBe("SUBMITTED");
 
     const detail = await getResponseDetail(resp.id);
     const total = detail?.answers.find((a) => a.questionId === qTotal.id);

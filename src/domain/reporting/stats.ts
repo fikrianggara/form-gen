@@ -24,7 +24,9 @@ export interface CompletionStats {
 
 export function computeCompletionStats(responses: ResponseLike[]): CompletionStats {
   const total = responses.length;
-  const completed = responses.filter((r) => r.status === "COMPLETED").length;
+  // TKT-024: SUBMITTED/EDITED/APPROVED all count as "submitted by respondent";
+  // only DRAFT is incomplete.
+  const completed = responses.filter((r) => r.status !== "DRAFT").length;
   return {
     total,
     completed,

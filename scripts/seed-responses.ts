@@ -186,7 +186,7 @@ async function seed(slug: string, count: number): Promise<void> {
     }
 
     await saveResponse(response.id, {
-      status: isCompleted ? "COMPLETED" : "DRAFT",
+      status: isCompleted ? "SUBMITTED" : "DRAFT",
       answers,
       groups,
     });

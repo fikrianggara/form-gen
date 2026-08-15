@@ -42,7 +42,7 @@ export default function FormRenderer({
   const toast = useToast();
   const [config, setConfig] = useState<QuestionnaireConfig | null>(null);
   const [responseId, setResponseId] = useState<string | null>(null);
-  const [status, setStatus] = useState<"DRAFT" | "COMPLETED">("DRAFT");
+  const [status, setStatus] = useState<"DRAFT" | "SUBMITTED" | "EDITED" | "APPROVED">("DRAFT");
   const [respondentToken, setRespondentToken] = useState<string>("");
   const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [answers, setAnswers] = useState<FlatAnswers>({});
@@ -129,7 +129,7 @@ export default function FormRenderer({
           setResponseId(response.id);
           setStatus(response.status);
 
-          if (response.status === "COMPLETED") {
+          if (response.status === "SUBMITTED" || response.status === "EDITED" || response.status === "APPROVED") {
             setSubmitted(true);
             return;
           }
@@ -142,7 +142,7 @@ export default function FormRenderer({
         if (resume.ok) {
           const { response: detail }: { response: ResponseDto | null } = await resume.json();
           if (detail && !cancelled) {
-            if (detail.status === "COMPLETED") {
+            if (detail.status === "SUBMITTED" || detail.status === "EDITED" || detail.status === "APPROVED") {
               setSubmitted(true);
               setResponseId(detail.id);
               setStatus(detail.status);
@@ -268,7 +268,7 @@ export default function FormRenderer({
         const token = respondentToken || getToken();
         const payload = {
           token,
-          status: complete ? "COMPLETED" : "DRAFT",
+          status: complete ? "SUBMITTED" : "DRAFT",
           answers: Object.entries(answers)
             .filter(([, v]) => v !== null && v !== undefined)
             .map(([questionId, value]) => ({ questionId, value })),
@@ -380,9 +380,9 @@ export default function FormRenderer({
           <p className="mt-2 text-sm text-gray-600">{config.description}</p>
         )}
         <div className="mt-4">
-          <ProgressBar value={status === "COMPLETED" ? 100 : liveProgress} />
+          <ProgressBar value={status === "DRAFT" ? liveProgress : 100} />
           <p className="mt-1 text-right text-xs text-gray-500">
-            {status === "COMPLETED" ? 100 : liveProgress}% complete
+            {status === "DRAFT" ? liveProgress : 100}% complete
           </p>
         </div>
       </Card>

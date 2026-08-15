@@ -36,7 +36,21 @@ enum QuestionnaireStatus {
 
 enum ResponseStatus {
   DRAFT
-  COMPLETED
+  SUBMITTED
+  EDITED
+  APPROVED
+}
+
+enum ResponseActorType {
+  RESPONDENT
+  ADMIN
+  OPERATOR
+}
+
+enum ResponseAuditAction {
+  SUBMIT
+  ADMIN_EDIT
+  APPROVE
 }
 
 model User {
@@ -224,10 +238,26 @@ model Response {
   completedAt      DateTime?
   answers          Answer[]
   answerGroups     AnswerGroup[]
+  audits           ResponseAudit[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
   @@index([questionnaireId, respondentToken])
+}
+
+model ResponseAudit {
+  id           String             @id @default(cuid())
+  responseId   String
+  response     Response           @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  actorType    ResponseActorType
+  actorUserId  String?
+  actorLabel   String?
+  action       ResponseAuditAction
+  fromStatus   ResponseStatus
+  toStatus     ResponseStatus
+  createdAt    DateTime           @default(now())
+
+  @@index([responseId])
 }
 
 model AnswerGroup {

@@ -12,7 +12,7 @@ export const groupInputSchema = z.object({
 
 export const saveResponseSchema = z.object({
   token: z.string().min(8).max(128),
-  status: z.enum(["DRAFT", "COMPLETED"]).optional(),
+  status: z.enum(["DRAFT", "SUBMITTED"]).optional(),
   answers: z.array(answerInputSchema).optional().default([]),
   groups: z.array(groupInputSchema).optional().default([]),
   respondentLabel: z.string().max(200).nullable().optional(),
