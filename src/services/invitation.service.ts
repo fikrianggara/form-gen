@@ -32,7 +32,16 @@ function generateToken(): string {
 export async function generateInvitations(
   questionnaireId: string,
   emails: string[]
-): Promise<Array<{ id: string; email: string; token: string; clickedAt: Date | null; responseId: string | null }>> {
+): Promise<
+  Array<{
+    id: string;
+    email: string;
+    token: string;
+    clickedAt: Date | null;
+    revokedAt: Date | null;
+    responseId: string | null;
+  }>
+> {
   const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
   if (!q) throw new NotFoundError("Questionnaire not found");
 
@@ -179,6 +188,7 @@ export async function sendInvitations(
     link: string;
     sentAt: Date | null;
     clickedAt: Date | null;
+    revokedAt: Date | null;
     responseId: string | null;
   }>
 > {

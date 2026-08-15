@@ -66,9 +66,23 @@ export default function FormRenderer({
           const invRes = await fetch(`/api/invitations/${encodeURIComponent(invite)}`);
           const invBody = await invRes.json().catch(() => null);
           if (!invBody?.valid) {
+            const reason = invBody?.reason as
+              | "not_found"
+              | "expired"
+              | "revoked"
+              | "already_used"
+              | undefined;
+            const message =
+              reason === "expired"
+                ? "This invitation link has expired."
+                : reason === "revoked"
+                  ? "This invitation link has been revoked."
+                  : reason === "already_used"
+                    ? "This invitation link has already been used."
+                    : "This invitation link is invalid or has expired.";
             if (!cancelled) {
-              setError("This invitation link is invalid or has expired.");
-              toast.error("Invalid link", "This invitation link is invalid or has expired.");
+              setError(message);
+              toast.error("Invalid link", message);
             }
             return;
           }

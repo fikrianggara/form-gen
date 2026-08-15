@@ -23,7 +23,7 @@ import {
   reorderBlocks,
   setQuestionBlock,
 } from "@/services/questionnaire.service";
-import { sendInvitations } from "@/services/invitation.service";
+import { sendInvitations, revokeInvitation } from "@/services/invitation.service";
 import {
   createQuestionMaster,
   updateQuestionMaster,
@@ -93,16 +93,36 @@ export async function updateQuestionnaireSettingsAction(input: {
 
 export async function sendInvitationsAction(input: {
   questionnaireId: string;
-}): Promise<{ error?: string; links?: Array<{ email: string; link: string }> }> {
+}): Promise<{
+  error?: string;
+  links?: Array<{ id: string; email: string; link: string; revokedAt: Date | null }>;
+}> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
     const invitations = await sendInvitations(input.questionnaireId);
     return {
-      links: invitations.map((i) => ({ email: i.email, link: i.link })),
+      links: invitations.map((i) => ({
+        id: i.id,
+        email: i.email,
+        link: i.link,
+        revokedAt: i.revokedAt,
+      })),
     };
   } catch (err) {
     return actionError(err);
   }
+}
+
+export async function revokeInvitationAction(input: {
+  id: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await revokeInvitation(input.id);
+  } catch (err) {
+    return actionError(err);
+  }
+  return {};
 }
 
 export async function setStatusAction(input: {

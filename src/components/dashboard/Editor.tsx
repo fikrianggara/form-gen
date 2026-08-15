@@ -11,6 +11,7 @@ import {
   updateQuestionOptionSetAction,
   removeQuestionAction,
   sendInvitationsAction,
+  revokeInvitationAction,
   reorderQuestionsAction,
   createBlockAction,
   updateBlockAction,
@@ -151,7 +152,9 @@ export function Editor({
   const [description, setDescription] = useState(q.description ?? "");
   const [multiple, setMultiple] = useState(q.acceptMultipleResponses);
   const [sampleEmails, setSampleEmails] = useState(q.sampleEmails.join("\n"));
-  const [inviteLinks, setInviteLinks] = useState<Array<{ email: string; link: string }> | null>(null);
+  const [inviteLinks, setInviteLinks] = useState<
+    Array<{ id: string; email: string; link: string; revokedAt: Date | null }> | null
+  >(null);
 
   // Add-question form state
   const [masterId, setMasterId] = useState("");
@@ -427,6 +430,31 @@ export function Editor({
                   {window.location.origin}
                   {l.link}
                 </code>
+                {l.revokedAt ? (
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                    Revoked
+                  </span>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    disabled={pending}
+                    onClick={() =>
+                      run(async () => {
+                        const res = await revokeInvitationAction({ id: l.id });
+                        if (res.error) return res;
+                        setInviteLinks(
+                          (prev) =>
+                            prev?.map((item) =>
+                              item.id === l.id ? { ...item, revokedAt: new Date() } : item
+                            ) ?? prev
+                        );
+                        return res;
+                      }, "Invitation link revoked")
+                    }
+                  >
+                    Revoke
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
