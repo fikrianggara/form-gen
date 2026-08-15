@@ -4,9 +4,22 @@ import { saveResponseSchema } from "@/lib/schemas";
 import { jsonOk, jsonError, isValidRespondentToken } from "@/lib/http";
 import { NotFoundError, ValidationError, ForbiddenError } from "@/lib/errors";
 import { saveResponse } from "@/services/response.service";
+import {
+  assertResponseSubmissionAllowed,
+  recordResponseSubmission,
+} from "@/services/rate-limit.service";
 
 interface Params {
   params: { slug: string; id: string };
+}
+
+/** Best-effort client IP (respects the common reverse-proxy headers). */
+function clientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown"
+  );
 }
 
 /** Save a draft or complete a response (owner-only). */
@@ -34,6 +47,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (response.respondentToken !== body.data.token) {
       throw new ForbiddenError("You can only edit your own response");
     }
+
+    // TKT-023: throttle public submission edits the same way as creation.
+    const ip = clientIp(req);
+    await assertResponseSubmissionAllowed(body.data.token, ip, questionnaire.id);
+    await recordResponseSubmission(body.data.token, ip, questionnaire.id);
 
     const updated = await saveResponse(params.id, {
       status: body.data.status,

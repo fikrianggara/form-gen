@@ -60,6 +60,15 @@ model LoginAttempt {
   @@index([email, ip, createdAt])
 }
 
+/** Generic windowed rate-limit event (TKT-023): keyed counters, no PII. */
+model RateLimitEvent {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
 model QuestionMaster {
   id              String       @id @default(cuid())
   code            String

@@ -5,9 +5,22 @@ import { jsonOk, jsonError, isValidRespondentToken } from "@/lib/http";
 import { NotFoundError, ValidationError } from "@/lib/errors";
 import { createResponse, createResponseWithState } from "@/services/response.service";
 import { linkInvitationToResponse } from "@/services/invitation.service";
+import {
+  assertResponseSubmissionAllowed,
+  recordResponseSubmission,
+} from "@/services/rate-limit.service";
 
 interface Params {
   params: { slug: string };
+}
+
+/** Best-effort client IP (respects the common reverse-proxy headers). */
+function clientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown"
+  );
 }
 
 /** Resume the latest response for a respondent token. */
@@ -56,6 +69,12 @@ export async function POST(req: NextRequest, { params }: Params) {
       select: { id: true },
     });
     if (!questionnaire) throw new NotFoundError("Questionnaire not found");
+
+    // TKT-023: throttle public submissions (per token/IP, IP, questionnaire).
+    // Check + record BEFORE any write so over-limit requests never create rows.
+    const ip = clientIp(req);
+    await assertResponseSubmissionAllowed(body.data.token, ip, questionnaire.id);
+    await recordResponseSubmission(body.data.token, ip, questionnaire.id);
 
     const hasState =
       (body.data.answers?.length ?? 0) > 0 ||

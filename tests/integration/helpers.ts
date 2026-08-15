@@ -11,6 +11,8 @@ const TABLES = [
   "OptionSet",
   "QuestionMaster",
   "LoginAttempt",
+  "RateLimitEvent",
+  "Invitation",
   "User",
 ] as const;
 
