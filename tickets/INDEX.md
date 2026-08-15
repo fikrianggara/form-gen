@@ -20,7 +20,7 @@
 | TKT-027 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-027-user-creation-crashes-on | false | User creation crashes on form reset (currentTarget null after await) |
 | TKT-028 | feature | small | P1 | admin-polish | merged | jarvis | feature-TKT-028-users-table-kebab-action | false | Users table: kebab action menu (Edit, Reset password, Enable/Disable) + pure status badge |
 | TKT-029 | feature | small | P1 | admin-polish | merged | jarvis | feature-TKT-028-users-table-kebab-action | false | Disable user revokes active session (isActive checked at session verify) + self-lockout guard |
-| TKT-030 | bug | small | P1 | admin-polish | done | jarvis | bug-TKT-030-table-wrappers-clip-popu | true | Table wrappers clip popup menus (overflow-hidden truncates action menus) |
+| TKT-030 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-030-table-wrappers-clip-popu | false | Table wrappers clip popup menus (overflow-hidden truncates action menus) |
 | TKT-010 | feature | small | P2 | external-mapping | merged | jarvis | feature-TKT-011-small-wins | false | Option set nested key extraction from API responses |
 | TKT-019 | feature | small | P1 | invitation-hardening | backlog | null | null | false | Absolute base URL for invitation links |
 | TKT-021 | bug | small | P1 | invitation-hardening | backlog | null | null | false | Escape HTML in mail templates |
