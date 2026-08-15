@@ -3,7 +3,7 @@
 | TKT-008 | feature | big | P2 | ai-sourcing | backlog | null | null | false | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
 | TKT-014 | feature | big | P2 | org-scoping | backlog | null | null | false | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
 | TKT-005 | feature | big | P2 | proposal | backlog | null | null | false | Survey proposal workflow with optional email verification |
-| TKT-024 | feature | big | P0 | questionnaire-extras | ongoing | jarvis | feature-TKT-024-response-status-workflow | false | Response status workflow: draft, submitted, edited, approved + audit trail |
+| TKT-024 | feature | big | P0 | questionnaire-extras | done | jarvis | feature-TKT-024-response-status-workflow | true | Response status workflow: draft, submitted, edited, approved + audit trail |
 | TKT-001 | feature | big | P0 | respondent-auth | merged | jarvis | feature-TKT-001-unique-link-distribution | false | Unique-link distribution & lazy response creation — mailblast sample links, no accounts |
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
