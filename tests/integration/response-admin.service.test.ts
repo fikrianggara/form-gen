@@ -45,6 +45,44 @@ describe("response admin actions (TKT-017)", () => {
     await expect(deleteResponse("missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it("detaches linked invitations when a response is deleted (TKT-022)", async () => {
+    const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
+    // Simulate an invitation that has been linked to this response.
+    const inv = await db.invitation.create({
+      data: {
+        questionnaireId: q.id,
+        email: "r@example.com",
+        token: "tok-022-" + resp.id.slice(0, 8),
+        responseId: resp.id,
+      },
+    });
+
+    await deleteResponse(resp.id);
+
+    const after = await db.invitation.findUnique({ where: { id: inv.id } });
+    expect(after?.responseId).toBeNull();
+    const gone = await db.response.findUnique({ where: { id: resp.id } });
+    expect(gone).toBeNull();
+  });
+
+  it("the FK itself (SetNull) detaches invitations even when the response is deleted directly (TKT-022)", async () => {
+    const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
+    const inv = await db.invitation.create({
+      data: {
+        questionnaireId: q.id,
+        email: "r@example.com",
+        token: "tok-022-direct-" + resp.id.slice(0, 8),
+        responseId: resp.id,
+      },
+    });
+
+    // Bypass the service's manual detach — the DB constraint must do the work.
+    await db.response.delete({ where: { id: resp.id } });
+
+    const after = await db.invitation.findUnique({ where: { id: inv.id } });
+    expect(after?.responseId).toBeNull();
+  });
+
   it("mailblasts the questionnaire link to the respondent's email", async () => {
     const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
     const sent: string[] = [];

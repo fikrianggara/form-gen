@@ -179,9 +179,11 @@ model Invitation {
   clickedAt       DateTime?
   revokedAt       DateTime?
   responseId      String?
+  response        Response?     @relation(fields: [responseId], references: [id], onDelete: SetNull)
   createdAt       DateTime      @default(now())
 
   @@index([questionnaireId])
+  @@index([responseId])
 }
 
 model QuestionnaireBlock {
@@ -239,6 +241,7 @@ model Response {
   answers          Answer[]
   answerGroups     AnswerGroup[]
   audits           ResponseAudit[]
+  invitations      Invitation[]
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
