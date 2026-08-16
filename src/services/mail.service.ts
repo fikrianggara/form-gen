@@ -58,9 +58,11 @@ export function buildInvitationMail(input: {
 }): MailMessage {
   const title = escapeHtml(input.questionnaireTitle);
   const link = escapeHtml(input.link);
+  // Subject is plain text — keep it human-readable (only the HTML body
+  // gets escaped; see TKT-021 tests).
   const subject = input.isReminder
-    ? `Reminder: ${title}`
-    : `You're invited: ${title}`;
+    ? `Reminder: ${input.questionnaireTitle}`
+    : `You're invited: ${input.questionnaireTitle}`;
   const intro = input.isReminder
     ? `You haven't completed <strong>${title}</strong> yet — a friendly reminder.`
     : `You've been invited to complete <strong>${title}</strong>.`;
