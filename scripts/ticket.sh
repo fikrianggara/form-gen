@@ -197,7 +197,7 @@ cmd_list() {
   while IFS= read -r f; do
     [[ -f "$f" ]] || continue
     [[ "$(basename "$f")" == "TKT-000-template.md" ]] && continue
-    local id title type size severity group status assignee branch ready rank
+    local id title type size severity group status assignee branch ready srank rank
     id="$(get_field "$f" id)"
     title="$(get_field "$f" title)"
     type="$(get_field "$f" type)"
@@ -208,16 +208,22 @@ cmd_list() {
     assignee="$(get_field "$f" assignee)"
     branch="$(get_field "$f" branch)"
     ready="$(get_field "$f" readyToMerge)"
+    case "${severity:-P2}" in
+      P0) srank=0 ;;
+      P1) srank=1 ;;
+      *) srank=2 ;;
+    esac
     case "${size:-small}" in
       big) rank=0 ;;
       medium) rank=1 ;;
       *) rank=2 ;;
     esac
-    rows+="${rank}|${group:-—}|$id|$type|${size:-—}|${severity:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title\n"
+    rows+="${srank}|${rank}|${group:-—}|$id|$type|${size:-—}|${severity:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title\n"
   done < <(ls "$TICKETS"/TKT-*.md 2>/dev/null | sort -t- -k2 -n)
-  # Sort by size (big → medium → small), then group, then id.
-  rows="$(printf '%b' "$rows" | sort -t'|' -k1,1n -k2,2 -k3,3n)"
-  while IFS='|' read -r _ _ id type size severity group status assignee branch ready title; do
+  # Sort by severity (P0 → P1 → P2), then size (big → medium → small),
+  # then group, then id.
+  rows="$(printf '%b' "$rows" | sort -t'|' -k1,1n -k2,2n -k3,3 -k4,4n)"
+  while IFS='|' read -r _ _ _ id type size severity group status assignee branch ready title; do
     out+="| $id | $type | $size | $severity | $group | $status | $assignee | $branch | $ready | $title |
 "
   done <<< "$rows"
