@@ -23,7 +23,12 @@ import {
   reorderBlocks,
   setQuestionBlock,
 } from "@/services/questionnaire.service";
-import { sendInvitations, revokeInvitation } from "@/services/invitation.service";
+import { sendInvitations, revokeInvitation, remindNonRespondents } from "@/services/invitation.service";
+import {
+  replaceSamplingFrame,
+  deleteSamplingFrameEntry,
+} from "@/services/sampling-frame.service";
+import { parseSamplingFrameWorkbook } from "@/services/excel.service";
 import {
   createQuestionMaster,
   updateQuestionMaster,
@@ -95,7 +100,14 @@ export async function sendInvitationsAction(input: {
   questionnaireId: string;
 }): Promise<{
   error?: string;
-  links?: Array<{ id: string; email: string; link: string; revokedAt: Date | null }>;
+  links?: Array<{
+    id: string;
+    email: string;
+    link: string;
+    sentAt: Date | null;
+    deliveryError: string | null;
+    revokedAt: Date | null;
+  }>;
 }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
@@ -105,8 +117,31 @@ export async function sendInvitationsAction(input: {
         id: i.id,
         email: i.email,
         link: i.link,
+        sentAt: i.sentAt,
+        deliveryError: i.deliveryError,
         revokedAt: i.revokedAt,
       })),
+    };
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function remindNonRespondentsAction(input: {
+  questionnaireId: string;
+}): Promise<{
+  error?: string;
+  reminded?: number;
+  failed?: number;
+  results?: Array<{ email: string; delivered: boolean; error: string | null }>;
+}> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const outcome = await remindNonRespondents(input.questionnaireId);
+    return {
+      reminded: outcome.reminded,
+      failed: outcome.failed,
+      results: outcome.results,
     };
   } catch (err) {
     return actionError(err);
@@ -349,6 +384,50 @@ export async function deleteOptionSetAction(input: { id: string }): Promise<{ er
     return actionError(err);
   }
   revalidatePath("/admin/option-sets");
+  return {};
+}
+
+// ------------------------------------------------------------------ sampling frame
+
+export async function uploadSamplingFrameAction(
+  questionnaireId: string,
+  formData: FormData
+): Promise<{
+  error?: string;
+  imported?: number;
+  errors?: Array<{ row: number; message: string }>;
+}> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return { error: "Excel file is required" };
+    }
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const parsed = await parseSamplingFrameWorkbook(buffer);
+    if (parsed.rows.length === 0 && parsed.errors.length === 0) {
+      return { error: "No rows to import" };
+    }
+    if (parsed.rows.length > 0) {
+      await replaceSamplingFrame(questionnaireId, parsed.rows);
+    }
+    return { imported: parsed.rows.length, errors: parsed.errors };
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function deleteSamplingFrameEntryAction(input: {
+  id: string;
+  questionnaireId: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await deleteSamplingFrameEntry(input.id);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
   return {};
 }
 
