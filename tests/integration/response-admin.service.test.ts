@@ -63,6 +63,17 @@ describe("response admin actions (TKT-017)", () => {
     expect(respCount).toBe(1);
   });
 
+  it("mailblasts an absolute link when APP_URL is configured (TKT-019)", async () => {
+    process.env.APP_URL = "https://forms.example.com";
+    const { resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
+    const transport: MailTransport = async () => undefined;
+    const result = await mailblastRespondent(resp.id, transport);
+    expect(result.link).toBe(
+      `https://forms.example.com/f/q-admin?invite=${result.token}`
+    );
+    delete process.env.APP_URL;
+  });
+
   it("throws when the response has no email to mailblast", async () => {
     const { resp } = await makeQuestionnaireWithResponse({ respondentLabel: null });
     const transport: MailTransport = async () => undefined;

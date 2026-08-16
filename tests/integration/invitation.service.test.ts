@@ -134,6 +134,23 @@ describe("invitation service", () => {
     expect(invs.every((i) => i.sentAt !== null)).toBe(true);
     expect(await db.response.count({ where: { questionnaireId: q.id } })).toBe(0);
   });
+
+  it("builds absolute links when APP_URL is configured (TKT-019)", async () => {
+    process.env.APP_URL = "https://forms.example.com";
+    const q = await makeQuestionnaire({
+      sampleEmails: ["a@example.com"],
+    });
+    const sent: string[] = [];
+    const transport: MailTransport = async (msg) => {
+      sent.push(msg.html);
+    };
+    const [result] = await sendInvitations(q.id, transport);
+    expect(result.link).toBe(
+      `https://forms.example.com/f/${q.slug}?invite=${result.token}`
+    );
+    expect(sent[0]).toContain("https://forms.example.com/f/");
+    delete process.env.APP_URL;
+  });
 });
 
 describe("invitation hardening (TKT-020)", () => {

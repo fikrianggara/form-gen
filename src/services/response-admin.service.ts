@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
-import { generateInvitations } from "@/services/invitation.service";
+import { generateInvitations, buildInvitationLink } from "@/services/invitation.service";
 import {
   buildInvitationMail,
   consoleTransport,
@@ -169,7 +169,7 @@ export async function mailblastRespondent(
   }
   if (!invitation) throw new AppError("Could not create an invitation", 500, "INVITE_FAILED");
 
-  const link = `/f/${response.questionnaire.slug}?invite=${invitation.token}`;
+  const link = buildInvitationLink(response.questionnaire.slug, invitation.token);
   const msg = buildInvitationMail({
     to: invitation.email,
     link,
