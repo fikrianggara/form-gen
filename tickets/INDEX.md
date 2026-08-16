@@ -10,7 +10,7 @@
 | TKT-009 | feature | medium | P2 | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
 | TKT-020 | feature | medium | P0 | invitation-hardening | merged | jarvis | feature-TKT-020-invitation-token-expiry | false | Invitation token expiry, single-use enforcement, and admin revoke |
 | TKT-012 | feature | medium | P2 | questionnaire-extras | done | jarvis | feature-TKT-012-questionnaire-sample-upl | true | Questionnaire sample upload (sampling frame via Excel) |
-| TKT-013 | feature | medium | P2 | questionnaire-extras | backlog | null | null | false | Mailblast respondent emails |
+| TKT-013 | feature | medium | P2 | questionnaire-extras | ongoing | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Mailblast respondent emails |
 | TKT-017 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-017-responses-page-view-edit | false | Responses page: view/edit/delete/mailblast actions in a popup menu per respondent |
 | TKT-002 | feature | medium | P2 | respondent-auth | cancelled | null | null | false | Email verification and password reset for respondents |
 | TKT-023 | feature | medium | P0 | respondent-auth | merged | jarvis | feature-TKT-023-rate-limit-public-respon | false | Rate-limit public response submission endpoints |
