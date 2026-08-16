@@ -177,6 +177,7 @@ model Invitation {
   email           String
   token           String        @unique
   sentAt          DateTime?
+  deliveryError   String?
   clickedAt       DateTime?
   revokedAt       DateTime?
   responseId      String?

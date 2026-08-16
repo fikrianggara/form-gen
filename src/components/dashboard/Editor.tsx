@@ -12,6 +12,7 @@ import {
   removeQuestionAction,
   sendInvitationsAction,
   revokeInvitationAction,
+  remindNonRespondentsAction,
   reorderQuestionsAction,
   createBlockAction,
   updateBlockAction,
@@ -156,8 +157,16 @@ export function Editor({
   const [multiple, setMultiple] = useState(q.acceptMultipleResponses);
   const [sampleEmails, setSampleEmails] = useState(q.sampleEmails.join("\n"));
   const [inviteLinks, setInviteLinks] = useState<
-    Array<{ id: string; email: string; link: string; revokedAt: Date | null }> | null
+    Array<{
+      id: string;
+      email: string;
+      link: string;
+      sentAt: Date | null;
+      deliveryError: string | null;
+      revokedAt: Date | null;
+    }> | null
   >(null);
+  const [remindResult, setRemindResult] = useState<string | null>(null);
 
   // Add-question form state
   const [masterId, setMasterId] = useState("");
@@ -393,7 +402,7 @@ export function Editor({
           onChange={(e) => setSampleEmails(e.target.value)}
           placeholder={"respondent1@example.com\nrespondent2@example.com"}
         />
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
             variant="secondary"
             disabled={pending}
@@ -415,6 +424,26 @@ export function Editor({
           >
             Generate & send links
           </Button>
+          <Button
+            variant="secondary"
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                setRemindResult(null);
+                const res = await remindNonRespondentsAction({ questionnaireId: q.id });
+                if (res.error) return res;
+                setRemindResult(
+                  `${res.reminded ?? 0} reminded, ${res.failed ?? 0} failed`
+                );
+                return res;
+              }, "Reminders sent")
+            }
+          >
+            Remind non-respondents
+          </Button>
+          {remindResult && (
+            <span className="text-xs text-gray-500">{remindResult}</span>
+          )}
           {inviteLinks && (
             <span className="text-xs text-gray-500">
               {inviteLinks.length} link{inviteLinks.length === 1 ? "" : "s"} sent
@@ -433,6 +462,18 @@ export function Editor({
                   {window.location.origin}
                   {l.link}
                 </code>
+                {l.deliveryError ? (
+                  <span
+                    title={l.deliveryError}
+                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600"
+                  >
+                    Failed
+                  </span>
+                ) : l.sentAt ? (
+                  <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700">
+                    Sent
+                  </span>
+                ) : null}
                 {l.revokedAt ? (
                   <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
                     Revoked

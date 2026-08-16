@@ -191,6 +191,7 @@ export async function sendInvitations(
     sentAt: Date | null;
     clickedAt: Date | null;
     revokedAt: Date | null;
+    deliveryError: string | null;
     responseId: string | null;
   }>
 > {
@@ -216,11 +217,11 @@ export async function sendInvitations(
         link,
         questionnaireTitle: q.title,
       });
-      const { delivered } = await sendMail(msg, transport);
+      const { delivered, error } = await sendMail(msg, transport);
       if (delivered) {
         const updated = await db.invitation.update({
           where: { id: inv.id },
-          data: { sentAt: new Date() },
+          data: { sentAt: new Date(), deliveryError: null },
           select: {
             id: true,
             email: true,
@@ -228,11 +229,16 @@ export async function sendInvitations(
             sentAt: true,
             clickedAt: true,
             revokedAt: true,
+            deliveryError: true,
             responseId: true,
           },
         });
         return { ...updated, link };
       }
+      await db.invitation.update({
+        where: { id: inv.id },
+        data: { deliveryError: error ?? "Send failed" },
+      });
       const fresh = await db.invitation.findUniqueOrThrow({
         where: { id: inv.id },
         select: {
@@ -242,6 +248,7 @@ export async function sendInvitations(
           sentAt: true,
           clickedAt: true,
           revokedAt: true,
+          deliveryError: true,
           responseId: true,
         },
       });
@@ -250,4 +257,64 @@ export async function sendInvitations(
   );
 
   return results;
+}
+
+/**
+ * TKT-013: remind respondents who received an invitation link but have not
+ * opened it (sentAt set, clickedAt null, not revoked). Re-sends the reminder
+ * mail and updates delivery status per recipient.
+ */
+export async function remindNonRespondents(
+  questionnaireId: string,
+  transport: MailTransport = consoleTransport
+): Promise<{
+  reminded: number;
+  failed: number;
+  results: Array<{ email: string; delivered: boolean; error: string | null }>;
+}> {
+  const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
+  if (!q) throw new NotFoundError("Questionnaire not found");
+
+  const pending = await db.invitation.findMany({
+    where: {
+      questionnaireId,
+      sentAt: { not: null },
+      clickedAt: null,
+      revokedAt: null,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  let reminded = 0;
+  let failed = 0;
+  const results: Array<{ email: string; delivered: boolean; error: string | null }> = [];
+
+  for (const inv of pending) {
+    const link = `/f/${q.slug}?invite=${inv.token}`;
+    const msg = buildInvitationMail({
+      to: inv.email,
+      link,
+      questionnaireTitle: q.title,
+      isReminder: true,
+    });
+    const { delivered, error } = await sendMail(msg, transport);
+    if (delivered) {
+      reminded += 1;
+      await db.invitation.update({
+        where: { id: inv.id },
+        data: { sentAt: new Date(), deliveryError: null },
+      });
+      results.push({ email: inv.email, delivered: true, error: null });
+    } else {
+      failed += 1;
+      const reason = error ?? "Send failed";
+      await db.invitation.update({
+        where: { id: inv.id },
+        data: { deliveryError: reason },
+      });
+      results.push({ email: inv.email, delivered: false, error: reason });
+    }
+  }
+
+  return { reminded, failed, results };
 }

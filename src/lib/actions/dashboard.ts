@@ -23,7 +23,7 @@ import {
   reorderBlocks,
   setQuestionBlock,
 } from "@/services/questionnaire.service";
-import { sendInvitations, revokeInvitation } from "@/services/invitation.service";
+import { sendInvitations, revokeInvitation, remindNonRespondents } from "@/services/invitation.service";
 import {
   replaceSamplingFrame,
   deleteSamplingFrameEntry,
@@ -100,7 +100,14 @@ export async function sendInvitationsAction(input: {
   questionnaireId: string;
 }): Promise<{
   error?: string;
-  links?: Array<{ id: string; email: string; link: string; revokedAt: Date | null }>;
+  links?: Array<{
+    id: string;
+    email: string;
+    link: string;
+    sentAt: Date | null;
+    deliveryError: string | null;
+    revokedAt: Date | null;
+  }>;
 }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
@@ -110,8 +117,31 @@ export async function sendInvitationsAction(input: {
         id: i.id,
         email: i.email,
         link: i.link,
+        sentAt: i.sentAt,
+        deliveryError: i.deliveryError,
         revokedAt: i.revokedAt,
       })),
+    };
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function remindNonRespondentsAction(input: {
+  questionnaireId: string;
+}): Promise<{
+  error?: string;
+  reminded?: number;
+  failed?: number;
+  results?: Array<{ email: string; delivered: boolean; error: string | null }>;
+}> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const outcome = await remindNonRespondents(input.questionnaireId);
+    return {
+      reminded: outcome.reminded,
+      failed: outcome.failed,
+      results: outcome.results,
     };
   } catch (err) {
     return actionError(err);
