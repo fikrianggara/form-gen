@@ -14,6 +14,7 @@ const TABLES = [
   "LoginAttempt",
   "RateLimitEvent",
   "Invitation",
+  "SamplingFrameEntry",
   "User",
 ] as const;
 

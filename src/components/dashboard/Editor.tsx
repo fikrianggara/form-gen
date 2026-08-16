@@ -26,6 +26,7 @@ import type {
   VisibilityRuleClause,
 } from "@/domain/types";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
+import { SamplingFrameCard, type SamplingFrameEntryRow } from "@/components/dashboard/SamplingFrameCard";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
 import { RuleSetsEditor } from "@/components/dashboard/RuleSetsEditor";
@@ -77,6 +78,7 @@ interface EditorProps {
     isLatest: boolean;
     source: string;
   }>;
+  samplingFrame: SamplingFrameEntryRow[];
   generatedBanner?: { matchCount: number; lowCount: number } | null;
 }
 
@@ -121,6 +123,7 @@ export function Editor({
   masters,
   masterVersions,
   optionSets,
+  samplingFrame,
   generatedBanner,
 }: EditorProps) {
   const toast = useToast();
@@ -460,6 +463,8 @@ export function Editor({
           </ul>
         )}
       </Card>
+
+      <SamplingFrameCard questionnaireId={q.id} entries={samplingFrame} />
 
       {/* Add question */}
       <Card className="p-6">

@@ -159,6 +159,7 @@ model Questionnaire {
   createdBy               String?
   creator                 User?                    @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   invitations             Invitation[]
+  samplingFrame           SamplingFrameEntry[]
   questions               QuestionnaireQuestion[]
   blocks                  QuestionnaireBlock[]
   responses               Response[]
@@ -181,6 +182,26 @@ model Invitation {
   responseId      String?
   createdAt       DateTime      @default(now())
 
+  @@index([questionnaireId])
+}
+
+/**
+ * Sampling-frame row for targeted surveys (TKT-012): one known respondent
+ * (person or organization) with an email or phone contact. Uploaded from an
+ * Excel file with a fixed column format (organization_name, contact).
+ */
+model SamplingFrameEntry {
+  id               String         @id @default(cuid())
+  questionnaireId  String
+  questionnaire    Questionnaire  @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  organizationName String
+  contact          String
+  contactType      String         @default("EMAIL") // EMAIL | PHONE (derived at import)
+  rowIndex         Int
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([questionnaireId, rowIndex])
   @@index([questionnaireId])
 }
 

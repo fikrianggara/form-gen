@@ -25,6 +25,11 @@ import {
 } from "@/services/questionnaire.service";
 import { sendInvitations, revokeInvitation } from "@/services/invitation.service";
 import {
+  replaceSamplingFrame,
+  deleteSamplingFrameEntry,
+} from "@/services/sampling-frame.service";
+import { parseSamplingFrameWorkbook } from "@/services/excel.service";
+import {
   createQuestionMaster,
   updateQuestionMaster,
   deleteQuestionMaster,
@@ -349,6 +354,50 @@ export async function deleteOptionSetAction(input: { id: string }): Promise<{ er
     return actionError(err);
   }
   revalidatePath("/admin/option-sets");
+  return {};
+}
+
+// ------------------------------------------------------------------ sampling frame
+
+export async function uploadSamplingFrameAction(
+  questionnaireId: string,
+  formData: FormData
+): Promise<{
+  error?: string;
+  imported?: number;
+  errors?: Array<{ row: number; message: string }>;
+}> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    const file = formData.get("file");
+    if (!(file instanceof File)) {
+      return { error: "Excel file is required" };
+    }
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const parsed = await parseSamplingFrameWorkbook(buffer);
+    if (parsed.rows.length === 0 && parsed.errors.length === 0) {
+      return { error: "No rows to import" };
+    }
+    if (parsed.rows.length > 0) {
+      await replaceSamplingFrame(questionnaireId, parsed.rows);
+    }
+    return { imported: parsed.rows.length, errors: parsed.errors };
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+export async function deleteSamplingFrameEntryAction(input: {
+  id: string;
+  questionnaireId: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
+    await deleteSamplingFrameEntry(input.id);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath(`/dashboard/questionnaires/${input.questionnaireId}/edit`);
   return {};
 }
 

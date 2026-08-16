@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
+import { samplingFrameEmails } from "@/services/sampling-frame.service";
 import {
   buildInvitationMail,
   sendMail,
@@ -196,7 +197,11 @@ export async function sendInvitations(
   const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
   if (!q) throw new NotFoundError("Questionnaire not found");
 
-  const emails = parseSampleEmails(q.sampleEmails);
+  // Distribution targets: legacy free-text sampleEmails + sampling-frame
+  // EMAIL contacts (TKT-012). Phone-only frame entries are NOT emailed —
+  // they are flagged for other distribution channels.
+  const frameEmails = await samplingFrameEmails(questionnaireId);
+  const emails = [...parseSampleEmails(q.sampleEmails), ...frameEmails];
   if (emails.length === 0) {
     throw new AppError("No sample emails on this questionnaire", 422, "NO_SAMPLE_EMAILS");
   }

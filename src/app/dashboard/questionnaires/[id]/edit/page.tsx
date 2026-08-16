@@ -5,6 +5,7 @@ import {
   listAllMasterVersions,
   listAllOptionSetVersions,
 } from "@/services/master-data.service";
+import { listSamplingFrame } from "@/services/sampling-frame.service";
 import { Editor } from "@/components/dashboard/Editor";
 import type { VisibilityRule, AggregateConfig } from "@/domain/types";
 
@@ -43,12 +44,14 @@ export default async function EditQuestionnairePage({
   params: { id: string };
   searchParams: { generated?: string; matches?: string; low?: string };
 }) {
-  const [questionnaire, masters, masterVersions, optionSets] = await Promise.all([
-    getQuestionnaireWithQuestions(params.id),
-    listQuestionMasters(),
-    listAllMasterVersions(),
-    listAllOptionSetVersions(),
-  ]);
+  const [questionnaire, masters, masterVersions, optionSets, samplingFrame] =
+    await Promise.all([
+      getQuestionnaireWithQuestions(params.id),
+      listQuestionMasters(),
+      listAllMasterVersions(),
+      listAllOptionSetVersions(),
+      listSamplingFrame(params.id),
+    ]);
   if (!questionnaire) notFound();
 
   const questions: EditorQuestion[] = questionnaire.questions
@@ -144,6 +147,13 @@ export default async function EditQuestionnairePage({
         version: o.version,
         isLatest: o.isLatest,
         source: o.source,
+      }))}
+      samplingFrame={samplingFrame.map((e) => ({
+        id: e.id,
+        organizationName: e.organizationName,
+        contact: e.contact,
+        contactType: e.contactType as "EMAIL" | "PHONE",
+        rowIndex: e.rowIndex,
       }))}
       generatedBanner={
         searchParams.generated === "1"
