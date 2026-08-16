@@ -7,6 +7,20 @@ export interface MailMessage {
 export type MailTransport = (msg: MailMessage) => Promise<void>;
 
 /**
+ * Escape a value for safe interpolation into HTML (TKT-021). Prevents a
+ * questionnaire title or link containing markup from injecting into the
+ * email body.
+ */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
  * Console fallback transport: logs the mail so dev/test environments don't
  * need an SMTP server. Recorded via console.log (swappable in tests).
  */
@@ -42,19 +56,21 @@ export function buildInvitationMail(input: {
   questionnaireTitle: string;
   isReminder?: boolean;
 }): MailMessage {
+  const title = escapeHtml(input.questionnaireTitle);
+  const link = escapeHtml(input.link);
   const subject = input.isReminder
-    ? `Reminder: ${input.questionnaireTitle}`
-    : `You're invited: ${input.questionnaireTitle}`;
+    ? `Reminder: ${title}`
+    : `You're invited: ${title}`;
   const intro = input.isReminder
-    ? `You haven't completed <strong>${input.questionnaireTitle}</strong> yet — a friendly reminder.`
-    : `You've been invited to complete <strong>${input.questionnaireTitle}</strong>.`;
+    ? `You haven't completed <strong>${title}</strong> yet — a friendly reminder.`
+    : `You've been invited to complete <strong>${title}</strong>.`;
   return {
     to: input.to,
     subject,
     html: [
       `<p>${intro}</p>`,
       `<p>Open your unique link to start:</p>`,
-      `<p><a href="${input.link}">${input.link}</a></p>`,
+      `<p><a href="${link}">${link}</a></p>`,
       `<p>This link is personal to you and can be used once.</p>`,
     ].join("\n"),
   };

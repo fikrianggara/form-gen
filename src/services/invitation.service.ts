@@ -17,6 +17,50 @@ export const INVITATION_TTL_DAYS = Number(process.env.INVITATION_TTL_DAYS ?? 30)
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Public base URL for absolute invitation links (TKT-019). Reads APP_URL,
+ * trailing slash normalized. Empty when unset — links stay relative (the
+ * console/dev mail fallback works without a public origin).
+ */
+export function getAppBaseUrl(): string {
+  const raw = process.env.APP_URL?.trim() ?? "";
+  return raw.replace(/\/+$/, "");
+}
+
+/**
+ * Build a questionnaire invitation link (TKT-019). Absolute
+ * (`<base>/f/<slug>?invite=<token>`) when a base URL is configured or passed;
+ * relative otherwise so dev/console transport still works. An invalid APP_URL
+ * is surfaced as a config error instead of silently producing broken links.
+ */
+export function buildInvitationLink(
+  slug: string,
+  token: string,
+  baseUrl?: string
+): string {
+  const base = baseUrl ?? getAppBaseUrl();
+  const path = `/f/${slug}?invite=${token}`;
+  if (!base) return path;
+  let parsed: URL;
+  try {
+    parsed = new URL(base);
+  } catch {
+    throw new AppError(
+      `APP_URL is not a valid URL: "${base}"`,
+      500,
+      "INVALID_APP_URL"
+    );
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new AppError(
+      `APP_URL must be an http(s) URL, got "${base}"`,
+      500,
+      "INVALID_APP_URL"
+    );
+  }
+  return `${base}${path}`;
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -211,7 +255,7 @@ export async function sendInvitations(
 
   const results = await Promise.all(
     invitations.map(async (inv) => {
-      const link = `/f/${q.slug}?invite=${inv.token}`;
+      const link = buildInvitationLink(q.slug, inv.token);
       const msg = buildInvitationMail({
         to: inv.email,
         link,

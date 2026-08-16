@@ -45,7 +45,48 @@ describe("response admin actions (TKT-017)", () => {
     await expect(deleteResponse("missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it("detaches linked invitations when a response is deleted (TKT-022)", async () => {
+    const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
+    // Simulate an invitation that has been linked to this response.
+    const inv = await db.invitation.create({
+      data: {
+        questionnaireId: q.id,
+        email: "r@example.com",
+        token: "tok-022-" + resp.id.slice(0, 8),
+        responseId: resp.id,
+      },
+    });
+
+    await deleteResponse(resp.id);
+
+    const after = await db.invitation.findUnique({ where: { id: inv.id } });
+    expect(after?.responseId).toBeNull();
+    const gone = await db.response.findUnique({ where: { id: resp.id } });
+    expect(gone).toBeNull();
+  });
+
+  it("the FK itself (SetNull) detaches invitations even when the response is deleted directly (TKT-022)", async () => {
+    const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
+    const inv = await db.invitation.create({
+      data: {
+        questionnaireId: q.id,
+        email: "r@example.com",
+        token: "tok-022-direct-" + resp.id.slice(0, 8),
+        responseId: resp.id,
+      },
+    });
+
+    // Bypass the service's manual detach — the DB constraint must do the work.
+    await db.response.delete({ where: { id: resp.id } });
+
+    const after = await db.invitation.findUnique({ where: { id: inv.id } });
+    expect(after?.responseId).toBeNull();
+  });
+
   it("mailblasts the questionnaire link to the respondent's email", async () => {
+    // Deterministic: this test asserts the RELATIVE fallback, so force the
+    // no-APP_URL precondition (a .env-provided APP_URL would make it absolute).
+    delete process.env.APP_URL;
     const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
     const sent: string[] = [];
     const transport: MailTransport = async (m) => {
@@ -61,6 +102,17 @@ describe("response admin actions (TKT-017)", () => {
     expect(inv?.sentAt).not.toBeNull();
     const respCount = await db.response.count({ where: { questionnaireId: q.id } });
     expect(respCount).toBe(1);
+  });
+
+  it("mailblasts an absolute link when APP_URL is configured (TKT-019)", async () => {
+    process.env.APP_URL = "https://forms.example.com";
+    const { resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
+    const transport: MailTransport = async () => undefined;
+    const result = await mailblastRespondent(resp.id, transport);
+    expect(result.link).toBe(
+      `https://forms.example.com/f/q-admin?invite=${result.token}`
+    );
+    delete process.env.APP_URL;
   });
 
   it("throws when the response has no email to mailblast", async () => {
