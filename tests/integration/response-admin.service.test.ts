@@ -84,6 +84,9 @@ describe("response admin actions (TKT-017)", () => {
   });
 
   it("mailblasts the questionnaire link to the respondent's email", async () => {
+    // Deterministic: this test asserts the RELATIVE fallback, so force the
+    // no-APP_URL precondition (a .env-provided APP_URL would make it absolute).
+    delete process.env.APP_URL;
     const { q, resp } = await makeQuestionnaireWithResponse({ respondentLabel: "r@example.com" });
     const sent: string[] = [];
     const transport: MailTransport = async (m) => {
