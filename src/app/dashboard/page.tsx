@@ -3,7 +3,7 @@ import { listQuestionnaires } from "@/services/questionnaire.service";
 import NewQuestionnaireForm from "@/components/dashboard/NewQuestionnaireForm";
 import DuplicateQuestionnaireButton from "@/components/dashboard/DuplicateQuestionnaireButton";
 import { Badge } from "@/components/ui";
-import { IconPlus, IconEye, IconList, IconChart, IconPencil } from "@/components/icons";
+import { IconPlus, IconBolt, IconEye, IconList, IconChart, IconPencil } from "@/components/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +20,22 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Questionnaires</h1>
-        <Link
-          href="/dashboard/new"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          <IconPlus size={16} />
-          New
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/generate"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100"
+          >
+            <IconBolt size={16} />
+            Generate with AI
+          </Link>
+          <Link
+            href="/dashboard/new"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            <IconPlus size={16} />
+            New
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
