@@ -24,7 +24,7 @@
 | TKT-031 | feature | small | P2 | admin-polish | done | jarvis | feature-TKT-031-add-generate-with-ai-but | true | Add 'Generate with AI' button on questionnaires page |
 | TKT-010 | feature | small | P2 | external-mapping | merged | jarvis | feature-TKT-011-small-wins | false | Option set nested key extraction from API responses |
 | TKT-019 | feature | small | P1 | invitation-hardening | done | jarvis | feature-TKT-019-absolute-base-url-for-in | true | Absolute base URL for invitation links |
-| TKT-021 | bug | small | P1 | invitation-hardening | ongoing | jarvis | feature-TKT-019-absolute-base-url-for-in | false | Escape HTML in mail templates |
+| TKT-021 | bug | small | P1 | invitation-hardening | done | jarvis | feature-TKT-019-absolute-base-url-for-in | true | Escape HTML in mail templates |
 | TKT-022 | feature | small | P1 | invitation-hardening | ongoing | jarvis | feature-TKT-019-absolute-base-url-for-in | false | Invitation.responseId as a real FK relation |
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | Rate-limit respondent login attempts |
 | TKT-004 | feature | small | P2 | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
