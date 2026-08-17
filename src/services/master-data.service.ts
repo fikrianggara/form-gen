@@ -1,10 +1,38 @@
 import { randomUUID } from "node:crypto";
-import type { Prisma, QuestionType } from "@prisma/client";
+import type { Prisma, QuestionType, MasterStatus, Role } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
 import { ensureMasterEmbedding } from "@/services/embedding.service";
 
 export const CHOICE_TYPES: QuestionType[] = ["RADIO", "CHECKBOX", "SELECT"];
+
+/** TKT-008: who is looking at the master bank. Admins see everything; others see admin/legacy + their own + public masters. */
+export interface MasterViewer {
+  userId: string;
+  role: Role;
+}
+
+/**
+ * TKT-008: visibility filter for the question master bank.
+ * - Admins see all masters (including PENDING suggestions awaiting validation).
+ * - Operators see: PUBLISHED masters that are admin-created or legacy (no
+ *   owner), PUBLISHED public masters (opt-in), and masters they created
+ *   themselves (any status, so their own PENDING suggestions are visible).
+ * PUBLISHED masters created by other operators stay hidden unless opted public;
+ * PENDING masters created by other operators stay hidden until an admin
+ * publishes them.
+ */
+export function visibleMasterWhere(viewer?: MasterViewer | null): Prisma.QuestionMasterWhereInput {
+  if (!viewer || viewer.role === "ADMIN") return {};
+  return {
+    OR: [
+      { status: "PUBLISHED" as MasterStatus, isPublic: true },
+      { status: "PUBLISHED" as MasterStatus, createdBy: null },
+      { status: "PUBLISHED" as MasterStatus, creator: { role: "ADMIN" } },
+      { createdBy: viewer.userId },
+    ],
+  };
+}
 
 export interface QuestionMasterInput {
   code: string;
@@ -18,6 +46,10 @@ export interface QuestionMasterInput {
   maxLength?: number | null;
   ratingMax?: number | null;
   optionSetId?: string | null;
+  /** TKT-008: creation context — owner + initial lifecycle status. */
+  createdBy?: string | null;
+  status?: MasterStatus;
+  isPublic?: boolean;
 }
 
 export interface OptionInput {
@@ -59,6 +91,11 @@ export async function createQuestionMaster(input: QuestionMasterInput) {
     title: input.title.trim(),
     description: input.description ?? null,
     questionType: input.questionType,
+    status: input.status ?? "PUBLISHED",
+    isPublic: input.isPublic ?? false,
+    ...(input.createdBy
+      ? { creator: { connect: { id: input.createdBy } } }
+      : {}),
     requiredDefault: input.requiredDefault ?? false,
     placeholder: input.placeholder ?? null,
     minValue: input.minValue ?? null,
@@ -169,13 +206,49 @@ export async function deleteQuestionMaster(id: string): Promise<void> {
   await db.questionMaster.deleteMany({ where: { code: existing.code } });
 }
 
-/** Latest version of every master, ordered by code. */
-export async function listQuestionMasters() {
+/**
+ * Latest version of every master the viewer can see, ordered by code.
+ * TKT-008: visibility filter applied — admins see all (incl. PENDING),
+ * operators see the published bank (admin/legacy/public) + their own.
+ */
+export async function listQuestionMasters(viewer?: MasterViewer | null) {
   return db.questionMaster.findMany({
-    where: { isLatest: true },
+    where: { isLatest: true, ...visibleMasterWhere(viewer) },
     orderBy: { code: "asc" },
-    include: { optionSet: { include: { options: { orderBy: { order: "asc" } } } } },
+    include: {
+      optionSet: { include: { options: { orderBy: { order: "asc" } } } },
+      creator: { select: { id: true, name: true, role: true } },
+    },
   });
+}
+
+/** TKT-008: admin publish — PENDING suggestion becomes part of the public bank. */
+export async function publishQuestionMaster(id: string) {
+  const existing = await db.questionMaster.findUnique({ where: { id } });
+  if (!existing) throw new NotFoundError("Question master not found");
+  const updated = await db.questionMaster.update({
+    where: { id },
+    data: { status: "PUBLISHED" },
+  });
+  await tryEmbed(id);
+  return updated;
+}
+
+/** TKT-008: admin reject — a PENDING suggestion is discarded (no bank entry). */
+export async function rejectQuestionMaster(id: string) {
+  const existing = await db.questionMaster.findUnique({ where: { id } });
+  if (!existing) throw new NotFoundError("Question master not found");
+  if (existing.status !== "PENDING") {
+    throw new AppError("Only PENDING question masters can be rejected", 409, "NOT_PENDING");
+  }
+  return db.questionMaster.delete({ where: { id } });
+}
+
+/** TKT-008: opt-in public visibility for a PUBLISHED master. */
+export async function setQuestionMasterPublic(id: string, isPublic: boolean) {
+  const existing = await db.questionMaster.findUnique({ where: { id } });
+  if (!existing) throw new NotFoundError("Question master not found");
+  return db.questionMaster.update({ where: { id }, data: { isPublic } });
 }
 
 /** All versions of one master, newest first. */
