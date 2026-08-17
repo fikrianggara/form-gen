@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { generateQuestionnaireAction } from "@/lib/actions/dashboard";
-import { Button, Card, Field, inputClass } from "@/components/ui";
+import {
+  generateQuestionnaireAction,
+  addNovelMasterAction,
+  type NovelMasterSuggestion,
+} from "@/lib/actions/dashboard";
+import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
 
 export default function GenerateForm({ hybridActive }: { hybridActive: boolean }) {
@@ -14,6 +18,28 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
   const [maxQuestions, setMaxQuestions] = useState(10);
   const [threshold, setThreshold] = useState(0.3);
   const [multiple, setMultiple] = useState(true);
+  // TKT-008: generation result — novel questions flagged, per-question add-to-master.
+  const [novel, setNovel] = useState<NovelMasterSuggestion[]>([]);
+  const [added, setAdded] = useState<Set<number>>(new Set());
+  const [modalIdx, setModalIdx] = useState<number | null>(null);
+  const [savingMaster, startMasterSave] = useTransition();
+
+  const closeModal = () => setModalIdx(null);
+
+  const addToMaster = (idx: number) => {
+    const item = novel[idx];
+    if (!item) return;
+    startMasterSave(async () => {
+      const res = await addNovelMasterAction(item);
+      if (res.error) {
+        toast.error("Could not add question", res.error);
+        return;
+      }
+      setAdded((prev) => new Set(prev).add(idx));
+      closeModal();
+      toast.success("Added to question master", "Saved as PENDING — an admin must publish it before it enters the shared bank.");
+    });
+  };
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -21,7 +47,8 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
       <p className="mb-6 text-sm text-gray-500">
         Describe the questionnaire, its questions and question descriptions. The system
         retrieves matching questions from the question bank, predicts the title and
-        description, and creates a draft questionnaire — flagging low-confidence matches.
+        description, and creates a draft questionnaire — flagging low-confidence matches
+        and any novel questions not in the bank.
       </p>
 
       <Card className="p-6">
@@ -31,6 +58,8 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
             e.preventDefault();
             setPending(true);
             setError(null);
+            setNovel([]);
+            setAdded(new Set());
             const fd = new FormData(e.currentTarget);
             const result = await generateQuestionnaireAction({
               prompt: String(fd.get("prompt") ?? ""),
@@ -44,13 +73,15 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
               setPending(false);
               return;
             }
+            setNovel(result.novel ?? []);
             toast.success(
               "Questionnaire generated",
-              `${result.matchCount} question${result.matchCount === 1 ? "" : "s"} suggested from the question bank.`
+              `${result.matchCount} question${result.matchCount === 1 ? "" : "s"} suggested from the question bank${(result.novel?.length ?? 0) > 0 ? `, ${result.novel!.length} new question${result.novel!.length === 1 ? "" : "s"} flagged.` : "."}`
             );
             router.push(
               `/dashboard/questionnaires/${result.questionnaireId}/edit?generated=1&matches=${result.matchCount}&low=${result.lowCount}`
             );
+            setPending(false);
           }}
         >
           <Field
@@ -114,6 +145,71 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
           </div>
         </form>
       </Card>
+
+      {/* TKT-008: novel (unmatched) questions flagged after generation */}
+      {novel.length > 0 && (
+        <Card className="mt-6 p-6">
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="font-semibold">New questions not in the bank</h2>
+            <Badge tone="amber">{novel.length}</Badge>
+          </div>
+          <p className="mb-4 text-sm text-gray-500">
+            These questions have no match in the question master bank. Add one to the
+            master as a <span className="font-medium">PENDING</span> suggestion — an
+            admin validates and publishes it before it becomes visible to everyone.
+          </p>
+          <ul className="space-y-2">
+            {novel.map((n, idx) => (
+              <li
+                key={`${n.title}-${idx}`}
+                className="flex items-center justify-between gap-4 rounded-lg border border-gray-200 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-gray-900">{n.title}</p>
+                  <p className="text-xs text-gray-400">
+                    <Badge tone="gray" className="mr-1">{n.questionType}</Badge>
+                    {n.description ? `— ${n.description}` : ""}
+                  </p>
+                </div>
+                {added.has(idx) ? (
+                  <Badge tone="green">Added</Badge>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setModalIdx(idx)}
+                  >
+                    Add to master
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Add-to-master confirmation modal */}
+      {modalIdx !== null && novel[modalIdx] && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-semibold">Add to question master?</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              <span className="font-medium text-gray-900">{novel[modalIdx]!.title}</span> will
+              be saved as a new question master with status{" "}
+              <span className="font-medium">PENDING</span>. Only you and admins can see it
+              until it is published.
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button type="button" variant="ghost" onClick={closeModal} disabled={savingMaster}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={() => addToMaster(modalIdx)} disabled={savingMaster}>
+                {savingMaster ? "Saving…" : "Add to master"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="mt-4 text-xs text-gray-400">
         {hybridActive ? (
