@@ -11,6 +11,7 @@
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
 | TKT-036 | feature | medium | P1 | public-api | backlog | null | null | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
+| TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
 | TKT-017 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-017-responses-page-view-edit | false | Responses page: view/edit/delete/mailblast actions in a popup menu per respondent |
 | TKT-015 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-015-questionnaire-editor-add | false | Questionnaire editor: added question and required toggle do not update until page reload |
 | TKT-027 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-027-user-creation-crashes-on | false | User creation crashes on form reset (currentTarget null after await) |
