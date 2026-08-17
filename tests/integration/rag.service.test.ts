@@ -28,6 +28,15 @@ class FakeEmbedder implements Embedder {
 
 beforeEach(async () => {
   await truncateAll();
+  // Deterministic: never hit a live LLM or embedding API inside tests. A dev
+  // .env with LLM_API_KEY / LLM_EMBEDDING_API_KEY set would make the service
+  // call real providers (nondeterministic results, network dependency).
+  delete process.env.LLM_API_KEY;
+  delete process.env.LLM_BASE_URL;
+  delete process.env.LLM_MODEL;
+  delete process.env.LLM_EMBEDDING_API_KEY;
+  delete process.env.LLM_EMBEDDING_BASE_URL;
+  delete process.env.LLM_EMBEDDING_MODEL;
 });
 
 async function seedBank() {
