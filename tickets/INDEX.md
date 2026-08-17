@@ -5,7 +5,7 @@
 | TKT-020 | feature | medium | P0 | invitation-hardening | merged | jarvis | feature-TKT-020-invitation-token-expiry | false | Invitation token expiry, single-use enforcement, and admin revoke |
 | TKT-023 | feature | medium | P0 | respondent-auth | merged | jarvis | feature-TKT-023-rate-limit-public-respon | false | Rate-limit public response submission endpoints |
 | TKT-032 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Public REST API schema — ApiKey, ApiKeyRequest, ApiRequestLog models + migration |
-| TKT-033 | feature | big | P1 | public-api | backlog | null | null | false | api-key.service — issue/rotate/revoke, SHA-256 hashing, scope checks, withApiKey wrapper |
+| TKT-033 | feature | big | P1 | public-api | ongoing | jarvis | feature-TKT-032-public-rest-api-schema-a | false | api-key.service — issue/rotate/revoke, SHA-256 hashing, scope checks, withApiKey wrapper |
 | TKT-034 | feature | big | P1 | public-api | backlog | null | null | false | Public REST API v1 read-only routes — questionnaires, responses, report, masters, option-sets |
 | TKT-035 | feature | big | P1 | public-api | backlog | null | null | false | Self-serve API key portal — external request + admin approval workflow |
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
