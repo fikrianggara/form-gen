@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listQuestionnaires } from "@/services/questionnaire.service";
 import NewQuestionnaireForm from "@/components/dashboard/NewQuestionnaireForm";
 import DuplicateQuestionnaireButton from "@/components/dashboard/DuplicateQuestionnaireButton";
+import DeleteQuestionnaireButton from "@/components/dashboard/DeleteQuestionnaireButton";
 import { Badge } from "@/components/ui";
 import { IconPlus, IconBolt, IconEye, IconList, IconChart, IconPencil } from "@/components/icons";
 
@@ -92,6 +93,7 @@ export default async function DashboardPage() {
                       <IconPencil size={14} />
                       Edit
                     </Link>
+                    <DeleteQuestionnaireButton questionnaireId={q.id} title={q.title} />
                   </div>
                 </div>
               </div>

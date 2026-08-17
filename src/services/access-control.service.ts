@@ -32,6 +32,29 @@ export async function assertCanManageQuestionnaire(
 }
 
 /**
+ * Strict ownership gate for DELETING a questionnaire (TKT-040).
+ * Stricter than assertCanManageQuestionnaire: an OPERATOR may delete ONLY a
+ * questionnaire they created — legacy (createdBy null) and org-scoped rows
+ * require ADMIN. Deleting is destructive and irreversible, so the bar is
+ * deliberately higher than edit/duplicate.
+ */
+export async function assertCanDeleteQuestionnaire(
+  session: SessionPayload | null,
+  questionnaireId: string
+): Promise<void> {
+  requireAuth(session);
+  if (session.role === "ADMIN") return;
+
+  const q = await db.questionnaire.findUnique({
+    where: { id: questionnaireId },
+    select: { createdBy: true },
+  });
+  if (!q) throw new NotFoundError("Questionnaire not found");
+  if (q.createdBy === session.sub) return;
+  throw new ForbiddenError("Only the creator or an admin can delete this questionnaire");
+}
+
+/**
  * Survey-level gate (TKT-014): ADMIN sees everything; OPERATOR only surveys
  * inside their own organization.
  */

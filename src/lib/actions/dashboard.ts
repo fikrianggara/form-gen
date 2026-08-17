@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/http";
 import { requirePermission } from "@/lib/auth/rbac";
+import { assertCanDeleteQuestionnaire } from "@/services/access-control.service";
 import { toAppError, AppError } from "@/lib/errors";
 import {
   createQuestionnaire,
@@ -17,6 +18,7 @@ import {
   updateQuestionMasterVersion,
   updateQuestionOptionSet,
   duplicateQuestionnaire,
+  deleteQuestionnaire,
   createBlock,
   updateBlock,
   deleteBlock,
@@ -240,6 +242,22 @@ export async function duplicateQuestionnaireAction(input: {
   } catch (err) {
     return actionError(err);
   }
+}
+
+/** TKT-040: delete a questionnaire — strict ownership gate (admin or creator). */
+export async function deleteQuestionnaireAction(input: {
+  questionnaireId: string;
+}): Promise<{ error?: string }> {
+  try {
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
+    await assertCanDeleteQuestionnaire(session, input.questionnaireId);
+    await deleteQuestionnaire(input.questionnaireId);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/dashboard");
+  return {};
 }
 
 export async function updateQuestionSettingsAction(input: {
