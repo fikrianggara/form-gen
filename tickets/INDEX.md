@@ -23,8 +23,8 @@
 | TKT-022 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | Invitation.responseId as a real FK relation |
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | Rate-limit respondent login attempts |
 | TKT-025 | feature | small | P1 | — | backlog | null | null | false | Drop dead requiresAccount column |
-| TKT-008 | feature | big | P2 | ai-sourcing | done | jarvis | feature-TKT-008-ai-generation-round-2-fla | true | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
-| TKT-014 | feature | big | P2 | org-scoping | done | jarvis | feature-TKT-014-organization-scoping-org | true | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
+| TKT-008 | feature | big | P2 | ai-sourcing | merged | jarvis | feature-TKT-008-ai-generation-round-2-fla | false | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
+| TKT-014 | feature | big | P2 | org-scoping | merged | jarvis | feature-TKT-014-organization-scoping-org | false | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
 | TKT-005 | feature | big | P2 | proposal | backlog | null | null | false | Survey proposal workflow with optional email verification |
 | TKT-009 | feature | medium | P2 | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
 | TKT-037 | feature | medium | P2 | public-api | backlog | null | null | false | OpenAPI spec + developer guide docs (static) |
