@@ -3,20 +3,11 @@ import { createHash, randomBytes } from "node:crypto";
 /** Prefix for live API keys — lets ops identify a key without revealing it. */
 export const API_KEY_PREFIX = "fg_live_";
 
-/** Canonical capability scopes for the public API (analysis v03 §3.2). */
-export const API_SCOPES = [
-  "questionnaires:read",
-  "responses:read",
-  "reports:read",
-  "masters:read",
-  "option-sets:read",
-] as const;
-
-export type ApiScope = (typeof API_SCOPES)[number];
-
-export function isApiScope(value: unknown): value is ApiScope {
-  return typeof value === "string" && (API_SCOPES as readonly string[]).includes(value);
-}
+export {
+  API_SCOPES,
+  isApiScope,
+  type ApiScope,
+} from "@/lib/api-key-scopes";
 
 /** SHA-256 hex digest of a key secret — the only thing stored at rest. */
 export function hashApiKey(secret: string): string {

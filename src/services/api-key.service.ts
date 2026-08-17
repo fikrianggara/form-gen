@@ -118,6 +118,99 @@ export async function revokeApiKey(id: string) {
   return db.apiKey.update({ where: { id }, data: { status: "REVOKED" } });
 }
 
+// -------------------------------------------------------- portal requests
+
+export interface ApiKeyRequestInput {
+  requesterName: string;
+  requesterEmail: string;
+  organization?: string | null;
+  purpose: string;
+  requestedScopes: ApiScope[];
+}
+
+function assertRequestInput(input: ApiKeyRequestInput): void {
+  if (!input.requesterName.trim()) {
+    throw new AppError("Requester name is required", 422, "VALIDATION_ERROR");
+  }
+  if (!input.requesterEmail.trim() || !/^\S+@\S+\.\S+$/.test(input.requesterEmail)) {
+    throw new AppError("A valid requester email is required", 422, "VALIDATION_ERROR");
+  }
+  if (!input.purpose.trim()) {
+    throw new AppError("Purpose is required", 422, "VALIDATION_ERROR");
+  }
+  const scopes = (input.requestedScopes ?? []).filter(isApiScope);
+  if (scopes.length === 0) {
+    throw new AppError("At least one valid scope is required", 422, "VALIDATION_ERROR");
+  }
+}
+
+/** Create a PENDING portal request for a new API key. */
+export async function createApiKeyRequest(input: ApiKeyRequestInput) {
+  assertRequestInput(input);
+  return db.apiKeyRequest.create({
+    data: {
+      requesterName: input.requesterName.trim(),
+      requesterEmail: input.requesterEmail.trim(),
+      organization: input.organization?.trim() || null,
+      purpose: input.purpose.trim(),
+      requestedScopes: (input.requestedScopes ?? []).filter(isApiScope),
+      status: "PENDING",
+    },
+  });
+}
+
+/** List portal requests, optionally filtered by status. */
+export async function listApiKeyRequests(status?: "PENDING" | "APPROVED" | "DENIED") {
+  return db.apiKeyRequest.findMany({
+    where: status ? { status } : {},
+    orderBy: { createdAt: "desc" },
+    include: { approvedKey: { select: { id: true, keyPrefix: true, status: true } } },
+  });
+}
+
+/**
+ * Approve a PENDING request: create the ApiKey with the requested scopes,
+ * link it, and return the secret EXACTLY ONCE for the admin to hand over.
+ */
+export async function approveApiKeyRequest(
+  requestId: string,
+  reviewerUserId: string,
+  opts: { expiresAt?: Date | null } = {}
+) {
+  const request = await db.apiKeyRequest.findUnique({ where: { id: requestId } });
+  if (!request) throw new AppError("API key request not found", 404, "NOT_FOUND");
+  if (request.status !== "PENDING") {
+    throw new AppError("Only pending requests can be approved", 409, "REQUEST_NOT_PENDING");
+  }
+
+  const { key, secret } = await issueApiKey({
+    name: request.requesterName,
+    scopes: (request.requestedScopes as ApiScope[]) ?? [],
+    expiresAt: opts.expiresAt ?? null,
+    createdBy: reviewerUserId,
+  });
+
+  await db.apiKeyRequest.update({
+    where: { id: requestId },
+    data: { status: "APPROVED", approvedKeyId: key.id, reviewedBy: reviewerUserId, reviewedAt: new Date() },
+  });
+
+  return { request, key, secret };
+}
+
+/** Deny a PENDING request; no key is created. */
+export async function denyApiKeyRequest(requestId: string, reviewerUserId: string) {
+  const request = await db.apiKeyRequest.findUnique({ where: { id: requestId } });
+  if (!request) throw new AppError("API key request not found", 404, "NOT_FOUND");
+  if (request.status !== "PENDING") {
+    throw new AppError("Only pending requests can be denied", 409, "REQUEST_NOT_PENDING");
+  }
+  return db.apiKeyRequest.update({
+    where: { id: requestId },
+    data: { status: "DENIED", reviewedBy: reviewerUserId, reviewedAt: new Date() },
+  });
+}
+
 /** List keys with metadata only — never the secret. */
 export async function listApiKeys() {
   return db.apiKey.findMany({

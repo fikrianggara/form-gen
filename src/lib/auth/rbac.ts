@@ -5,7 +5,8 @@ export type Permission =
   | "MANAGE_USERS" // admin only
   | "MANAGE_MASTER_DATA" // admin only: option sets + edit/delete question masters
   | "CREATE_QUESTION_MASTER" // admin + operator (create only)
-  | "MANAGE_QUESTIONNAIRES"; // admin + operator
+  | "MANAGE_QUESTIONNAIRES" // admin + operator
+  | "MANAGE_API_KEYS"; // admin only: issue/approve/revoke public API keys (TKT-035/036)
 
 export const PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
@@ -13,6 +14,7 @@ export const PERMISSIONS: Record<Role, Permission[]> = {
     "MANAGE_MASTER_DATA",
     "CREATE_QUESTION_MASTER",
     "MANAGE_QUESTIONNAIRES",
+    "MANAGE_API_KEYS",
   ],
   OPERATOR: ["CREATE_QUESTION_MASTER", "MANAGE_QUESTIONNAIRES"],
 };
