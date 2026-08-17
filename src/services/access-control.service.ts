@@ -4,12 +4,13 @@ import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { requireAuth } from "@/lib/auth/rbac";
 
 /**
- * Ownership gate for questionnaire-management actions (TKT-017).
+ * Ownership + org gate for questionnaire-management actions (TKT-017, TKT-014).
  *
- * - ADMIN: can manage any questionnaire's responses.
- * - OPERATOR: can manage responses of questionnaires they created,
- *   plus legacy rows with no creator (createdBy null) so existing data
- *   stays workable.
+ * - ADMIN: can manage any questionnaire.
+ * - OPERATOR: can manage a questionnaire when any of:
+ *   - they created it, or
+ *   - it is a legacy row with no creator (createdBy null), or
+ *   - it belongs to a survey in the operator's organization (org scoping).
  * - Anonymous: always rejected.
  */
 export async function assertCanManageQuestionnaire(
@@ -21,10 +22,32 @@ export async function assertCanManageQuestionnaire(
 
   const q = await db.questionnaire.findUnique({
     where: { id: questionnaireId },
-    select: { createdBy: true },
+    select: { createdBy: true, survey: { select: { organizationId: true } } },
   });
   if (!q) throw new NotFoundError("Questionnaire not found");
 
   if (q.createdBy === null || q.createdBy === session.sub) return;
-  throw new ForbiddenError("You can only manage responses of questionnaires you created");
+  if (q.survey && q.survey.organizationId === session.organizationId) return;
+  throw new ForbiddenError("You can only manage questionnaires in your organization");
+}
+
+/**
+ * Survey-level gate (TKT-014): ADMIN sees everything; OPERATOR only surveys
+ * inside their own organization.
+ */
+export async function assertCanAccessSurvey(
+  session: SessionPayload | null,
+  surveyId: string
+): Promise<void> {
+  requireAuth(session);
+  if (session.role === "ADMIN") return;
+
+  const survey = await db.survey.findUnique({
+    where: { id: surveyId },
+    select: { organizationId: true },
+  });
+  if (!survey) throw new NotFoundError("Survey not found");
+
+  if (survey.organizationId === session.organizationId) return;
+  throw new ForbiddenError("You can only access surveys in your organization");
 }

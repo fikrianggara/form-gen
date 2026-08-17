@@ -10,6 +10,8 @@ export interface SessionPayload {
   email: string;
   name: string;
   role: Role;
+  /** Organization membership (TKT-014); null for unassigned/legacy users. */
+  organizationId: string | null;
 }
 
 function secretKey(): Uint8Array {
@@ -57,6 +59,9 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
       email: payload.email,
       name: payload.name,
       role,
+      // Legacy tokens without an org claim read as null (unassigned).
+      organizationId:
+        typeof payload.organizationId === "string" ? payload.organizationId : null,
     };
   } catch {
     return null;

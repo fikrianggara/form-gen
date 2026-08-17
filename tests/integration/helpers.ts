@@ -15,6 +15,11 @@ const TABLES = [
   "RateLimitEvent",
   "Invitation",
   "SamplingFrameEntry",
+  "ResponseAudit",
+  "QuestionnaireBlock",
+  "QuestionnaireQuestion",
+  "Survey",
+  "Organization",
   "User",
 ] as const;
 

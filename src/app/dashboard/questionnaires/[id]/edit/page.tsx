@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getSession } from "@/lib/http";
 import { getQuestionnaireWithQuestions } from "@/services/questionnaire.service";
 import {
   listQuestionMasters,
@@ -44,10 +45,14 @@ export default async function EditQuestionnairePage({
   params: { id: string };
   searchParams: { generated?: string; matches?: string; low?: string };
 }) {
+  const session = await getSession();
   const [questionnaire, masters, masterVersions, optionSets, samplingFrame] =
     await Promise.all([
       getQuestionnaireWithQuestions(params.id),
-      listQuestionMasters(),
+      listQuestionMasters({
+        all: session?.role === "ADMIN",
+        organizationId: session?.organizationId ?? null,
+      }),
       listAllMasterVersions(),
       listAllOptionSetVersions(),
       listSamplingFrame(params.id),

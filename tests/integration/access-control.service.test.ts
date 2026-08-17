@@ -11,8 +11,8 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-function principal(id: string, role: Role) {
-  return { sub: id, email: "x@example.com", name: "X", role };
+function principal(id: string, role: Role, organizationId: string | null = null) {
+  return { sub: id, email: "x@example.com", name: "X", role, organizationId };
 }
 
 describe("questionnaire access control (TKT-017)", () => {

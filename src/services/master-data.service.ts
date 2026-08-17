@@ -18,6 +18,10 @@ export interface QuestionMasterInput {
   maxLength?: number | null;
   ratingMax?: number | null;
   optionSetId?: string | null;
+  /** Owner organization (TKT-014); null = shared/legacy master. */
+  organizationId?: string | null;
+  /** Public masters are visible across organizations (TKT-014). */
+  isPublic?: boolean;
 }
 
 export interface OptionInput {
@@ -65,6 +69,10 @@ export async function createQuestionMaster(input: QuestionMasterInput) {
     maxValue: input.maxValue ?? null,
     maxLength: input.maxLength ?? null,
     ratingMax: input.ratingMax ?? 5,
+    isPublic: input.isPublic ?? false,
+    ...(input.organizationId
+      ? { organization: { connect: { id: input.organizationId } } }
+      : {}),
     ...(input.optionSetId
       ? { optionSet: { connect: { id: input.optionSetId } } }
       : {}),
@@ -139,6 +147,10 @@ export async function updateQuestionMaster(
         maxValue: next.maxValue,
         maxLength: next.maxLength,
         ratingMax: next.ratingMax,
+        isPublic: existing.isPublic,
+        ...(existing.organizationId
+          ? { organization: { connect: { id: existing.organizationId } } }
+          : {}),
         ...(next.optionSetId
           ? { optionSet: { connect: { id: next.optionSetId } } }
           : {}),
@@ -169,10 +181,24 @@ export async function deleteQuestionMaster(id: string): Promise<void> {
   await db.questionMaster.deleteMany({ where: { code: existing.code } });
 }
 
-/** Latest version of every master, ordered by code. */
-export async function listQuestionMasters() {
+/**
+ * Latest version of every master, ordered by code. Org-scoped (TKT-014):
+ * unless `all` is set, only public masters, legacy shared masters
+ * (organizationId null), and the caller's own org masters are returned.
+ */
+export async function listQuestionMasters(
+  opts: { organizationId?: string | null; all?: boolean } = {}
+) {
+  const where: Prisma.QuestionMasterWhereInput = { isLatest: true };
+  if (!opts.all) {
+    where.OR = [
+      { isPublic: true },
+      { organizationId: null },
+      { organizationId: opts.organizationId ?? "__none__" },
+    ];
+  }
   return db.questionMaster.findMany({
-    where: { isLatest: true },
+    where,
     orderBy: { code: "asc" },
     include: { optionSet: { include: { options: { orderBy: { order: "asc" } } } } },
   });

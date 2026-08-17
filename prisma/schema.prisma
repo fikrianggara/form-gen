@@ -53,16 +53,48 @@ enum ResponseAuditAction {
   APPROVE
 }
 
+/** Multi-tenant root (TKT-014): an org owns surveys, users, and masters. */
+model Organization {
+  id              String          @id @default(cuid())
+  name            String
+  slug            String          @unique
+  description     String?
+  users           User[]
+  surveys         Survey[]
+  questionMasters QuestionMaster[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+}
+
+/** A survey under an organization; holds multiple questionnaires (TKT-014). */
+model Survey {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  questionnaires Questionnaire[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([organizationId])
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String        @id @default(cuid())
+  email        String        @unique
   name         String
   passwordHash String
-  role         Role     @default(OPERATOR)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         Role          @default(OPERATOR)
+  isActive     Boolean       @default(true)
+  /** Organization membership (TKT-014); null = unassigned/legacy user. */
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   questionnaires Questionnaire[] @relation("QuestionnaireCreator")
+
+  @@index([organizationId])
 }
 
 model LoginAttempt {
@@ -99,6 +131,11 @@ model QuestionMaster {
   ratingMax       Int?         @default(5)
   optionSetId     String?
   optionSet       OptionSet?   @relation(fields: [optionSetId], references: [id])
+  /** Owner organization (TKT-014); null = shared/legacy master. */
+  organizationId  String?
+  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  /** Public masters are visible across organizations (TKT-014). */
+  isPublic        Boolean      @default(false)
   questionnaireQuestions QuestionnaireQuestion[]
   embedding       Unsupported("vector(1024)")?
   createdAt       DateTime     @default(now())
@@ -106,6 +143,7 @@ model QuestionMaster {
 
   @@unique([code, version])
   @@index([code, isLatest])
+  @@index([organizationId])
 }
 
 model OptionSet {
@@ -158,6 +196,9 @@ model Questionnaire {
   /** Creator user (TKT-017): null for legacy rows — manageable by any admin/operator. */
   createdBy               String?
   creator                 User?                    @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  /** Survey membership (TKT-014); null = legacy flat questionnaire. */
+  surveyId                String?
+  survey                  Survey?                  @relation(fields: [surveyId], references: [id], onDelete: SetNull)
   invitations             Invitation[]
   samplingFrame           SamplingFrameEntry[]
   questions               QuestionnaireQuestion[]
@@ -167,6 +208,7 @@ model Questionnaire {
   updatedAt               DateTime                 @updatedAt
 
   @@index([createdBy])
+  @@index([surveyId])
 }
 
 /** One unique form link per sample email (TKT-001). No Response until save. */
