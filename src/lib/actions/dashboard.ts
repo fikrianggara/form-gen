@@ -581,7 +581,7 @@ export async function generateQuestionnaireAction(input: {
   questionnaireId?: string;
   matchCount?: number;
   lowCount?: number;
-  novelCount?: number;
+  novel?: NovelMasterSuggestion[];
 }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
@@ -591,7 +591,11 @@ export async function generateQuestionnaireAction(input: {
       questionnaireId: result.questionnaire.id,
       matchCount: result.matches.length,
       lowCount: result.matches.filter((m) => m.lowConfidence).length,
-      novelCount: result.novel.length,
+      novel: result.novel.map((n) => ({
+        title: n.title,
+        questionType: n.questionType,
+        description: n.description ?? null,
+      })),
     };
   } catch (err) {
     return actionError(err);
