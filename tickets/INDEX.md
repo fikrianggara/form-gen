@@ -7,12 +7,12 @@
 | TKT-032 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Public REST API schema — ApiKey, ApiKeyRequest, ApiRequestLog models + migration |
 | TKT-033 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | api-key.service — issue/rotate/revoke, SHA-256 hashing, scope checks, withApiKey wrapper |
 | TKT-034 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Public REST API v1 read-only routes — questionnaires, responses, report, masters, option-sets |
-| TKT-035 | feature | big | P1 | public-api | backlog | null | null | false | Self-serve API key portal — external request + admin approval workflow |
+| TKT-035 | feature | big | P1 | public-api | ongoing | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Self-serve API key portal — external request + admin approval workflow |
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
 | TKT-041 | feature | big | P1 | survey-management | backlog | null | null | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
 | TKT-042 | feature | big | P1 | survey-management | backlog | null | null | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
-| TKT-036 | feature | medium | P1 | public-api | backlog | null | null | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
+| TKT-036 | feature | medium | P1 | public-api | ongoing | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
 | TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
 | TKT-017 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-017-responses-page-view-edit | false | Responses page: view/edit/delete/mailblast actions in a popup menu per respondent |
 | TKT-040 | feature | medium | P1 | questionnaire-extras | done | jarvis | feature-TKT-040-delete-questionnaire-cre | true | Delete questionnaire — creator-only with response cascade |
@@ -30,7 +30,7 @@
 | TKT-014 | feature | big | P2 | org-scoping | merged | jarvis | feature-TKT-014-organization-scoping-org | false | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
 | TKT-005 | feature | big | P2 | proposal | ongoing | jarvis | feature-TKT-005-survey-proposal-workflow | false | Survey proposal workflow with optional email verification |
 | TKT-009 | feature | medium | P2 | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
-| TKT-037 | feature | medium | P2 | public-api | backlog | null | null | false | OpenAPI spec + developer guide docs (static) |
+| TKT-037 | feature | medium | P2 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | OpenAPI spec + developer guide docs (static) |
 | TKT-012 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Questionnaire sample upload (sampling frame via Excel) |
 | TKT-013 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Mailblast respondent emails |
 | TKT-002 | feature | medium | P2 | respondent-auth | cancelled | null | null | false | Email verification and password reset for respondents |
@@ -39,7 +39,7 @@
 | TKT-018 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-018-system-wide-action-icons | false | System-wide action icons (view, add, edit, delete, logout, login, etc.) |
 | TKT-031 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-031-add-generate-with-ai-but | false | Add 'Generate with AI' button on questionnaires page |
 | TKT-010 | feature | small | P2 | external-mapping | merged | jarvis | feature-TKT-011-small-wins | false | Option set nested key extraction from API responses |
-| TKT-038 | feature | small | P2 | public-api | backlog | null | null | false | ApiRequestLog retention/cleanup policy |
+| TKT-038 | feature | small | P2 | public-api | ongoing | jarvis | feature-TKT-032-public-rest-api-schema-a | false | ApiRequestLog retention/cleanup policy |
 | TKT-004 | feature | small | P2 | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
 | TKT-016 | feature | small | P2 | — | merged | jarvis | feature-TKT-016-visible-disabled-state-f | false | Visible disabled state for input fields in master and option set forms |
 | TKT-026 | feature | small | P2 | — | backlog | null | null | false | CI pipeline for the gate chain (tsc, vitest, lint, build) |
