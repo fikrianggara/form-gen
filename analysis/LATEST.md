@@ -243,18 +243,20 @@ applied to §4 surface, §5 data model, and §10 breakdown.
 
 ## 10. Ticket breakdown (filed after decisions)
 
-1. TKT: schema — ApiKey + ApiKeyRequest(portal/approval) + ApiRequestLog +
+Filed 2026-08-17 as TKT-032..TKT-038 (group `public-api`, one branch when started):
+
+1. TKT-032: schema — ApiKey + ApiKeyRequest(portal/approval) + ApiRequestLog +
    migration + Prisma client.
-2. TKT: `api-key.service` — issue/rotate/revoke/list, SHA-256 hashing, scope
+2. TKT-033: `api-key.service` — issue/rotate/revoke/list, SHA-256 hashing, scope
    checks, `withApiKey` wrapper (auth + scope + rate-limit + logging).
-3. TKT: v1 read-only routes — questionnaires list/detail, responses
+3. TKT-034: v1 read-only routes — questionnaires list/detail, responses
    list/detail, report, masters, option-sets (Bearer, page/pageSize,
    stable envelope).
-4. TKT: self-serve portal — external key request + data-access request with
+4. TKT-035: self-serve portal — external key request + data-access request with
    admin approval workflow (public request page + admin approval queue).
-5. TKT: admin API-key management UI + usage view (list, issue, approve,
+5. TKT-036: admin API-key management UI + usage view (list, issue, approve,
    revoke).
-6. TKT: OpenAPI spec + developer guide docs (static).
-7. TKT (small): wire `ApiRequestLog` retention/cleanup policy.
+6. TKT-037: OpenAPI spec + developer guide docs (static).
+7. TKT-038: wire `ApiRequestLog` retention/cleanup policy.
 
 Next analysis run: `analysis/v04_<date>.md` (after owner decisions / review).
