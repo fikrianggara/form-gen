@@ -7,7 +7,7 @@
 | TKT-032 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Public REST API schema — ApiKey, ApiKeyRequest, ApiRequestLog models + migration |
 | TKT-033 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | api-key.service — issue/rotate/revoke, SHA-256 hashing, scope checks, withApiKey wrapper |
 | TKT-034 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Public REST API v1 read-only routes — questionnaires, responses, report, masters, option-sets |
-| TKT-035 | feature | big | P1 | public-api | ongoing | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Self-serve API key portal — external request + admin approval workflow |
+| TKT-035 | feature | big | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Self-serve API key portal — external request + admin approval workflow |
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
 | TKT-041 | feature | big | P1 | survey-management | backlog | null | null | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
