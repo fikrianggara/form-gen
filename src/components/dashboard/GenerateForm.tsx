@@ -23,6 +23,11 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
   const [added, setAdded] = useState<Set<number>>(new Set());
   const [modalIdx, setModalIdx] = useState<number | null>(null);
   const [savingMaster, startMasterSave] = useTransition();
+  const [result, setResult] = useState<{
+    questionnaireId: string;
+    matchCount: number;
+    lowCount: number;
+  } | null>(null);
 
   const closeModal = () => setModalIdx(null);
 
@@ -74,12 +79,14 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
               return;
             }
             setNovel(result.novel ?? []);
+            setResult({
+              questionnaireId: result.questionnaireId!,
+              matchCount: result.matchCount ?? 0,
+              lowCount: result.lowCount ?? 0,
+            });
             toast.success(
               "Questionnaire generated",
               `${result.matchCount} question${result.matchCount === 1 ? "" : "s"} suggested from the question bank${(result.novel?.length ?? 0) > 0 ? `, ${result.novel!.length} new question${result.novel!.length === 1 ? "" : "s"} flagged.` : "."}`
-            );
-            router.push(
-              `/dashboard/questionnaires/${result.questionnaireId}/edit?generated=1&matches=${result.matchCount}&low=${result.lowCount}`
             );
             setPending(false);
           }}
@@ -145,6 +152,28 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
           </div>
         </form>
       </Card>
+
+      {/* TKT-008: generation success — open the draft, review novel questions */}
+      {result && (
+        <Card className="mt-6 p-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-semibold">Draft questionnaire created</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {result.matchCount} question{result.matchCount === 1 ? "" : "s"} matched
+                from the bank
+                {result.lowCount > 0 ? ` (${result.lowCount} low-confidence)` : ""}.
+                {novel.length > 0
+                  ? ` ${novel.length} new question${novel.length === 1 ? "" : "s"} flagged below.`
+                  : ""}
+              </p>
+            </div>
+            <Button type="button" onClick={() => router.push(`/dashboard/questionnaires/${result.questionnaireId}/edit?generated=1&matches=${result.matchCount}&low=${result.lowCount}`)}>
+              Open questionnaire →
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {/* TKT-008: novel (unmatched) questions flagged after generation */}
       {novel.length > 0 && (
