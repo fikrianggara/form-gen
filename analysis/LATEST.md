@@ -180,22 +180,39 @@ Error codes (align with existing AppError codes):
 
 ## 9. Open questions for the owner (decisions needed before tickets)
 
+Each question has an `Owner decision:` line — fill it in `analysis/LATEST.md`
+(or answer in chat; the assistant records it here). Status moves from
+"pending" to "decided" once answered.
+
 1. **Consumers**: internal integrations only, or also external partners/public
    third parties? (Affects key-issuance policy + whether a self-serve portal is
    needed.)
-2. **Header**: `Authorization: Bearer` vs `X-API-Key`? (Recommend Bearer —
+   - Owner decision: _pending — internal only / external too / TBD_
+
+2. **Header**: `Authorization: Bearer <key>` vs `X-API-Key`? (Recommend Bearer —
    standard, proxy-friendly.)
+   - Owner decision: _pending — Bearer (rec) / X-API-Key / TBD_
+
 3. **Response submission**: should external systems be able to submit
    responses (`responses:write`), or is v1 read-only? (Owner's earlier
    distribution model is link-based; machine submission may or may not fit.)
+   - Owner decision: _pending — read-only / read+write / TBD_
+
 4. **Pagination style**: page/pageSize (simple) vs cursor (stable under
    inserts)? Recommend page/pageSize for v1.
+   - Owner decision: _pending — page/pageSize (rec) / cursor / TBD_
+
 5. **Key hashing**: SHA-256 (fast, fine for high-entropy keys) vs bcrypt
    (slower, overkill)? Recommend SHA-256.
+   - Owner decision: _pending — SHA-256 (rec) / bcrypt / TBD_
+
 6. **Scope granularity**: the 4 scopes above sufficient? Add `masters:read` /
    `option-sets:read`?
+   - Owner decision: _pending — 4 scopes / add masters+option-sets / TBD_
+
 7. **Docs delivery**: static OpenAPI file + markdown guide in repo (recommend
    for v1) vs live rendered `/api/docs` page?
+   - Owner decision: _pending — static docs (rec) / live page / TBD_
 
 ## 10. Recommended ticket breakdown (pending decisions)
 
