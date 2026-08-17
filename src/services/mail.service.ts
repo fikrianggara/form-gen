@@ -77,3 +77,23 @@ export function buildInvitationMail(input: {
     ].join("\n"),
   };
 }
+
+/** Build the survey-proposal verification email (TKT-005). */
+export function buildProposalVerificationMail(input: {
+  to: string;
+  link: string;
+  proposalTitle: string;
+}): MailMessage {
+  const title = escapeHtml(input.proposalTitle);
+  const link = escapeHtml(input.link);
+  return {
+    to: input.to,
+    subject: `Verify survey proposal: ${input.proposalTitle}`,
+    html: [
+      `<p>A survey proposal titled <strong>${title}</strong> is awaiting your verification.</p>`,
+      `<p>Open the link below to approve its content and move it forward:</p>`,
+      `<p><a href="${link}">${link}</a></p>`,
+      `<p>If you didn't expect this email, you can safely ignore it.</p>`,
+    ].join("\n"),
+  };
+}
