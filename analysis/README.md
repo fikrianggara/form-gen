@@ -19,6 +19,7 @@
 |---------|------------|-------|---------------------|
 | v01     | 2026-08-15 | Baseline: full-system gap analysis after TKT-017 merge | — (initial) |
 | v02     | 2026-08-15 | Owner review decisions + ticket mapping | All findings decided; severity added to tooling; 8 new tickets (TKT-019..026); TKT-002 cancelled; TKT-012 re-scoped |
+| v03     | 2026-08-15 | Public REST web service — requirements analysis | New feature request: API keys + scopes + rate limit + request logging + OpenAPI docs; inventory, proposed surface, schema, security model, 7 open questions, 6-ticket breakdown |
 
 ## How to review a finding
 
@@ -56,4 +57,4 @@ Each finding is a section `F-###` containing:
 
 ## Latest snapshot
 
-Current: `analysis/v02_2026-08-15.md` (mirrored in `analysis/LATEST.md`)
+Current: `analysis/v03_2026-08-15.md` (mirrored in `analysis/LATEST.md`)
