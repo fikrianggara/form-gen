@@ -28,7 +28,7 @@
 | TKT-025 | feature | small | P1 | — | backlog | null | null | false | Drop dead requiresAccount column |
 | TKT-008 | feature | big | P2 | ai-sourcing | merged | jarvis | feature-TKT-008-ai-generation-round-2-fla | false | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
 | TKT-014 | feature | big | P2 | org-scoping | merged | jarvis | feature-TKT-014-organization-scoping-org | false | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
-| TKT-005 | feature | big | P2 | proposal | backlog | null | null | false | Survey proposal workflow with optional email verification |
+| TKT-005 | feature | big | P2 | proposal | ongoing | jarvis | feature-TKT-005-survey-proposal-workflow | false | Survey proposal workflow with optional email verification |
 | TKT-009 | feature | medium | P2 | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
 | TKT-037 | feature | medium | P2 | public-api | backlog | null | null | false | OpenAPI spec + developer guide docs (static) |
 | TKT-012 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Questionnaire sample upload (sampling frame via Excel) |
