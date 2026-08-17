@@ -165,11 +165,17 @@ export async function recordApiRequest(input: {
  * Every v1 route uses this; the health endpoint stays public (no wrapper).
  */
 export function withApiKey(
-  handler: (request: NextRequest) => Promise<Response>,
+  handler: (
+    request: NextRequest,
+    context: { params: Record<string, string> }
+  ) => Promise<Response>,
   scope: ApiScope,
   opts: { rateLimit?: number; rateWindowMs?: number } = {}
 ) {
-  return async (request: NextRequest): Promise<Response> => {
+  return async (
+    request: NextRequest,
+    context: { params: Record<string, string> } = { params: {} }
+  ): Promise<Response> => {
     const started = Date.now();
     let apiKeyId: string | null = null;
     let statusCode = 500;
@@ -183,7 +189,7 @@ export function withApiKey(
       await assertWithinLimit(`api:${key.id}`, limit, windowMs);
       await recordRateLimitEvent(`api:${key.id}`);
 
-      const response = await handler(request);
+      const response = await handler(request, context);
       statusCode = response.status;
       return response;
     } catch (err) {
@@ -205,9 +211,7 @@ export function withApiKey(
 }
 
 /** Public endpoints (health) use this: no auth, no scope — logged as anonymous. */
-export async function withPublicLog(
-  handler: (request: NextRequest) => Promise<Response>
-) {
+export function withPublicLog(handler: (request: NextRequest) => Promise<Response>) {
   return async (request: NextRequest): Promise<Response> => {
     const started = Date.now();
     let statusCode = 500;
