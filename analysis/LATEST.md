@@ -9,8 +9,7 @@ documentation. we can use api key mechanism to know who is accessing the api,
 and what capability it has, we can also use rate limiting and the request
 logging."
 
-Status: analysis complete — pending owner decisions on the open questions in
-§9 before tickets are filed.
+Status: analysis complete — owner decisions recorded in §9 (2026-08-17); tickets filed (see §10).
 
 ## 1. What is being built
 
@@ -76,7 +75,11 @@ questionnaire metadata + response data without a browser.
 - Developer guide (auth, errors, examples, rate limits, scopes) as markdown.
 - Decide: static files in `docs/`, or a live `/api/docs` page.
 
-## 4. Proposed API surface (v1 draft — subject to §9 decisions)
+## 4. Proposed API surface (v1 — decided 2026-08-17)
+
+Decisions applied: **read-only v1** (no `responses:write` in v1; POST deferred),
+Bearer header, page/pageSize pagination, scopes extended with
+`masters:read` + `option-sets:read`.
 
 | Method | Path | Scope | Purpose |
 |---|---|---|---|
@@ -84,14 +87,22 @@ questionnaire metadata + response data without a browser.
 | GET | `/api/v1/questionnaires/{id}` | questionnaires:read | Detail incl. blocks/questions/options |
 | GET | `/api/v1/questionnaires/{id}/responses` | responses:read | List responses (paged, filters: status, from, to) |
 | GET | `/api/v1/responses/{id}` | responses:read | Response detail with answers |
-| POST | `/api/v1/questionnaires/{id}/responses` | responses:write | Submit a response programmatically |
 | GET | `/api/v1/questionnaires/{id}/report` | reports:read | Aggregated report data (KPIs, per-question stats) |
+| GET | `/api/v1/masters` | masters:read | Master data list (paged) |
+| GET | `/api/v1/option-sets/{id}` | option-sets:read | Option set detail incl. options |
 | GET | `/api/v1/health` | none (public) | Liveness/version probe |
+
+Deferred to v2 (owner decision): `POST /api/v1/questionnaires/{id}/responses`
+(`responses:write`) — machine submission not needed yet; the link-based
+distribution model stays primary.
 
 Non-goals v1: no builder mutations over the API (dashboard remains the
 authoring surface), no admin/user management over the API, no streaming.
 
 ## 5. Data model additions
+
+Decisions applied: **SHA-256 hashing** (owner, §9.5); new `ApiKeyRequest`
+model for the self-serve portal + admin approval flow (§9.1).
 
 ```prisma
 model ApiKey {
@@ -104,6 +115,22 @@ model ApiKey {
   expiresAt   DateTime?
   lastUsedAt  DateTime?
   createdBy   String?                // dashboard user who issued it
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Self-serve portal: external party requests a key; admin approves/denies.
+model ApiKeyRequest {
+  id          String   @id @default(cuid())
+  requesterName   String
+  requesterEmail  String
+  organization    String?
+  purpose         String              // why they need access ("data access request")
+  requestedScopes Json                // string[]
+  status      ApiKeyRequestStatus @default(PENDING)  // PENDING | APPROVED | DENIED
+  approvedKeyId String?               // ApiKey created when approved
+  reviewedBy  String?
+  reviewedAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -123,10 +150,10 @@ model ApiRequestLog {
 }
 ```
 
-Security notes: hash with SHA-256 (or bcrypt for slower brute force — SHA-256
-suffices for high-entropy 256-bit keys; decide §9). Never store the raw key.
-`keyPrefix` lets ops identify a key without revealing it. Revocation is a
-status flip; expiry checked on every request.
+Security notes: hash with SHA-256 (owner decision — sufficient for
+high-entropy 256-bit keys). Never store the raw key. `keyPrefix` lets ops
+identify a key without revealing it. Revocation is a status flip; expiry
+checked on every request.
 
 ## 6. Security model
 
@@ -178,51 +205,56 @@ Error codes (align with existing AppError codes):
   ApiRequestLog).
 - OpenAPI `docs/openapi.yaml` + `docs/api-developer-guide.md`.
 
-## 9. Open questions for the owner (decisions needed before tickets)
+## 9. Open questions for the owner — DECIDED (2026-08-17)
 
-Each question has an `Owner decision:` line — fill it in `analysis/LATEST.md`
-(or answer in chat; the assistant records it here). Status moves from
-"pending" to "decided" once answered.
+All seven questions answered by the owner; decisions recorded below and
+applied to §4 surface, §5 data model, and §10 breakdown.
 
 1. **Consumers**: internal integrations only, or also external partners/public
    third parties? (Affects key-issuance policy + whether a self-serve portal is
    needed.)
-   - Owner decision: _pending — internal only / external too / TBD_
+   - Owner decision: **external too — self-serve portal for key generation and
+     data access request, with admin approval of the API key generation.**
 
 2. **Header**: `Authorization: Bearer <key>` vs `X-API-Key`? (Recommend Bearer —
    standard, proxy-friendly.)
-   - Owner decision: _pending — Bearer (rec) / X-API-Key / TBD_
+   - Owner decision: **Bearer**
 
 3. **Response submission**: should external systems be able to submit
    responses (`responses:write`), or is v1 read-only? (Owner's earlier
    distribution model is link-based; machine submission may or may not fit.)
-   - Owner decision: _pending — read-only / read+write / TBD_
+   - Owner decision: **read-only for now** (responses:write deferred to v2)
 
 4. **Pagination style**: page/pageSize (simple) vs cursor (stable under
    inserts)? Recommend page/pageSize for v1.
-   - Owner decision: _pending — page/pageSize (rec) / cursor / TBD_
+   - Owner decision: **page/pageSize for v1**
 
 5. **Key hashing**: SHA-256 (fast, fine for high-entropy keys) vs bcrypt
    (slower, overkill)? Recommend SHA-256.
-   - Owner decision: _pending — SHA-256 (rec) / bcrypt / TBD_
+   - Owner decision: **SHA-256**
 
 6. **Scope granularity**: the 4 scopes above sufficient? Add `masters:read` /
    `option-sets:read`?
-   - Owner decision: _pending — 4 scopes / add masters+option-sets / TBD_
+   - Owner decision: **add masters + option-sets**
 
 7. **Docs delivery**: static OpenAPI file + markdown guide in repo (recommend
    for v1) vs live rendered `/api/docs` page?
-   - Owner decision: _pending — static docs (rec) / live page / TBD_
+   - Owner decision: **static docs**
 
-## 10. Recommended ticket breakdown (pending decisions)
+## 10. Ticket breakdown (filed after decisions)
 
-1. TKT: schema — ApiKey + ApiRequestLog + migration + Prisma client.
-2. TKT: `api-key.service` — issue/rotate/revoke/list, hashing, scope checks,
-   `withApiKey` wrapper (auth + scope + rate-limit + logging).
-3. TKT: v1 routes — questionnaires list/detail, responses list/detail/submit,
-   report.
-4. TKT: admin API-key management UI + usage view.
-5. TKT: OpenAPI spec + developer guide docs.
-6. TKT (small): wire `ApiRequestLog` retention/cleanup policy.
+1. TKT: schema — ApiKey + ApiKeyRequest(portal/approval) + ApiRequestLog +
+   migration + Prisma client.
+2. TKT: `api-key.service` — issue/rotate/revoke/list, SHA-256 hashing, scope
+   checks, `withApiKey` wrapper (auth + scope + rate-limit + logging).
+3. TKT: v1 read-only routes — questionnaires list/detail, responses
+   list/detail, report, masters, option-sets (Bearer, page/pageSize,
+   stable envelope).
+4. TKT: self-serve portal — external key request + data-access request with
+   admin approval workflow (public request page + admin approval queue).
+5. TKT: admin API-key management UI + usage view (list, issue, approve,
+   revoke).
+6. TKT: OpenAPI spec + developer guide docs (static).
+7. TKT (small): wire `ApiRequestLog` retention/cleanup policy.
 
 Next analysis run: `analysis/v04_<date>.md` (after owner decisions / review).

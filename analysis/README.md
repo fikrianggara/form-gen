@@ -19,7 +19,7 @@
 |---------|------------|-------|---------------------|
 | v01     | 2026-08-15 | Baseline: full-system gap analysis after TKT-017 merge | — (initial) |
 | v02     | 2026-08-15 | Owner review decisions + ticket mapping | All findings decided; severity added to tooling; 8 new tickets (TKT-019..026); TKT-002 cancelled; TKT-012 re-scoped |
-| v03     | 2026-08-15 | Public REST web service — requirements analysis | New feature request: API keys + scopes + rate limit + request logging + OpenAPI docs; inventory, proposed surface, schema, security model, 7 open questions, 6-ticket breakdown |
+| v03     | 2026-08-15 | Public REST web service — requirements analysis | New feature request: API keys + scopes + rate limit + request logging + OpenAPI docs; inventory, proposed surface, schema, security model, 7 open questions, 6-ticket breakdown. Owner decisions recorded 2026-08-17 (self-serve portal + admin approval, Bearer, read-only v1, page/pageSize, SHA-256, +masters/option-sets, static docs) → 7 tickets filed |
 
 ## How to review a finding
 
