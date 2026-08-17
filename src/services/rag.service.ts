@@ -100,13 +100,14 @@ export async function generateQuestionnaireFromPrompt(
   for (const q of queries) {
     const perQuery = await retrieveHybrid(q, PER_INTENT_TOP_K, embedder);
     hybrid.push(...perQuery);
-    // TKT-008: an intent counts as matched when IT produced a qualifying hit.
-    const qualifies = perQuery.some(
-      (r) =>
-        hybridScore(r.vectorScore, r.trigramScore, HYBRID_WEIGHT) !== null &&
-        (hybridScore(r.vectorScore, r.trigramScore, HYBRID_WEIGHT) ?? 0) >= MIN_MATCH_SCORE
-    );
-    if (qualifies) intentMatched.add(q.toLowerCase());
+    // TKT-008: an intent is MATCHED when its own query produced a hit at or
+    // above the low-confidence threshold — a weaker hit is junk (e.g. "favorite
+    // color" matching "Age" at 0.15), so the intent counts as NOVEL.
+    const best = perQuery.reduce((acc, r) => {
+      const s = hybridScore(r.vectorScore, r.trigramScore, HYBRID_WEIGHT);
+      return s !== null && s > acc ? s : acc;
+    }, 0);
+    if (best >= threshold) intentMatched.add(q.toLowerCase());
   }
   const merged = mergeHybridMatches(hybrid, HYBRID_WEIGHT)
     .filter((m) => m.score >= MIN_MATCH_SCORE)

@@ -251,8 +251,10 @@ describe("rag.service — hybrid vector retrieval", () => {
   it("returns no novel questions when every intent matched (TKT-008)", async () => {
     const bank = await seedBank();
     void bank;
+    // Both intents have strong lexical matches in the bank ("Email address",
+    // "Overall satisfaction") — above the 0.3 novelty threshold.
     const result = await generateQuestionnaireFromPrompt({
-      prompt: "What is your email address? How old are you?",
+      prompt: "What is your email address? How satisfied are you overall?",
     });
     expect(result.novel).toEqual([]);
   });
