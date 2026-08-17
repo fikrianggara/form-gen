@@ -33,6 +33,12 @@ export default async function DashboardLayout({
               >
                 Generate
               </Link>
+              <Link
+                href="/dashboard/proposals"
+                className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100"
+              >
+                Proposals
+              </Link>
               {session.role === "ADMIN" && (
                 <Link
                   href="/admin/users"

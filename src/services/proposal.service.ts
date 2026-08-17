@@ -179,10 +179,10 @@ export async function approveProposal(id: string) {
   });
 }
 
-/** Org-scoped proposal list, newest first. */
-export async function listProposals(organizationId: string) {
+/** Org-scoped proposal list, newest first (omit org for all — admins). */
+export async function listProposals(organizationId?: string) {
   return db.proposal.findMany({
-    where: { organizationId },
+    where: organizationId ? { organizationId } : {},
     orderBy: { createdAt: "desc" },
     include: { creator: { select: { id: true, name: true } } },
   });

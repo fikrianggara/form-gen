@@ -6,7 +6,13 @@ import { createQuestionnaireAction } from "@/lib/actions/dashboard";
 import { Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
 
-export default function NewQuestionnaireForm() {
+export default function NewQuestionnaireForm({
+  initialTitle,
+  surveyId,
+}: {
+  initialTitle?: string;
+  surveyId?: string | null;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +34,7 @@ export default function NewQuestionnaireForm() {
             slug: String(fd.get("slug") ?? ""),
             description: String(fd.get("description") ?? "") || undefined,
             acceptMultipleResponses: fd.get("multiple") === "on",
+            surveyId: surveyId ?? null,
           });
           if (result?.error) {
             setError(result.error);
@@ -35,12 +42,16 @@ export default function NewQuestionnaireForm() {
             setPending(false);
           } else {
             toast.success("Questionnaire created", `"${title}" is ready to build.`);
-            router.refresh();
+            if (result.id) {
+              router.push(`/dashboard/questionnaires/${result.id}/edit`);
+            } else {
+              router.refresh();
+            }
           }
         }}
       >
         <Field label="Title" required>
-          <input name="title" required className={inputClass} placeholder="e.g. Customer Feedback Survey" />
+          <input name="title" required defaultValue={initialTitle} className={inputClass} placeholder="e.g. Customer Feedback Survey" />
         </Field>
         <Field label="Slug (public URL)" required hint="Lowercase letters, numbers and hyphens. e.g. customer-feedback">
           <input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" className={inputClass} placeholder="customer-feedback" />
