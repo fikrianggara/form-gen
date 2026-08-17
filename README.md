@@ -108,6 +108,8 @@ npm run dev                 # http://localhost:3000
 
 ```
 docs/                     # product spec, technical spec, implementation plan
+docs/openapi.yaml         # Public REST API — OpenAPI 3.0 spec (TKT-037)
+docs/api-developer-guide.md  # Public REST API developer guide (auth, scopes, errors)
 prisma/schema.prisma      # data model (User, QuestionMaster, OptionSet, Option,
                           #   Questionnaire, QuestionnaireQuestion, Response,
                           #   AnswerGroup, Answer)

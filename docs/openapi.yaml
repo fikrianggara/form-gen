@@ -1,0 +1,273 @@
+openapi: 3.0.3
+info:
+  title: FormGen Public API
+  version: v1
+  description: >
+    Machine-to-machine REST API for FormGen questionnaires. Authenticate with a
+    Bearer API key issued by an administrator (or via the self-serve portal).
+    Every key carries a set of capability scopes; a request for data outside
+    the key's scopes returns 403. v1 is read-only.
+  contact:
+    name: FormGen Admin
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      description: Public — no API key required.
+      security: []
+      responses:
+        "200":
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelope"
+  /questionnaires:
+    get:
+      summary: List questionnaires
+      description: Paged list; optional status filter (DRAFT|ACTIVE|CLOSED).
+      security:
+        - bearerAuth: [questionnaires:read]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, ACTIVE, CLOSED]
+      responses:
+        "200":
+          description: Paged questionnaire list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedEnvelope"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/ScopeForbidden"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /questionnaires/{id}:
+    get:
+      summary: Questionnaire detail
+      description: Full detail including blocks, questions, options.
+      security:
+        - bearerAuth: [questionnaires:read]
+      parameters:
+        - $ref: "#/components/parameters/QuestionnaireId"
+      responses:
+        "200":
+          description: Questionnaire detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /questionnaires/{id}/responses:
+    get:
+      summary: List responses
+      description: Paged responses for one questionnaire; filters status, from, to.
+      security:
+        - bearerAuth: [responses:read]
+      parameters:
+        - $ref: "#/components/parameters/QuestionnaireId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [DRAFT, SUBMITTED, EDITED, APPROVED]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paged responses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedEnvelope"
+  /responses/{id}:
+    get:
+      summary: Response detail
+      description: One response with its answers.
+      security:
+        - bearerAuth: [responses:read]
+      parameters:
+        - $ref: "#/components/parameters/ResponseId"
+      responses:
+        "200":
+          description: Response detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /questionnaires/{id}/report:
+    get:
+      summary: Aggregated report
+      description: KPIs, daily counts, per-question statistics.
+      security:
+        - bearerAuth: [reports:read]
+      parameters:
+        - $ref: "#/components/parameters/QuestionnaireId"
+      responses:
+        "200":
+          description: Report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelope"
+  /masters:
+    get:
+      summary: List question masters
+      description: Paged latest-version question masters with their option sets.
+      security:
+        - bearerAuth: [masters:read]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paged masters
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedEnvelope"
+  /option-sets/{id}:
+    get:
+      summary: Option set detail
+      description: One option set with its options.
+      security:
+        - bearerAuth: [option-sets:read]
+      parameters:
+        - $ref: "#/components/parameters/OptionSetId"
+      responses:
+        "200":
+          description: Option set detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DataEnvelope"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: ApiKey
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-based).
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+      description: Items per page.
+    QuestionnaireId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Questionnaire id.
+    ResponseId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Response id.
+    OptionSetId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Option set id.
+  responses:
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    ScopeForbidden:
+      description: Key lacks the required scope
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+  schemas:
+    DataEnvelope:
+      type: object
+      properties:
+        data:
+          description: Response payload
+    PagedEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: UNAUTHORIZED
+            message:
+              type: string
