@@ -7,6 +7,10 @@ import {
   deleteQuestionMaster,
   listQuestionMasters,
   getQuestionMasterHistory,
+  publishQuestionMaster,
+  rejectQuestionMaster,
+  setQuestionMasterPublic,
+  visibleMasterWhere,
   createOptionSet,
   updateOptionSet,
   deleteOptionSet,
@@ -15,6 +19,7 @@ import {
 } from "@/services/master-data.service";
 import { AppError } from "@/lib/errors";
 import { createQuestionnaire, addQuestion } from "@/services/questionnaire.service";
+import { createUser } from "@/services/user.service";
 
 beforeEach(async () => {
   await truncateAll();
@@ -334,5 +339,102 @@ describe("option set service", () => {
     const again = await createOptionSet({ name: "Cycle", source: "STATIC", options: [] });
     expect(again.name).toBe("Cycle");
     expect(again.version).toBe(1);
+  });
+});
+
+describe("master visibility + PENDING workflow (TKT-008)", () => {
+  it("creates a PENDING master owned by the creator", async () => {
+    const user = await createUser({ email: "op@example.com", name: "Op", password: "Secret123!", role: "OPERATOR" });
+    const m = await createQuestionMaster({
+      code: "q_novel",
+      title: "Novel question",
+      questionType: "TEXT",
+      createdBy: user.id,
+      status: "PENDING",
+    });
+    expect(m.status).toBe("PENDING");
+    expect(m.createdBy).toBe(user.id);
+    expect(m.isPublic).toBe(false);
+  });
+
+  it("admins see all masters including PENDING", async () => {
+    const admin = await createUser({ email: "admin@example.com", name: "Admin", password: "Secret123!", role: "ADMIN" });
+    const other = await createUser({ email: "op2@example.com", name: "Op2", password: "Secret123!", role: "OPERATOR" });
+    await createQuestionMaster({ code: "q_bank", title: "Bank", questionType: "TEXT" });
+    await createQuestionMaster({ code: "q_pending", title: "Pending", questionType: "TEXT", createdBy: other.id, status: "PENDING" });
+
+    const adminView = await listQuestionMasters({ userId: admin.id, role: "ADMIN" });
+    expect(adminView.map((m) => m.code)).toEqual(expect.arrayContaining(["q_bank", "q_pending"]));
+  });
+
+  it("operators see legacy bank + own PENDING, but not other operators' PENDING", async () => {
+    const owner = await createUser({ email: "owner@example.com", name: "Owner", password: "Secret123!", role: "OPERATOR" });
+    const other = await createUser({ email: "other@example.com", name: "Other", password: "Secret123!", role: "OPERATOR" });
+    // Legacy (no owner) = published bank.
+    await createQuestionMaster({ code: "q_legacy", title: "Legacy", questionType: "TEXT" });
+    // Owner's own PENDING suggestion is visible to them.
+    await createQuestionMaster({ code: "q_mine", title: "Mine", questionType: "TEXT", createdBy: owner.id, status: "PENDING" });
+    // Another operator's PENDING is NOT visible.
+    await createQuestionMaster({ code: "q_theirs", title: "Theirs", questionType: "TEXT", createdBy: other.id, status: "PENDING" });
+
+    const view = await listQuestionMasters({ userId: owner.id, role: "OPERATOR" });
+    const codes = view.map((m) => m.code);
+    expect(codes).toContain("q_legacy");
+    expect(codes).toContain("q_mine");
+    expect(codes).not.toContain("q_theirs");
+  });
+
+  it("operators see an admin-created PUBLISHED master", async () => {
+    const admin = await createUser({ email: "admin2@example.com", name: "Admin2", password: "Secret123!", role: "ADMIN" });
+    const op = await createUser({ email: "op3@example.com", name: "Op3", password: "Secret123!", role: "OPERATOR" });
+    await createQuestionMaster({ code: "q_adminmade", title: "Admin made", questionType: "TEXT", createdBy: admin.id });
+
+    const view = await listQuestionMasters({ userId: op.id, role: "OPERATOR" });
+    expect(view.map((m) => m.code)).toContain("q_adminmade");
+  });
+
+  it("a non-public master created by another operator stays hidden even when PUBLISHED", async () => {
+    const owner = await createUser({ email: "owner2@example.com", name: "Owner2", password: "Secret123!", role: "OPERATOR" });
+    const other = await createUser({ email: "other2@example.com", name: "Other2", password: "Secret123!", role: "OPERATOR" });
+    await createQuestionMaster({ code: "q_private", title: "Private", questionType: "TEXT", createdBy: other.id, status: "PUBLISHED" });
+
+    const view = await listQuestionMasters({ userId: owner.id, role: "OPERATOR" });
+    expect(view.map((m) => m.code)).not.toContain("q_private");
+  });
+
+  it("opt-in public visibility exposes a master to other operators", async () => {
+    const owner = await createUser({ email: "owner3@example.com", name: "Owner3", password: "Secret123!", role: "OPERATOR" });
+    const other = await createUser({ email: "other3@example.com", name: "Other3", password: "Secret123!", role: "OPERATOR" });
+    const m = await createQuestionMaster({ code: "q_public", title: "Public", questionType: "TEXT", createdBy: other.id, status: "PUBLISHED" });
+    await setQuestionMasterPublic(m.id, true);
+
+    const view = await listQuestionMasters({ userId: owner.id, role: "OPERATOR" });
+    expect(view.map((x) => x.code)).toContain("q_public");
+  });
+
+  it("publish moves a PENDING master into the bank", async () => {
+    const user = await createUser({ email: "op4@example.com", name: "Op4", password: "Secret123!", role: "OPERATOR" });
+    const m = await createQuestionMaster({ code: "q_pub", title: "To publish", questionType: "TEXT", createdBy: user.id, status: "PENDING" });
+    const published = await publishQuestionMaster(m.id);
+    expect(published.status).toBe("PUBLISHED");
+  });
+
+  it("reject deletes a PENDING master only", async () => {
+    const user = await createUser({ email: "op5@example.com", name: "Op5", password: "Secret123!", role: "OPERATOR" });
+    const pending = await createQuestionMaster({ code: "q_rej", title: "Reject me", questionType: "TEXT", createdBy: user.id, status: "PENDING" });
+    await rejectQuestionMaster(pending.id);
+    expect(await db.questionMaster.findUnique({ where: { id: pending.id } })).toBeNull();
+
+    const published = await createQuestionMaster({ code: "q_keep", title: "Keep", questionType: "TEXT" });
+    await expect(rejectQuestionMaster(published.id)).rejects.toMatchObject({ code: "NOT_PENDING" });
+  });
+
+  it("visibleMasterWhere returns an empty filter for admins", () => {
+    expect(visibleMasterWhere({ userId: "u", role: "ADMIN" })).toEqual({});
+  });
+
+  it("visibleMasterWhere never exposes another operator's private master to an operator", () => {
+    const where = visibleMasterWhere({ userId: "me", role: "OPERATOR" });
+    expect(where).not.toEqual({});
   });
 });

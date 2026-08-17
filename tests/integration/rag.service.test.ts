@@ -205,4 +205,46 @@ describe("rag.service — hybrid vector retrieval", () => {
       expect(q.aiConfidence ?? 0).toBeGreaterThan(0);
     }
   });
+
+  it("flags prompt intents with no bank match as novel questions (TKT-008)", async () => {
+    await seedBank();
+    const result = await generateQuestionnaireFromPrompt({
+      prompt: "What is your email address? What is your favorite color?",
+    });
+    expect(result.novel.length).toBeGreaterThan(0);
+    expect(result.novel.some((n) => /favorite color/i.test(n.title))).toBe(true);
+    // The matched email intent still lands in the questionnaire.
+    expect(result.matches.some((m) => /email/i.test(m.masterTitle))).toBe(true);
+  });
+
+  it("excludes PENDING masters from retrieval (bank only, TKT-008)", async () => {
+    const bank = await seedBank();
+    // A PENDING novel master with the same text as a real intent must NOT be retrieved.
+    await createQuestionMaster({
+      code: "q_favcolor",
+      title: "Favorite color",
+      questionType: "TEXT",
+      status: "PENDING",
+    });
+    const result = await generateQuestionnaireFromPrompt({
+      prompt: "What is your favorite color?",
+    });
+    expect(result.matches.some((m) => m.masterTitle === "Favorite color")).toBe(false);
+    // It IS a novel suggestion (not in the visible bank).
+    expect(result.novel.some((n) => /favorite color/i.test(n.title))).toBe(true);
+    const attached = await db.questionnaireQuestion.findMany({
+      where: { questionnaireId: result.questionnaire.id },
+      include: { questionMaster: true },
+    });
+    expect(attached.some((q) => q.questionMaster.code === "q_favcolor")).toBe(false);
+  });
+
+  it("returns no novel questions when every intent matched (TKT-008)", async () => {
+    const bank = await seedBank();
+    void bank;
+    const result = await generateQuestionnaireFromPrompt({
+      prompt: "What is your email address? How old are you?",
+    });
+    expect(result.novel).toEqual([]);
+  });
 });
