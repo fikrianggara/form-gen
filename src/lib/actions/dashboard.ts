@@ -29,10 +29,14 @@ import {
   deleteSamplingFrameEntry,
 } from "@/services/sampling-frame.service";
 import { parseSamplingFrameWorkbook } from "@/services/excel.service";
+import { db } from "@/lib/db";
 import {
   createQuestionMaster,
   updateQuestionMaster,
   deleteQuestionMaster,
+  publishQuestionMaster,
+  rejectQuestionMaster,
+  setQuestionMasterPublic,
   createOptionSet,
   updateOptionSet,
   deleteOptionSet,
@@ -577,6 +581,7 @@ export async function generateQuestionnaireAction(input: {
   questionnaireId?: string;
   matchCount?: number;
   lowCount?: number;
+  novel?: NovelMasterSuggestion[];
 }> {
   try {
     requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
@@ -586,10 +591,132 @@ export async function generateQuestionnaireAction(input: {
       questionnaireId: result.questionnaire.id,
       matchCount: result.matches.length,
       lowCount: result.matches.filter((m) => m.lowConfidence).length,
+      novel: result.novel.map((n) => ({
+        title: n.title,
+        questionType: n.questionType,
+        description: n.description ?? null,
+      })),
     };
   } catch (err) {
     return actionError(err);
   }
+}
+
+// ------------------------------------------------------------ TKT-008: AI novel masters
+
+export interface NovelMasterSuggestion {
+  title: string;
+  questionType: string;
+  description?: string | null;
+}
+
+/**
+ * TKT-008: persist a novel AI question as a PENDING master owned by the user.
+ * PENDING masters are invisible to everyone except the owner and admins until
+ * an admin publishes them into the bank.
+ */
+export async function addNovelMasterAction(input: NovelMasterSuggestion): Promise<{
+  error?: string;
+  masterId?: string;
+}> {
+  try {
+    const session = await getSession();
+    requirePermission(session, "CREATE_QUESTION_MASTER");
+    if (!session) throw new AppError("Not authenticated", 401, "UNAUTHENTICATED");
+
+    const code = await uniqueMasterCode(slugifyCode(input.title));
+    const created = await createQuestionMaster({
+      code,
+      title: input.title,
+      description: input.description ?? null,
+      questionType: normalizeQuestionType(input.questionType),
+      createdBy: session.sub,
+      status: "PENDING",
+    });
+    return { masterId: created.id };
+  } catch (err) {
+    return actionError(err);
+  }
+}
+
+/** TKT-008: admin publishes a PENDING suggestion into the master bank. */
+export async function publishQuestionMasterAction(input: {
+  id: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_MASTER_DATA");
+    await publishQuestionMaster(input.id);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/admin/question-masters");
+  return {};
+}
+
+/** TKT-008: admin rejects (deletes) a PENDING suggestion. */
+export async function rejectQuestionMasterAction(input: {
+  id: string;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_MASTER_DATA");
+    await rejectQuestionMaster(input.id);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/admin/question-masters");
+  return {};
+}
+
+/** TKT-008: admin toggles public visibility for a PUBLISHED master. */
+export async function setQuestionMasterPublicAction(input: {
+  id: string;
+  isPublic: boolean;
+}): Promise<{ error?: string }> {
+  try {
+    requirePermission(await getSession(), "MANAGE_MASTER_DATA");
+    await setQuestionMasterPublic(input.id, input.isPublic);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/admin/question-masters");
+  return {};
+}
+
+// ------------------------------------------------------------ TKT-008: helpers
+
+const MASTER_TYPE_SET = new Set<QuestionType>([
+  "TEXT",
+  "TEXTAREA",
+  "NUMBER",
+  "DATE",
+  "RADIO",
+  "CHECKBOX",
+  "SELECT",
+  "RATING",
+]);
+
+function normalizeQuestionType(raw: string): QuestionType {
+  const upper = raw.trim().toUpperCase() as QuestionType;
+  return MASTER_TYPE_SET.has(upper) ? upper : "TEXT";
+}
+
+function slugifyCode(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40) || "ai_question";
+}
+
+/** Ensure the AI-generated code is unique across masters (suffix when taken). */
+async function uniqueMasterCode(base: string): Promise<string> {
+  let code = base;
+  let i = 2;
+  while (await db.questionMaster.findFirst({ where: { code } })) {
+    code = `${base}_${i}`;
+    i++;
+  }
+  return code;
 }
 
 // ------------------------------------------------------------------ misc

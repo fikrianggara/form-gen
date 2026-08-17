@@ -21,9 +21,18 @@ export interface CandidateMaster {
   requiredDefault: boolean;
 }
 
+/** TKT-008: a question the AI wants that has no bank match. */
+export interface NovelQuestionSuggestion {
+  title: string;
+  description?: string | null;
+  questionType: string;
+}
+
 export interface GeneratedMeta {
   title: string;
   description: string;
+  /** TKT-008: questions the AI proposes that are NOT in the master bank. */
+  novelQuestions?: NovelQuestionSuggestion[];
 }
 
 export interface RagGeneratorProvider {
@@ -31,6 +40,8 @@ export interface RagGeneratorProvider {
     prompt: string;
     matches: RagMatch[];
     candidates: CandidateMaster[];
+    /** TKT-008: prompt intents that had no qualifying bank match (novel). */
+    unmatchedIntents?: string[];
   }): Promise<GeneratedMeta>;
 }
 
@@ -41,10 +52,19 @@ export class DeterministicRagProvider implements RagGeneratorProvider {
     prompt: string;
     matches: RagMatch[];
     candidates: CandidateMaster[];
+    unmatchedIntents?: string[];
   }): Promise<GeneratedMeta> {
+    // TKT-008: no LLM? The unmatched prompt intents ARE the novel questions.
+    const novelQuestions: NovelQuestionSuggestion[] = (input.unmatchedIntents ?? [])
+      .slice(0, 6)
+      .map((intent) => ({
+        title: intent,
+        questionType: "TEXT",
+      }));
     return {
       title: generateTitle(input.prompt, input.matches),
       description: input.prompt.trim().slice(0, 500),
+      ...(novelQuestions.length > 0 ? { novelQuestions } : {}),
     };
   }
 }
@@ -55,25 +75,40 @@ export function buildLlmPrompt(input: {
   prompt: string;
   matches: RagMatch[];
   candidates: CandidateMaster[];
+  unmatchedIntents?: string[];
 }): string {
   const bank = input.candidates
     .map((c) => `- ${c.code} (${c.questionType}): ${c.title}${c.description ? ` — ${c.description}` : ""}`)
     .join("\n");
+  const unmatched = input.unmatchedIntents ?? [];
+  const novelHint =
+    unmatched.length > 0
+      ? [
+          "",
+          "The user's request also mentions things NOT in the bank:",
+          ...unmatched.map((u) => `- ${u}`),
+        ].join("\n")
+      : "";
   return [
     "You are a questionnaire designer. Based on the user's request, propose a",
-    "questionnaire title and description. Use the retrieved question bank to",
-    "inform your naming, but do not invent questions.",
+    "questionnaire title, description, and any NEW questions that are NOT in the",
+    "question bank. Use the retrieved question bank to inform your naming; do not",
+    "repeat bank questions as novel ones.",
     "",
     `User request: "${input.prompt}"`,
     "",
     "Retrieved question bank:",
     bank,
+    novelHint,
     "",
-    'Respond with ONLY a JSON object: {"title": "...", "description": "..."}',
+    'Respond with ONLY a JSON object: {"title": "...", "description": "...", "novelQuestions": [{"title": "...", "questionType": "TEXT|NUMBER|DATE|RADIO|CHECKBOX|SELECT|RATING|TEXTAREA", "description": "..."}]}',
   ].join("\n");
 }
 
-/** Parse a model response into { title, description }, tolerating JSON fences and prose. */
+/**
+ * Parse a model response into { title, description, novelQuestions },
+ * tolerating JSON fences and prose.
+ */
 export function parseLlmMeta(text: string): GeneratedMeta | null {
   const trimmed = text.trim();
   const candidates: string[] = [trimmed];
@@ -93,7 +128,29 @@ export function parseLlmMeta(text: string): GeneratedMeta | null {
           rec.title.trim() &&
           typeof rec.description === "string"
         ) {
-          return { title: rec.title.trim(), description: rec.description.trim() };
+          const novelQuestions: NovelQuestionSuggestion[] = [];
+          if (Array.isArray(rec.novelQuestions)) {
+            for (const n of rec.novelQuestions) {
+              if (!n || typeof n !== "object") continue;
+              const nr = n as Record<string, unknown>;
+              if (typeof nr.title !== "string" || !nr.title.trim()) continue;
+              const qtype =
+                typeof nr.questionType === "string" ? nr.questionType.toUpperCase() : "TEXT";
+              novelQuestions.push({
+                title: nr.title.trim(),
+                questionType: qtype,
+                description:
+                  typeof nr.description === "string" && nr.description.trim()
+                    ? nr.description.trim()
+                    : null,
+              });
+            }
+          }
+          return {
+            title: rec.title.trim(),
+            description: rec.description.trim(),
+            ...(novelQuestions.length > 0 ? { novelQuestions } : {}),
+          };
         }
       }
     } catch {
@@ -108,6 +165,7 @@ export class LlmRagProvider implements RagGeneratorProvider {
     prompt: string;
     matches: RagMatch[];
     candidates: CandidateMaster[];
+    unmatchedIntents?: string[];
   }): Promise<GeneratedMeta> {
     const apiKey = process.env.LLM_API_KEY;
     const baseUrl = (process.env.LLM_BASE_URL ?? "https://api.openai.com/v1").replace(/\/$/, "");

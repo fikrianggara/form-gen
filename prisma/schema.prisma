@@ -28,6 +28,12 @@ enum OptionSource {
   EXTERNAL_API
 }
 
+/** TKT-008: question-master lifecycle. PUBLISHED = in the visible bank. */
+enum MasterStatus {
+  PENDING
+  PUBLISHED
+}
+
 enum QuestionnaireStatus {
   DRAFT
   ACTIVE
@@ -63,6 +69,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   questionnaires Questionnaire[] @relation("QuestionnaireCreator")
+  questionMasters   QuestionMaster[] @relation("MasterCreator")
 }
 
 model LoginAttempt {
@@ -91,6 +98,13 @@ model QuestionMaster {
   title           String
   description     String?
   questionType    QuestionType
+  /** TKT-008: PUBLISHED (visible in the bank) vs PENDING (AI-novel, awaiting admin validation). */
+  status          MasterStatus @default(PUBLISHED)
+  /** TKT-008: opt-in public visibility; off by default so only admin + owner see a master. */
+  isPublic        Boolean      @default(false)
+  /** TKT-008: who created this master (admin-created, or an operator's own suggestion). */
+  createdBy       String?
+  creator         User?        @relation("MasterCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   requiredDefault Boolean      @default(false)
   placeholder     String?
   minValue        Int?
@@ -106,6 +120,7 @@ model QuestionMaster {
 
   @@unique([code, version])
   @@index([code, isLatest])
+  @@index([status, isLatest])
 }
 
 model OptionSet {

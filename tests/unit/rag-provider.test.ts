@@ -29,6 +29,30 @@ describe("DeterministicRagProvider", () => {
     expect(meta.title).toBe("Customer Onboarding Survey For New Users");
     expect(meta.description).toContain("customer onboarding survey");
   });
+
+  it("derives novel questions from unmatched intents (TKT-008)", async () => {
+    const provider = new DeterministicRagProvider();
+    const meta = await provider.generateMeta({
+      prompt: "customer onboarding survey",
+      matches,
+      candidates,
+      unmatchedIntents: ["What is your favorite color?", "How many pets do you have?"],
+    });
+    expect(meta.novelQuestions).toHaveLength(2);
+    expect(meta.novelQuestions![0]!.title).toBe("What is your favorite color?");
+    expect(meta.novelQuestions![0]!.questionType).toBe("TEXT");
+  });
+
+  it("omits novelQuestions when everything matched (TKT-008)", async () => {
+    const provider = new DeterministicRagProvider();
+    const meta = await provider.generateMeta({
+      prompt: "customer onboarding survey",
+      matches,
+      candidates,
+      unmatchedIntents: [],
+    });
+    expect(meta.novelQuestions).toBeUndefined();
+  });
 });
 
 describe("buildLlmPrompt", () => {
@@ -41,6 +65,18 @@ describe("buildLlmPrompt", () => {
     expect(prompt).toContain("Tell me about the user's age");
     expect(prompt).toContain("q_age");
     expect(prompt).toContain("Email address");
+  });
+
+  it("lists unmatched intents as novel hints (TKT-008)", () => {
+    const prompt = buildLlmPrompt({
+      prompt: "Tell me about the user's age",
+      matches,
+      candidates,
+      unmatchedIntents: ["Favorite color?"],
+    });
+    expect(prompt).toContain("NOT in the bank");
+    expect(prompt).toContain("Favorite color?");
+    expect(prompt).toContain("novelQuestions");
   });
 });
 
@@ -55,6 +91,25 @@ describe("parseLlmMeta", () => {
   it("parses a fenced JSON block", () => {
     const text = 'Sure!\n```json\n{"title":"Age","description":"desc"}\n```';
     expect(parseLlmMeta(text)).toEqual({ title: "Age", description: "desc" });
+  });
+
+  it("parses novelQuestions from the LLM response (TKT-008)", () => {
+    const text = JSON.stringify({
+      title: "Pets Survey",
+      description: "About pets",
+      novelQuestions: [
+        { title: "How many pets?", questionType: "NUMBER", description: "Count" },
+        { title: "Pet type", questionType: "select" },
+      ],
+    });
+    expect(parseLlmMeta(text)).toEqual({
+      title: "Pets Survey",
+      description: "About pets",
+      novelQuestions: [
+        { title: "How many pets?", questionType: "NUMBER", description: "Count" },
+        { title: "Pet type", questionType: "SELECT", description: null },
+      ],
+    });
   });
 
   it("returns null for invalid JSON", () => {

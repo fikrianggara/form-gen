@@ -1,10 +1,16 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { saveQuestionMasterAction, deleteQuestionMasterAction } from "@/lib/actions/dashboard";
+import {
+  saveQuestionMasterAction,
+  deleteQuestionMasterAction,
+  publishQuestionMasterAction,
+  rejectQuestionMasterAction,
+  setQuestionMasterPublicAction,
+} from "@/lib/actions/dashboard";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
-import { IconPencil, IconTrash, IconInfo, IconPlus } from "@/components/icons";
+import { IconPencil, IconTrash, IconInfo, IconPlus, IconCheck } from "@/components/icons";
 
 const QUESTION_TYPES = ["TEXT", "TEXTAREA", "NUMBER", "DATE", "RADIO", "CHECKBOX", "SELECT", "RATING"];
 
@@ -17,6 +23,10 @@ export interface MasterRow {
   requiredDefault: boolean;
   optionSetId: string | null;
   version: number;
+  /** TKT-008: lifecycle + visibility metadata for the admin panel. */
+  status: "PENDING" | "PUBLISHED";
+  isPublic: boolean;
+  creatorName: string | null;
 }
 
 export interface MasterVersionRow {
@@ -206,6 +216,7 @@ export function MastersPanel({
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
               <tr>
+                <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Code</th>
                 <th className="px-4 py-3">Title</th>
                 <th className="px-4 py-3">Type</th>
@@ -234,6 +245,22 @@ export function MastersPanel({
                       run(() => deleteQuestionMasterAction({ id: m.id }), "Question master deleted");
                     }
                   }}
+                  onPublish={() => {
+                    if (confirm(`Publish ${m.code} into the shared question bank?`)) {
+                      run(() => publishQuestionMasterAction({ id: m.id }), "Question master published");
+                    }
+                  }}
+                  onReject={() => {
+                    if (confirm(`Reject ${m.code}? The PENDING suggestion will be deleted.`)) {
+                      run(() => rejectQuestionMasterAction({ id: m.id }), "Suggestion rejected");
+                    }
+                  }}
+                  onTogglePublic={() =>
+                    run(
+                      () => setQuestionMasterPublicAction({ id: m.id, isPublic: !m.isPublic }),
+                      m.isPublic ? "Made private" : "Made public"
+                    )
+                  }
                 />
               ))}
             </tbody>
@@ -258,6 +285,9 @@ function MasterRowView({
   onToggleInfo,
   onEdit,
   onDelete,
+  onPublish,
+  onReject,
+  onTogglePublic,
 }: {
   master: MasterRow;
   history: MasterVersionRow[];
@@ -267,14 +297,30 @@ function MasterRowView({
   onToggleInfo: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onPublish: () => void;
+  onReject: () => void;
+  onTogglePublic: () => void;
 }) {
   return (
     <>
       <tr className="hover:bg-gray-50">
+        <td className="px-4 py-3">
+          <div className="flex flex-col items-start gap-1">
+            {master.status === "PENDING" ? (
+              <Badge tone="amber">PENDING</Badge>
+            ) : (
+              <Badge tone="green">published</Badge>
+            )}
+            {master.isPublic && <Badge tone="indigo">public</Badge>}
+          </div>
+        </td>
         <td className="px-4 py-3 font-mono text-xs text-gray-600">{master.code}</td>
         <td className="px-4 py-3 text-gray-900">
           <span className="inline-flex items-center gap-1.5">
             {master.title}
+            {master.creatorName && (
+              <span className="text-xs text-gray-400">by {master.creatorName}</span>
+            )}
             {master.description && (
               <button
                 type="button"
@@ -301,7 +347,32 @@ function MasterRowView({
           </button>
         </td>
         <td className="px-4 py-3">
-          <div className="flex gap-3 text-xs">
+          <div className="flex flex-wrap gap-3 text-xs">
+            {master.status === "PENDING" ? (
+              <>
+                <button
+                  className="inline-flex items-center gap-1 text-emerald-600 hover:underline"
+                  onClick={onPublish}
+                >
+                  <IconCheck size={13} />
+                  Publish
+                </button>
+                <button
+                  className="inline-flex items-center gap-1 text-red-600 hover:underline"
+                  onClick={onReject}
+                >
+                  <IconTrash size={13} />
+                  Reject
+                </button>
+              </>
+            ) : (
+              <button
+                className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+                onClick={onTogglePublic}
+              >
+                {master.isPublic ? "Make private" : "Make public"}
+              </button>
+            )}
             <button
               className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
               onClick={onEdit}
@@ -321,14 +392,14 @@ function MasterRowView({
       </tr>
       {infoOpen && master.description && (
         <tr className="bg-indigo-50/60">
-          <td colSpan={6} className="px-4 py-3 text-xs text-indigo-900">
+          <td colSpan={7} className="px-4 py-3 text-xs text-indigo-900">
             {master.description}
           </td>
         </tr>
       )}
       {historyOpen && (
         <tr className="bg-gray-50/50">
-          <td colSpan={6} className="px-6 py-3">
+          <td colSpan={7} className="px-6 py-3">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400">
               Version history
             </p>

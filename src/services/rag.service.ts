@@ -11,9 +11,12 @@ import {
   createRagProvider,
   DeterministicRagProvider,
   type CandidateMaster,
+  type GeneratedMeta,
+  type NovelQuestionSuggestion,
 } from "@/services/rag-provider";
 import {
   cosineToScore,
+  hybridScore,
   mergeHybridMatches,
   type HybridRetrievalResult,
 } from "@/domain/rag/hybrid";
@@ -52,6 +55,8 @@ export interface GeneratedQuestionnaireResult {
     score: number;
     lowConfidence: boolean;
   }>;
+  /** TKT-008: AI-proposed questions with no bank match, flagged for the user. */
+  novel: NovelQuestionSuggestion[];
 }
 
 interface RetrievalRow {
@@ -91,12 +96,26 @@ export async function generateQuestionnaireFromPrompt(
   const intents = extractIntents(prompt);
   const queries = intents.length > 0 ? [...intents, prompt] : [prompt];
   const hybrid: HybridRetrievalResult[] = [];
+  const intentMatched = new Set<string>();
   for (const q of queries) {
-    hybrid.push(...(await retrieveHybrid(q, PER_INTENT_TOP_K, embedder)));
+    const perQuery = await retrieveHybrid(q, PER_INTENT_TOP_K, embedder);
+    hybrid.push(...perQuery);
+    // TKT-008: an intent is MATCHED when its own query produced a hit at or
+    // above the low-confidence threshold — a weaker hit is junk (e.g. "favorite
+    // color" matching "Age" at 0.15), so the intent counts as NOVEL.
+    const best = perQuery.reduce((acc, r) => {
+      const s = hybridScore(r.vectorScore, r.trigramScore, HYBRID_WEIGHT);
+      return s !== null && s > acc ? s : acc;
+    }, 0);
+    if (best >= threshold) intentMatched.add(q.toLowerCase());
   }
   const merged = mergeHybridMatches(hybrid, HYBRID_WEIGHT)
     .filter((m) => m.score >= MIN_MATCH_SCORE)
     .slice(0, maxQuestions);
+
+  // TKT-008: intents that did not make the match cut are NOVEL — the AI will
+  // propose them as new questions (flag for the user, offer add-to-master).
+  const unmatchedIntents = intents.filter((i) => !intentMatched.has(i.toLowerCase()));
 
   // ---- candidate details for the generator -------------------------------
   const candidateIds = merged.map((m) => m.masterId);
@@ -118,18 +137,20 @@ export async function generateQuestionnaireFromPrompt(
 
   // ---- metadata generation (LLM when configured, deterministic otherwise) -
   const provider = createRagProvider();
-  let meta: { title: string; description: string };
+  let meta: GeneratedMeta;
   try {
-    meta = await provider.generateMeta({ prompt, matches: merged, candidates });
+    meta = await provider.generateMeta({ prompt, matches: merged, candidates, unmatchedIntents });
   } catch {
     meta = await new DeterministicRagProvider().generateMeta({
       prompt,
       matches: merged,
       candidates,
+      unmatchedIntents,
     });
   }
   const title = meta.title.trim() || generateTitle(prompt, merged);
   const description = (meta.description ?? prompt).trim().slice(0, 500);
+  const novel = meta.novelQuestions ?? [];
 
   // ---- persistence --------------------------------------------------------
   const slug = await uniqueSlug(slugify(title));
@@ -170,6 +191,7 @@ export async function generateQuestionnaireFromPrompt(
       slug: questionnaire.slug,
       status: "DRAFT",
     },
+    novel,
     matches: merged
       .filter((m) => candidateById.has(m.masterId))
       .map((m) => {
@@ -200,6 +222,7 @@ async function retrieveTopMasters(query: string, k: number): Promise<RetrievalRo
       ) AS score
     FROM "QuestionMaster"
     WHERE "isLatest" = true
+      AND "status" = 'PUBLISHED'
     ORDER BY score DESC
     LIMIT ${k}
   `);
@@ -235,7 +258,9 @@ async function retrieveHybrid(
         Prisma.sql`
           SELECT id, title, embedding <=> ${literal}::vector AS dist
           FROM "QuestionMaster"
-          WHERE "isLatest" = true AND embedding IS NOT NULL
+          WHERE "isLatest" = true
+            AND "status" = 'PUBLISHED'
+            AND embedding IS NOT NULL
           ORDER BY embedding <=> ${literal}::vector
           LIMIT ${k}
         `
