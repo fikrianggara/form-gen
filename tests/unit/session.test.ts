@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { signSession, verifySession, SESSION_COOKIE } from "@/lib/auth/session";
+import type { SessionPayload } from "@/lib/auth/session";
 import type { Role } from "@prisma/client";
 
-const payload = {
+const payload: SessionPayload = {
   sub: "user_123",
   email: "admin@example.com",
   name: "Admin",
   role: "ADMIN" as Role,
+  organizationId: "org_123",
 };
 
 describe("session JWT", () => {
@@ -14,6 +16,19 @@ describe("session JWT", () => {
     const token = await signSession(payload);
     const verified = await verifySession(token);
     expect(verified).toMatchObject(payload);
+  });
+
+  it("reads legacy tokens (no org claim) as unassigned (organizationId null)", async () => {
+    const legacy = await signSession({
+      sub: "user_old",
+      email: "old@example.com",
+      name: "Old",
+      role: "OPERATOR" as Role,
+      organizationId: null,
+    });
+    const verified = await verifySession(legacy);
+    expect(verified?.organizationId).toBeNull();
+    expect(verified?.sub).toBe("user_old");
   });
 
   it("returns null for a tampered token", async () => {

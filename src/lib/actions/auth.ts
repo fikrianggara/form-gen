@@ -43,6 +43,7 @@ export async function loginAction(
       email: user.email,
       name: user.name,
       role: user.role,
+      organizationId: user.organizationId,
     });
     cookies().set(SESSION_COOKIE, token, {
       httpOnly: true,

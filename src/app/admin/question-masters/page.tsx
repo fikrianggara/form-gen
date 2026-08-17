@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminMastersPage() {
   const [masters, optionSets, history] = await Promise.all([
-    listQuestionMasters(),
+    listQuestionMasters({ userId: "admin", role: "ADMIN" }),
     listOptionSets(),
     listAllMasterVersions(),
   ]);

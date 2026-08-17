@@ -23,7 +23,7 @@ export interface MasterRow {
   requiredDefault: boolean;
   optionSetId: string | null;
   version: number;
-  /** TKT-008: lifecycle + visibility metadata for the admin panel. */
+  /** TKT-008/TKT-014: lifecycle + visibility metadata for the admin panel. */
   status: "PENDING" | "PUBLISHED";
   isPublic: boolean;
   creatorName: string | null;
@@ -240,6 +240,16 @@ export function MastersPanel({
                     setOpenInfo((cur) => (cur === m.code ? null : m.code))
                   }
                   onEdit={() => setEditing(m)}
+                  onTogglePublic={() =>
+                    run(
+                      () =>
+                        setQuestionMasterPublicAction({
+                          id: m.id,
+                          isPublic: !m.isPublic,
+                        }),
+                      m.isPublic ? "Master made private" : "Master published"
+                    )
+                  }
                   onDelete={() => {
                     if (confirm(`Delete master ${m.code} (all versions)?`)) {
                       run(() => deleteQuestionMasterAction({ id: m.id }), "Question master deleted");
@@ -255,12 +265,6 @@ export function MastersPanel({
                       run(() => rejectQuestionMasterAction({ id: m.id }), "Suggestion rejected");
                     }
                   }}
-                  onTogglePublic={() =>
-                    run(
-                      () => setQuestionMasterPublicAction({ id: m.id, isPublic: !m.isPublic }),
-                      m.isPublic ? "Made private" : "Made public"
-                    )
-                  }
                 />
               ))}
             </tbody>
@@ -284,10 +288,10 @@ function MasterRowView({
   infoOpen,
   onToggleInfo,
   onEdit,
+  onTogglePublic,
   onDelete,
   onPublish,
   onReject,
-  onTogglePublic,
 }: {
   master: MasterRow;
   history: MasterVersionRow[];
@@ -296,10 +300,10 @@ function MasterRowView({
   infoOpen: boolean;
   onToggleInfo: () => void;
   onEdit: () => void;
+  onTogglePublic: () => void;
   onDelete: () => void;
   onPublish: () => void;
   onReject: () => void;
-  onTogglePublic: () => void;
 }) {
   return (
     <>
@@ -335,6 +339,20 @@ function MasterRowView({
           </span>
         </td>
         <td className="px-4 py-3"><Badge tone="indigo">{master.questionType}</Badge></td>
+        <td className="px-4 py-3">
+          <button
+            type="button"
+            onClick={onTogglePublic}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium hover:bg-gray-100 ${
+              master.isPublic
+                ? "bg-green-50 text-green-700"
+                : "bg-gray-100 text-gray-600"
+            }`}
+            title={master.isPublic ? "Public — visible to all organizations" : "Private — visible to your organization only"}
+          >
+            {master.isPublic ? "Public" : "Private"}
+          </button>
+        </td>
         <td className="px-4 py-3">{master.requiredDefault ? "yes" : "no"}</td>
         <td className="px-4 py-3">
           <button
@@ -365,14 +383,7 @@ function MasterRowView({
                   Reject
                 </button>
               </>
-            ) : (
-              <button
-                className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
-                onClick={onTogglePublic}
-              >
-                {master.isPublic ? "Make private" : "Make public"}
-              </button>
-            )}
+            ) : null}
             <button
               className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
               onClick={onEdit}

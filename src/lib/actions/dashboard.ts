@@ -313,7 +313,12 @@ export async function saveQuestionMasterAction(input: {
       await updateQuestionMaster(input.id, input);
     } else {
       requirePermission(session, "CREATE_QUESTION_MASTER");
-      await createQuestionMaster(input);
+      await createQuestionMaster({
+        ...input,
+        // TKT-014: masters are created into the creator's organization
+        // (null for admins/legacy users) and private until published.
+        organizationId: session.organizationId,
+      });
     }
   } catch (err) {
     return actionError(err);

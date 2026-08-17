@@ -6,29 +6,36 @@ import { ensureMasterEmbedding } from "@/services/embedding.service";
 
 export const CHOICE_TYPES: QuestionType[] = ["RADIO", "CHECKBOX", "SELECT"];
 
-/** TKT-008: who is looking at the master bank. Admins see everything; others see admin/legacy + their own + public masters. */
+/** TKT-008/TKT-014: who is looking at the master bank. Admins see everything; others see admin/legacy + their own + public + same-org masters. */
 export interface MasterViewer {
   userId: string;
   role: Role;
+  /** TKT-014: viewer's organization for org scoping (null = unassigned/legacy). */
+  organizationId?: string | null;
 }
 
 /**
- * TKT-008: visibility filter for the question master bank.
+ * TKT-008/TKT-014: visibility filter for the question master bank.
  * - Admins see all masters (including PENDING suggestions awaiting validation).
  * - Operators see: PUBLISHED masters that are admin-created or legacy (no
- *   owner), PUBLISHED public masters (opt-in), and masters they created
- *   themselves (any status, so their own PENDING suggestions are visible).
- * PUBLISHED masters created by other operators stay hidden unless opted public;
- * PENDING masters created by other operators stay hidden until an admin
- * publishes them.
+ *   owner), PUBLISHED public masters (opt-in), PUBLISHED masters from their
+ *   own organization, and masters they created themselves (any status, so
+ *   their own PENDING suggestions are visible).
+ * PUBLISHED masters created by other operators stay hidden unless opted public
+ * or same-org; PENDING masters created by other operators stay hidden until an
+ * admin publishes them.
  */
 export function visibleMasterWhere(viewer?: MasterViewer | null): Prisma.QuestionMasterWhereInput {
   if (!viewer || viewer.role === "ADMIN") return {};
   return {
     OR: [
       { status: "PUBLISHED" as MasterStatus, isPublic: true },
-      { status: "PUBLISHED" as MasterStatus, createdBy: null },
-      { status: "PUBLISHED" as MasterStatus, creator: { role: "ADMIN" } },
+      // Legacy bank: org-less masters (no org, no owner) are visible to everyone.
+      { status: "PUBLISHED" as MasterStatus, organizationId: null, createdBy: null },
+      // Admin bank: org-less masters created by admins are visible to everyone.
+      { status: "PUBLISHED" as MasterStatus, organizationId: null, creator: { role: "ADMIN" } },
+      // Org scoping (TKT-014): PUBLISHED masters owned by the viewer's org.
+      { status: "PUBLISHED" as MasterStatus, organizationId: viewer.organizationId ?? "__none__" },
       { createdBy: viewer.userId },
     ],
   };
@@ -49,6 +56,9 @@ export interface QuestionMasterInput {
   /** TKT-008: creation context — owner + initial lifecycle status. */
   createdBy?: string | null;
   status?: MasterStatus;
+  /** Owner organization (TKT-014); null = shared/legacy master. */
+  organizationId?: string | null;
+  /** Public masters are visible across organizations (TKT-014). */
   isPublic?: boolean;
 }
 
@@ -102,6 +112,9 @@ export async function createQuestionMaster(input: QuestionMasterInput) {
     maxValue: input.maxValue ?? null,
     maxLength: input.maxLength ?? null,
     ratingMax: input.ratingMax ?? 5,
+    ...(input.organizationId
+      ? { organization: { connect: { id: input.organizationId } } }
+      : {}),
     ...(input.optionSetId
       ? { optionSet: { connect: { id: input.optionSetId } } }
       : {}),
@@ -176,6 +189,10 @@ export async function updateQuestionMaster(
         maxValue: next.maxValue,
         maxLength: next.maxLength,
         ratingMax: next.ratingMax,
+        isPublic: existing.isPublic,
+        ...(existing.organizationId
+          ? { organization: { connect: { id: existing.organizationId } } }
+          : {}),
         ...(next.optionSetId
           ? { optionSet: { connect: { id: next.optionSetId } } }
           : {}),
@@ -208,8 +225,9 @@ export async function deleteQuestionMaster(id: string): Promise<void> {
 
 /**
  * Latest version of every master the viewer can see, ordered by code.
- * TKT-008: visibility filter applied — admins see all (incl. PENDING),
- * operators see the published bank (admin/legacy/public) + their own.
+ * TKT-008/TKT-014: visibility filter applied — admins see all (incl. PENDING);
+ * operators see the published bank (public/legacy/admin-created/same-org) +
+ * their own masters.
  */
 export async function listQuestionMasters(viewer?: MasterViewer | null) {
   return db.questionMaster.findMany({
@@ -244,7 +262,7 @@ export async function rejectQuestionMaster(id: string) {
   return db.questionMaster.delete({ where: { id } });
 }
 
-/** TKT-008: opt-in public visibility for a PUBLISHED master. */
+/** TKT-008/TKT-014: opt-in public visibility for a PUBLISHED master. */
 export async function setQuestionMasterPublic(id: string, isPublic: boolean) {
   const existing = await db.questionMaster.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("Question master not found");
