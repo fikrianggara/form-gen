@@ -12,7 +12,7 @@
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
 | TKT-041 | feature | big | P1 | survey-management | backlog | null | null | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
 | TKT-042 | feature | big | P1 | survey-management | backlog | null | null | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
-| TKT-036 | feature | medium | P1 | public-api | ongoing | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
+| TKT-036 | feature | medium | P1 | public-api | done | jarvis | feature-TKT-032-public-rest-api-schema-a | true | Admin API-key management UI — list, issue, approve, revoke, usage view |
 | TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
 | TKT-017 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-017-responses-page-view-edit | false | Responses page: view/edit/delete/mailblast actions in a popup menu per respondent |
 | TKT-040 | feature | medium | P1 | questionnaire-extras | done | jarvis | feature-TKT-040-delete-questionnaire-cre | true | Delete questionnaire — creator-only with response cascade |
