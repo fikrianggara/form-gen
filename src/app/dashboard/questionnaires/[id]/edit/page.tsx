@@ -7,6 +7,7 @@ import {
   listAllOptionSetVersions,
 } from "@/services/master-data.service";
 import { listSamplingFrame } from "@/services/sampling-frame.service";
+import { listSurveys } from "@/services/org.service";
 import { Editor } from "@/components/dashboard/Editor";
 import type { VisibilityRule, AggregateConfig } from "@/domain/types";
 
@@ -46,7 +47,7 @@ export default async function EditQuestionnairePage({
   searchParams: { generated?: string; matches?: string; low?: string };
 }) {
   const session = await getSession();
-  const [questionnaire, masters, masterVersions, optionSets, samplingFrame] =
+  const [questionnaire, masters, masterVersions, optionSets, samplingFrame, surveys] =
     await Promise.all([
       getQuestionnaireWithQuestions(params.id),
       listQuestionMasters({
@@ -56,6 +57,9 @@ export default async function EditQuestionnairePage({
       listAllMasterVersions(),
       listAllOptionSetVersions(),
       listSamplingFrame(params.id),
+      listSurveys(
+        session?.role === "ADMIN" ? undefined : (session?.organizationId ?? undefined)
+      ),
     ]);
   if (!questionnaire) notFound();
 
@@ -120,8 +124,10 @@ export default async function EditQuestionnairePage({
         sampleEmails: Array.isArray(questionnaire.sampleEmails)
           ? (questionnaire.sampleEmails as string[])
           : [],
+        surveyId: questionnaire.surveyId,
         slug: questionnaire.slug,
       }}
+      surveys={surveys.map((s) => ({ id: s.id, name: s.name }))}
       questions={questions}
       blocks={(questionnaire.blocks ?? []).map((b) => ({
         id: b.id,

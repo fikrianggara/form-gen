@@ -22,6 +22,7 @@ export default async function AdminMastersPage() {
           requiredDefault: m.requiredDefault,
           optionSetId: m.optionSetId,
           version: m.version,
+          isPublic: m.isPublic,
         }))}
         history={history.map((h) => ({
           id: h.id,

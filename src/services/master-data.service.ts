@@ -181,8 +181,7 @@ export async function deleteQuestionMaster(id: string): Promise<void> {
   await db.questionMaster.deleteMany({ where: { code: existing.code } });
 }
 
-/**
- * Latest version of every master, ordered by code. Org-scoped (TKT-014):
+/** Latest version of every master, ordered by code. Org-scoped (TKT-014):
  * unless `all` is set, only public masters, legacy shared masters
  * (organizationId null), and the caller's own org masters are returned.
  */
@@ -202,6 +201,13 @@ export async function listQuestionMasters(
     orderBy: { code: "asc" },
     include: { optionSet: { include: { options: { orderBy: { order: "asc" } } } } },
   });
+}
+
+/** Toggle public visibility of a question master (TKT-014). */
+export async function setQuestionMasterPublic(id: string, isPublic: boolean) {
+  const master = await db.questionMaster.findUnique({ where: { id } });
+  if (!master) throw new NotFoundError("Question master not found");
+  return db.questionMaster.update({ where: { id }, data: { isPublic } });
 }
 
 /** All versions of one master, newest first. */

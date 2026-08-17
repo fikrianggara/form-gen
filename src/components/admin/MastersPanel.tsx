@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import { saveQuestionMasterAction, deleteQuestionMasterAction } from "@/lib/actions/dashboard";
+import { setQuestionMasterPublicAction } from "@/lib/actions/org";
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
 import { IconPencil, IconTrash, IconInfo, IconPlus } from "@/components/icons";
@@ -17,6 +18,7 @@ export interface MasterRow {
   requiredDefault: boolean;
   optionSetId: string | null;
   version: number;
+  isPublic: boolean;
 }
 
 export interface MasterVersionRow {
@@ -229,6 +231,16 @@ export function MastersPanel({
                     setOpenInfo((cur) => (cur === m.code ? null : m.code))
                   }
                   onEdit={() => setEditing(m)}
+                  onTogglePublic={() =>
+                    run(
+                      () =>
+                        setQuestionMasterPublicAction({
+                          id: m.id,
+                          isPublic: !m.isPublic,
+                        }),
+                      m.isPublic ? "Master made private" : "Master published"
+                    )
+                  }
                   onDelete={() => {
                     if (confirm(`Delete master ${m.code} (all versions)?`)) {
                       run(() => deleteQuestionMasterAction({ id: m.id }), "Question master deleted");
@@ -257,6 +269,7 @@ function MasterRowView({
   infoOpen,
   onToggleInfo,
   onEdit,
+  onTogglePublic,
   onDelete,
 }: {
   master: MasterRow;
@@ -266,6 +279,7 @@ function MasterRowView({
   infoOpen: boolean;
   onToggleInfo: () => void;
   onEdit: () => void;
+  onTogglePublic: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -289,6 +303,20 @@ function MasterRowView({
           </span>
         </td>
         <td className="px-4 py-3"><Badge tone="indigo">{master.questionType}</Badge></td>
+        <td className="px-4 py-3">
+          <button
+            type="button"
+            onClick={onTogglePublic}
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium hover:bg-gray-100 ${
+              master.isPublic
+                ? "bg-green-50 text-green-700"
+                : "bg-gray-100 text-gray-600"
+            }`}
+            title={master.isPublic ? "Public — visible to all organizations" : "Private — visible to your organization only"}
+          >
+            {master.isPublic ? "Public" : "Private"}
+          </button>
+        </td>
         <td className="px-4 py-3">{master.requiredDefault ? "yes" : "no"}</td>
         <td className="px-4 py-3">
           <button

@@ -22,6 +22,9 @@ export default async function AdminLayout({
               <Link href="/admin/users" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
                 Users
               </Link>
+              <Link href="/admin/orgs" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
+                Organizations
+              </Link>
               <Link href="/admin/question-masters" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
                 Question masters
               </Link>

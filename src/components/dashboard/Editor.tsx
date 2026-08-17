@@ -30,6 +30,7 @@ import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SamplingFrameCard, type SamplingFrameEntryRow } from "@/components/dashboard/SamplingFrameCard";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
+import { assignQuestionnaireToSurveyAction } from "@/lib/actions/org";
 import { RuleSetsEditor } from "@/components/dashboard/RuleSetsEditor";
 import type { EditorQuestion } from "@/app/dashboard/questionnaires/[id]/edit/page";
 import {
@@ -51,8 +52,10 @@ interface EditorProps {
     status: "DRAFT" | "ACTIVE" | "CLOSED";
     acceptMultipleResponses: boolean;
     sampleEmails: string[];
+    surveyId: string | null;
     slug: string;
   };
+  surveys: Array<{ id: string; name: string }>;
   questions: EditorQuestion[];
   blocks: Array<{ id: string; title: string; order: number; entryRule: VisibilityRule | null }>;
   masters: Array<{
@@ -119,6 +122,7 @@ function toEditorQuestion(q: CreatedQuestion): EditorQuestion {
 
 export function Editor({
   questionnaire: q,
+  surveys,
   questions,
   blocks,
   masters,
@@ -155,6 +159,7 @@ export function Editor({
   const [title, setTitle] = useState(q.title);
   const [description, setDescription] = useState(q.description ?? "");
   const [multiple, setMultiple] = useState(q.acceptMultipleResponses);
+  const [surveyId, setSurveyId] = useState<string | null>(q.surveyId);
   const [sampleEmails, setSampleEmails] = useState(q.sampleEmails.join("\n"));
   const [inviteLinks, setInviteLinks] = useState<
     Array<{
@@ -344,6 +349,32 @@ export function Editor({
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} className="accent-indigo-600" />
             Allow multiple responses
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <span>Survey</span>
+            <select
+              className={inputClass}
+              value={surveyId ?? ""}
+              onChange={(e) => {
+                const next = e.target.value || null;
+                setSurveyId(next);
+                run(
+                  () =>
+                    assignQuestionnaireToSurveyAction({
+                      questionnaireId: q.id,
+                      surveyId: next,
+                    }),
+                  next ? "Questionnaire assigned to survey" : "Questionnaire detached from survey"
+                );
+              }}
+            >
+              <option value="">None (standalone)</option>
+              {surveys.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </label>
           <Button
             variant="secondary"
