@@ -22,6 +22,9 @@ const TABLES = [
   "Organization",
   "Proposal",
   "User",
+  "ApiRequestLog",
+  "ApiKeyRequest",
+  "ApiKey",
 ] as const;
 
 /** Wipe all rows from every table, in FK-safe order (CASCADE makes order moot). */

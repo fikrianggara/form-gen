@@ -28,7 +28,9 @@ enum OptionSource {
   EXTERNAL_API
 }
 
-/** TKT-008: question-master lifecycle. PUBLISHED = in the visible bank. */
+/**
+ * TKT-008: question-master lifecycle. PUBLISHED = in the visible bank.
+ */
 enum MasterStatus {
   PENDING
   PUBLISHED
@@ -66,11 +68,29 @@ enum ProposalStatus {
   APPROVED
 }
 
+/**
+ * Public REST API key lifecycle (TKT-032, analysis v03 §5).
+ */
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+/**
+ * Self-serve portal request lifecycle (TKT-032, analysis v03 §5).
+ */
+enum ApiKeyRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
 /** Multi-tenant root (TKT-014): an org owns surveys, users, and masters. */
 model Organization {
-  id              String          @id @default(cuid())
+  id              String           @id @default(cuid())
   name            String
-  slug            String          @unique
+  slug            String           @unique
   description     String?
   users           User[]
   surveys         Survey[]
@@ -80,7 +100,9 @@ model Organization {
   updatedAt       DateTime        @updatedAt
 }
 
-/** A survey under an organization; holds multiple questionnaires (TKT-014). */
+/**
+ * A survey under an organization; holds multiple questionnaires (TKT-014).
+ */
 model Survey {
   id              String          @id @default(cuid())
   name            String
@@ -124,20 +146,23 @@ model Proposal {
 }
 
 model User {
-  id           String        @id @default(cuid())
-  email        String        @unique
-  name         String
-  passwordHash String
-  role         Role          @default(OPERATOR)
-  isActive     Boolean       @default(true)
-  /** Organization membership (TKT-014); null = unassigned/legacy user. */
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  questionnaires Questionnaire[] @relation("QuestionnaireCreator")
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  passwordHash    String
+  role            Role             @default(OPERATOR)
+  isActive        Boolean          @default(true)
+  /**
+   * Organization membership (TKT-014); null = unassigned/legacy user.
+   */
+  organizationId  String?
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  questionnaires  Questionnaire[]  @relation("QuestionnaireCreator")
   questionMasters QuestionMaster[] @relation("MasterCreator")
   proposals       Proposal[]
+  apiKeys         ApiKey[]         @relation("ApiKeyCreator")
 
   @@index([organizationId])
 }
@@ -151,7 +176,9 @@ model LoginAttempt {
   @@index([email, ip, createdAt])
 }
 
-/** Generic windowed rate-limit event (TKT-023): keyed counters, no PII. */
+/**
+ * Generic windowed rate-limit event (TKT-023): keyed counters, no PII.
+ */
 model RateLimitEvent {
   id        String   @id @default(cuid())
   key       String
@@ -161,35 +188,43 @@ model RateLimitEvent {
 }
 
 model QuestionMaster {
-  id              String       @id @default(cuid())
-  code            String
-  version         Int          @default(1)
-  isLatest        Boolean      @default(true)
-  title           String
-  description     String?
-  questionType    QuestionType
-  /** TKT-008: PUBLISHED (visible in the bank) vs PENDING (AI-novel, awaiting admin validation). */
-  status          MasterStatus @default(PUBLISHED)
-  /** TKT-008/TKT-014: opt-in public visibility; off by default so only admins, owners, and same-org operators see a master. */
-  isPublic        Boolean      @default(false)
-  /** TKT-008: who created this master (admin-created, or an operator's own suggestion). */
-  createdBy       String?
-  creator         User?        @relation("MasterCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  requiredDefault Boolean      @default(false)
-  placeholder     String?
-  minValue        Int?
-  maxValue        Int?
-  maxLength       Int?
-  ratingMax       Int?         @default(5)
-  optionSetId     String?
-  optionSet       OptionSet?   @relation(fields: [optionSetId], references: [id])
-  /** Owner organization (TKT-014); null = shared/legacy master. */
-  organizationId  String?
-  organization    Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  id                     String                       @id @default(cuid())
+  code                   String
+  version                Int                          @default(1)
+  isLatest               Boolean                      @default(true)
+  title                  String
+  description            String?
+  questionType           QuestionType
+  /**
+   * TKT-008: PUBLISHED (visible in the bank) vs PENDING (AI-novel, awaiting admin validation).
+   */
+  status                 MasterStatus                 @default(PUBLISHED)
+  /**
+   * TKT-008/TKT-014: opt-in public visibility; off by default so only admins, owners, and same-org operators see a master.
+   */
+  isPublic               Boolean                      @default(false)
+  /**
+   * TKT-008: who created this master (admin-created, or an operator's own suggestion).
+   */
+  createdBy              String?
+  creator                User?                        @relation("MasterCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  requiredDefault        Boolean                      @default(false)
+  placeholder            String?
+  minValue               Int?
+  maxValue               Int?
+  maxLength              Int?
+  ratingMax              Int?                         @default(5)
+  optionSetId            String?
+  optionSet              OptionSet?                   @relation(fields: [optionSetId], references: [id])
+  /**
+   * Owner organization (TKT-014); null = shared/legacy master.
+   */
+  organizationId         String?
+  organization           Organization?                @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   questionnaireQuestions QuestionnaireQuestion[]
-  embedding       Unsupported("vector(1024)")?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  embedding              Unsupported("vector(1024)")?
+  createdAt              DateTime                     @default(now())
+  updatedAt              DateTime                     @updatedAt
 
   @@unique([code, version])
   @@index([code, isLatest])
@@ -198,25 +233,29 @@ model QuestionMaster {
 }
 
 model OptionSet {
-  id        String       @id @default(cuid())
-  name      String
-  /** Stable identity across versions — survives renames. */
-  familyId  String?
-  version   Int          @default(1)
-  isLatest  Boolean      @default(true)
-  source    OptionSource @default(STATIC)
-  apiUrl    String?
-  apiMethod String?      @default("GET")
-  apiHeaders Json?       @default("{}")
-  itemsPath String?
-  /** Optional dotted keys inside each item for label/value (nested supported). */
-  apiLabelKey String?
-  apiValueKey  String?
-  options   Option[]
-  questionMasters QuestionMaster[]
+  id                     String                  @id @default(cuid())
+  name                   String
+  /**
+   * Stable identity across versions — survives renames.
+   */
+  familyId               String?
+  version                Int                     @default(1)
+  isLatest               Boolean                 @default(true)
+  source                 OptionSource            @default(STATIC)
+  apiUrl                 String?
+  apiMethod              String?                 @default("GET")
+  apiHeaders             Json?                   @default("{}")
+  itemsPath              String?
+  /**
+   * Optional dotted keys inside each item for label/value (nested supported).
+   */
+  apiLabelKey            String?
+  apiValueKey            String?
+  options                Option[]
+  questionMasters        QuestionMaster[]
   questionnaireQuestions QuestionnaireQuestion[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 
   @@unique([name, version])
   @@index([name, isLatest])
@@ -235,34 +274,42 @@ model Option {
 }
 
 model Questionnaire {
-  id                      String                   @id @default(cuid())
+  id                      String                  @id @default(cuid())
   title                   String
   description             String?
-  slug                    String                   @unique
-  status                  QuestionnaireStatus      @default(DRAFT)
-  acceptMultipleResponses Boolean                  @default(true)
-  requiresAccount         Boolean                  @default(false)
-  /** Sample respondent emails for unique-link distribution (TKT-001). */
-  sampleEmails            Json?                    @default("[]")
-  /** Creator user (TKT-017): null for legacy rows — manageable by any admin/operator. */
+  slug                    String                  @unique
+  status                  QuestionnaireStatus     @default(DRAFT)
+  acceptMultipleResponses Boolean                 @default(true)
+  requiresAccount         Boolean                 @default(false)
+  /**
+   * Sample respondent emails for unique-link distribution (TKT-001).
+   */
+  sampleEmails            Json?                   @default("[]")
+  /**
+   * Creator user (TKT-017): null for legacy rows — manageable by any admin/operator.
+   */
   createdBy               String?
-  creator                 User?                    @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  /** Survey membership (TKT-014); null = legacy flat questionnaire. */
+  creator                 User?                   @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  /**
+   * Survey membership (TKT-014); null = legacy flat questionnaire.
+   */
   surveyId                String?
-  survey                  Survey?                  @relation(fields: [surveyId], references: [id], onDelete: SetNull)
+  survey                  Survey?                 @relation(fields: [surveyId], references: [id], onDelete: SetNull)
   invitations             Invitation[]
   samplingFrame           SamplingFrameEntry[]
   questions               QuestionnaireQuestion[]
   blocks                  QuestionnaireBlock[]
   responses               Response[]
-  createdAt               DateTime                 @default(now())
-  updatedAt               DateTime                 @updatedAt
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
 
   @@index([createdBy])
   @@index([surveyId])
 }
 
-/** One unique form link per sample email (TKT-001). No Response until save. */
+/**
+ * One unique form link per sample email (TKT-001). No Response until save.
+ */
 model Invitation {
   id              String        @id @default(cuid())
   questionnaireId String
@@ -287,57 +334,59 @@ model Invitation {
  * Excel file with a fixed column format (organization_name, contact).
  */
 model SamplingFrameEntry {
-  id               String         @id @default(cuid())
+  id               String        @id @default(cuid())
   questionnaireId  String
-  questionnaire    Questionnaire  @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  questionnaire    Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
   organizationName String
   contact          String
-  contactType      String         @default("EMAIL") // EMAIL | PHONE (derived at import)
+  contactType      String        @default("EMAIL") // EMAIL | PHONE (derived at import)
   rowIndex         Int
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@unique([questionnaireId, rowIndex])
   @@index([questionnaireId])
 }
 
 model QuestionnaireBlock {
-  id               String                 @id @default(cuid())
-  questionnaireId  String
-  questionnaire    Questionnaire          @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
-  title            String
-  order            Int                    @default(0)
-  /** Multi-set visibility rule; block shows only when it passes. */
-  entryRule        Json?
-  questions        QuestionnaireQuestion[]
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
+  id              String                  @id @default(cuid())
+  questionnaireId String
+  questionnaire   Questionnaire           @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  title           String
+  order           Int                     @default(0)
+  /**
+   * Multi-set visibility rule; block shows only when it passes.
+   */
+  entryRule       Json?
+  questions       QuestionnaireQuestion[]
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
 
   @@index([questionnaireId, order])
 }
 
 model QuestionnaireQuestion {
-  id               String             @id @default(cuid())
+  id               String                  @id @default(cuid())
   questionnaireId  String
-  questionnaire    Questionnaire      @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  questionnaire    Questionnaire           @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
   questionMasterId String
-  questionMaster   QuestionMaster     @relation(fields: [questionMasterId], references: [id])
+  questionMaster   QuestionMaster          @relation(fields: [questionMasterId], references: [id])
   order            Int
-  required         Boolean            @default(false)
+  required         Boolean                 @default(false)
   visibilityRule   Json?
-  isRepeatable     Boolean            @default(false)
-  isAggregate      Boolean            @default(false)
+  isRepeatable     Boolean                 @default(false)
+  isAggregate      Boolean                 @default(false)
   aggregateConfig  Json?
   parentId         String?
-  parent           QuestionnaireQuestion? @relation("RepeatableParent", fields: [parentId], references: [id], onDelete: Cascade)
+  parent           QuestionnaireQuestion?  @relation("RepeatableParent", fields: [parentId], references: [id], onDelete: Cascade)
   children         QuestionnaireQuestion[] @relation("RepeatableParent")
-  aiSuggested      Boolean            @default(false)
+  aiSuggested      Boolean                 @default(false)
   aiConfidence     Float?
-  aiLowConfidence  Boolean            @default(false)
+  aiLowConfidence  Boolean                 @default(false)
   optionSetId      String?
-  optionSet        OptionSet?         @relation(fields: [optionSetId], references: [id])
+  optionSet        OptionSet?              @relation(fields: [optionSetId], references: [id])
   blockId          String?
-  block            QuestionnaireBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  block            QuestionnaireBlock?     @relation(fields: [blockId], references: [id], onDelete: SetNull)
   answers          Answer[]
   answerGroups     AnswerGroup[]
 
@@ -345,35 +394,35 @@ model QuestionnaireQuestion {
 }
 
 model Response {
-  id               String           @id @default(cuid())
-  questionnaireId  String
-  questionnaire    Questionnaire    @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
-  respondentToken  String
-  respondentLabel  String?
-  status           ResponseStatus   @default(DRAFT)
-  progress         Int              @default(0)
-  completedAt      DateTime?
-  answers          Answer[]
-  answerGroups     AnswerGroup[]
-  audits           ResponseAudit[]
-  invitations      Invitation[]
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  id              String          @id @default(cuid())
+  questionnaireId String
+  questionnaire   Questionnaire   @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+  respondentToken String
+  respondentLabel String?
+  status          ResponseStatus  @default(DRAFT)
+  progress        Int             @default(0)
+  completedAt     DateTime?
+  answers         Answer[]
+  answerGroups    AnswerGroup[]
+  audits          ResponseAudit[]
+  invitations     Invitation[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@index([questionnaireId, respondentToken])
 }
 
 model ResponseAudit {
-  id           String             @id @default(cuid())
-  responseId   String
-  response     Response           @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  actorType    ResponseActorType
-  actorUserId  String?
-  actorLabel   String?
-  action       ResponseAuditAction
-  fromStatus   ResponseStatus
-  toStatus     ResponseStatus
-  createdAt    DateTime           @default(now())
+  id          String              @id @default(cuid())
+  responseId  String
+  response    Response            @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  actorType   ResponseActorType
+  actorUserId String?
+  actorLabel  String?
+  action      ResponseAuditAction
+  fromStatus  ResponseStatus
+  toStatus    ResponseStatus
+  createdAt   DateTime            @default(now())
 
   @@index([responseId])
 }
@@ -392,20 +441,85 @@ model AnswerGroup {
 }
 
 model Answer {
-  id            String               @id @default(cuid())
+  id            String                @id @default(cuid())
   responseId    String
-  response      Response             @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  response      Response              @relation(fields: [responseId], references: [id], onDelete: Cascade)
   questionId    String
   question      QuestionnaireQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
   answerGroupId String?
-  answerGroup   AnswerGroup?         @relation(fields: [answerGroupId], references: [id], onDelete: Cascade)
+  answerGroup   AnswerGroup?          @relation(fields: [answerGroupId], references: [id], onDelete: Cascade)
   textValue     String?
   numberValue   Float?
   dateValue     DateTime?
   jsonValue     Json?
-  isComputed    Boolean              @default(false)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  isComputed    Boolean               @default(false)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   @@index([responseId])
+}
+
+/**
+ * Public REST API key (TKT-032). Secret is stored hashed (SHA-256); the
+ * plaintext is shown exactly once at creation. Capability scopes live in
+ * `scopes`; org binding is a separate ticket (TKT-039).
+ */
+model ApiKey {
+  id             String          @id @default(cuid())
+  name           String
+  keyHash        String          @unique
+  keyPrefix      String
+  scopes         Json
+  status         ApiKeyStatus    @default(ACTIVE)
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  createdBy      String?
+  creator        User?           @relation("ApiKeyCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  requestLogs    ApiRequestLog[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  apiKeyRequests ApiKeyRequest[]
+
+  @@index([status])
+}
+
+/**
+ * Self-serve portal request (TKT-032): an external party asks for a key;
+ * an admin approves (creates the ApiKey) or denies.
+ */
+model ApiKeyRequest {
+  id              String              @id @default(cuid())
+  requesterName   String
+  requesterEmail  String
+  organization    String?
+  purpose         String
+  requestedScopes Json
+  status          ApiKeyRequestStatus @default(PENDING)
+  approvedKeyId   String?
+  approvedKey     ApiKey?             @relation(fields: [approvedKeyId], references: [id], onDelete: SetNull)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status])
+}
+
+/**
+ * Append-only metadata for every public API request (TKT-032). No bodies.
+ */
+model ApiRequestLog {
+  id         String   @id @default(cuid())
+  apiKeyId   String?
+  apiKey     ApiKey?  @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  method     String
+  path       String
+  statusCode Int
+  durationMs Int
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([apiKeyId, createdAt])
+  @@index([createdAt])
 }

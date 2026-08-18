@@ -31,6 +31,9 @@ export default async function AdminLayout({
               <Link href="/admin/option-sets" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
                 Option sets
               </Link>
+              <Link href="/admin/api-keys" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
+                API keys
+              </Link>
             </div>
           </div>
           <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">
