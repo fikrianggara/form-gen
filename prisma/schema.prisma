@@ -59,6 +59,13 @@ enum ResponseAuditAction {
   APPROVE
 }
 
+enum ProposalStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  VERIFIED
+  APPROVED
+}
+
 /** Multi-tenant root (TKT-014): an org owns surveys, users, and masters. */
 model Organization {
   id              String          @id @default(cuid())
@@ -68,22 +75,52 @@ model Organization {
   users           User[]
   surveys         Survey[]
   questionMasters QuestionMaster[]
+  proposals       Proposal[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 }
 
 /** A survey under an organization; holds multiple questionnaires (TKT-014). */
 model Survey {
-  id             String          @id @default(cuid())
-  name           String
-  description    String?
-  organizationId String
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  questionnaires Questionnaire[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              String          @id @default(cuid())
+  name            String
+  description     String?
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  questionnaires  Questionnaire[]
+  proposal        Proposal?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([organizationId])
+}
+
+/** Survey proposal workflow (TKT-005): draft → pending verification → verified → approved → build. */
+model Proposal {
+  id                String         @id @default(cuid())
+  organizationId    String
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy         String
+  creator           User           @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  title             String
+  purpose           String?
+  target            String?
+  /** Question outline (array of {title, type} rows) captured at draft time. */
+  outline           Json?
+  status            ProposalStatus @default(DRAFT)
+  /** Optional verification email; empty = no verification step. */
+  verifyEmail       String?
+  verificationToken String?
+  verifiedAt        DateTime?
+  approvedAt        DateTime?
+  surveyId          String?        @unique
+  survey            Survey?        @relation(fields: [surveyId], references: [id], onDelete: SetNull)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([organizationId])
+  @@index([createdBy])
+  @@index([status])
 }
 
 model User {
@@ -100,6 +137,7 @@ model User {
   updatedAt    DateTime      @updatedAt
   questionnaires Questionnaire[] @relation("QuestionnaireCreator")
   questionMasters QuestionMaster[] @relation("MasterCreator")
+  proposals       Proposal[]
 
   @@index([organizationId])
 }

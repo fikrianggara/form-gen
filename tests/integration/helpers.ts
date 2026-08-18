@@ -20,6 +20,7 @@ const TABLES = [
   "QuestionnaireQuestion",
   "Survey",
   "Organization",
+  "Proposal",
   "User",
 ] as const;
 

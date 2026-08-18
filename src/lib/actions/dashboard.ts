@@ -65,17 +65,22 @@ export async function createQuestionnaireAction(input: {
   slug: string;
   description?: string;
   acceptMultipleResponses: boolean;
-}): Promise<{ error?: string }> {
+  /** TKT-005: attach the new questionnaire to a survey (proposal handoff). */
+  surveyId?: string | null;
+}): Promise<{ error?: string; id?: string }> {
   try {
     const session = await getSession();
     requirePermission(session, "MANAGE_QUESTIONNAIRES");
-    await createQuestionnaire({
-      title: input.title,
-      slug: input.slug,
-      description: input.description || null,
-      acceptMultipleResponses: input.acceptMultipleResponses,
-      createdBy: session!.sub,
-    });
+    const created = await createQuestionnaire({ ...input, createdBy: session?.sub ?? null });
+    if (input.surveyId) {
+      const { assignQuestionnaireToSurvey } = await import("@/services/org.service");
+      if (session.role !== "ADMIN") {
+        const { assertCanAccessSurvey } = await import("@/services/access-control.service");
+        await assertCanAccessSurvey(session, input.surveyId);
+      }
+      await assignQuestionnaireToSurvey(created.id, input.surveyId);
+    }
+    return { id: created.id };
   } catch (err) {
     return actionError(err);
   }
