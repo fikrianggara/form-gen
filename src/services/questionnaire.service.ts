@@ -142,6 +142,28 @@ export async function listQuestionnaires() {
   });
 }
 
+/**
+ * Delete a questionnaire and everything it owns (TKT-040).
+ * - Responses cascade via the DB FK (Response.questionnaire onDelete: Cascade),
+ *   which also removes answers, answer groups and response audits.
+ * - Invitations for this questionnaire are removed explicitly (they are not
+ *   FK-cascaded from Questionnaire).
+ * - Question masters and option sets are SHARED bank data — they are referenced
+ *   through QuestionnaireQuestion (onDelete: Cascade removes only the join
+ *   rows) and OptionSet links; deleting a questionnaire must NOT delete them.
+ * The caller is responsible for the permission gate.
+ */
+export async function deleteQuestionnaire(questionnaireId: string): Promise<void> {
+  const existing = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
+  if (!existing) throw new NotFoundError("Questionnaire not found");
+
+  await db.$transaction([
+    db.invitation.deleteMany({ where: { questionnaireId } }),
+    db.response.deleteMany({ where: { questionnaireId } }),
+    db.questionnaire.delete({ where: { id: questionnaireId } }),
+  ]);
+}
+
 export function getQuestionnaireWithQuestions(id: string) {
   return db.questionnaire.findUnique({
     where: { id },

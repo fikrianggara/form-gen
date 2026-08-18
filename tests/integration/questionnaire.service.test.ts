@@ -14,6 +14,7 @@ import {
   updateQuestionMasterVersion,
   updateQuestionOptionSet,
   duplicateQuestionnaire,
+  deleteQuestionnaire,
   createBlock,
   updateBlock,
   deleteBlock,
@@ -23,6 +24,7 @@ import {
 } from "@/services/questionnaire.service";
 import { createQuestionMaster, createOptionSet, updateOptionSet, deleteOptionSet, updateQuestionMaster } from "@/services/master-data.service";
 import { getQuestionnaireConfig } from "@/services/response.service";
+import { NotFoundError } from "@/lib/errors";
 import type { QuestionnaireStatus } from "@prisma/client";
 
 beforeEach(async () => {
@@ -579,5 +581,57 @@ describe("question blocks", () => {
     await deleteBlock(b.id);
     const after = await db.questionnaireQuestion.findUnique({ where: { id: placed.id } });
     expect(after?.blockId).toBeNull();
+  });
+});
+
+describe("questionnaire delete (TKT-040)", () => {
+  it("deletes the questionnaire and its responses (cascade)", async () => {
+    const q = await createQuestionnaire({ title: "Del", slug: "del-1" });
+    const m = await makeTextMaster("q_del1");
+    await addQuestion({ questionnaireId: q.id, questionMasterId: m.id });
+    await db.response.create({
+      data: {
+        questionnaireId: q.id,
+        respondentToken: "tok-del-1",
+        respondentLabel: "a@example.com",
+        status: "SUBMITTED",
+        progress: 100,
+        completedAt: new Date(),
+      },
+    });
+    await db.invitation.create({
+      data: { questionnaireId: q.id, email: "a@example.com", token: "inv-del-1-0123456789abcdef" },
+    });
+
+    await deleteQuestionnaire(q.id);
+
+    expect(await db.questionnaire.findUnique({ where: { id: q.id } })).toBeNull();
+    expect(await db.response.count({ where: { questionnaireId: q.id } })).toBe(0);
+    expect(await db.invitation.count({ where: { questionnaireId: q.id } })).toBe(0);
+    expect(await db.questionnaireQuestion.count({ where: { questionnaireId: q.id } })).toBe(0);
+  });
+
+  it("keeps question masters and option sets after deletion (shared bank data)", async () => {
+    const q = await createQuestionnaire({ title: "Del", slug: "del-2" });
+    const textMaster = await makeTextMaster("q_del2_text");
+    const radioMaster = await makeRadioMaster("q_del2_radio");
+    const set = radioMaster.optionSetId
+      ? await db.optionSet.findUniqueOrThrow({ where: { id: radioMaster.optionSetId } })
+      : null;
+    await addQuestion({ questionnaireId: q.id, questionMasterId: textMaster.id });
+    await addQuestion({ questionnaireId: q.id, questionMasterId: radioMaster.id });
+
+    await deleteQuestionnaire(q.id);
+
+    // Masters survive.
+    expect(await db.questionMaster.findUnique({ where: { id: textMaster.id } })).not.toBeNull();
+    expect(await db.questionMaster.findUnique({ where: { id: radioMaster.id } })).not.toBeNull();
+    // Option set survives.
+    expect(set).not.toBeNull();
+    expect(await db.optionSet.findUnique({ where: { id: set!.id } })).not.toBeNull();
+  });
+
+  it("throws NotFound for an unknown questionnaire", async () => {
+    await expect(deleteQuestionnaire("missing")).rejects.toBeInstanceOf(NotFoundError);
   });
 });
