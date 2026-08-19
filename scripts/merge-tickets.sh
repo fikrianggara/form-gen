@@ -64,6 +64,13 @@ if [[ $merged_any -eq 0 ]]; then
   echo "no branches merged."
 fi
 
+# 2.5 Apply pending migrations to the dev database (form_gen). Merges land
+# migration files on main; without this the dev app throws "Invalid prisma.X
+# invocation" until someone runs migrate deploy by hand (regression: api-keys
+# page after the public-api merge).
+echo "== applying pending migrations to dev DB (form_gen)"
+npx prisma migrate deploy 2>&1 | tail -6
+
 # 3. Full gate chain on main
 echo "== validating main: typecheck + tests + lint + build"
 npx tsc --noEmit
