@@ -4,6 +4,7 @@ import type { Role } from "@prisma/client";
 
 const admin = { role: "ADMIN" as Role };
 const operator = { role: "OPERATOR" as Role };
+const dev = { role: "DEV" as Role };
 
 describe("rbac permissions", () => {
   it("admin has every permission", () => {
@@ -17,9 +18,21 @@ describe("rbac permissions", () => {
     expect(hasPermission(operator, "CREATE_QUESTION_MASTER")).toBe(true);
   });
 
-  it("operator cannot manage users or master data", () => {
+  it("operator cannot manage users, master data, or issue API keys", () => {
     expect(hasPermission(operator, "MANAGE_USERS")).toBe(false);
     expect(hasPermission(operator, "MANAGE_MASTER_DATA")).toBe(false);
+    expect(hasPermission(operator, "ISSUE_API_KEYS")).toBe(false);
+    expect(hasPermission(operator, "MANAGE_API_KEYS")).toBe(false);
+  });
+
+  it("dev has operator abilities plus key issuance, but not portal approval", () => {
+    expect(hasPermission(dev, "MANAGE_QUESTIONNAIRES")).toBe(true);
+    expect(hasPermission(dev, "CREATE_QUESTION_MASTER")).toBe(true);
+    expect(hasPermission(dev, "ISSUE_API_KEYS")).toBe(true);
+    // Trust boundary: only ADMIN approves portal requests
+    expect(hasPermission(dev, "MANAGE_API_KEYS")).toBe(false);
+    expect(hasPermission(dev, "MANAGE_USERS")).toBe(false);
+    expect(hasPermission(dev, "MANAGE_MASTER_DATA")).toBe(false);
   });
 
   it("null user has no permissions", () => {

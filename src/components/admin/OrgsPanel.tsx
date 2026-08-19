@@ -31,7 +31,7 @@ export interface UserRow {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OPERATOR";
+  role: "ADMIN" | "OPERATOR" | "DEV";
   organizationId: string | null;
 }
 

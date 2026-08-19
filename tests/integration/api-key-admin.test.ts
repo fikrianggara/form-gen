@@ -9,14 +9,20 @@ import {
   recordApiRequest,
 } from "@/services/api-key.service";
 import { hasPermission } from "@/lib/auth/rbac";
+import type { Role } from "@prisma/client";
 
 useCleanDb();
 
 describe("admin api-key dashboard", () => {
-  it("exposes MANAGE_API_KEYS to ADMIN only", () => {
+  it("exposes MANAGE_API_KEYS to ADMIN only; ISSUE_API_KEYS to ADMIN + DEV", () => {
     expect(hasPermission({ role: "ADMIN" }, "MANAGE_API_KEYS")).toBe(true);
     expect(hasPermission({ role: "OPERATOR" }, "MANAGE_API_KEYS")).toBe(false);
+    expect(hasPermission({ role: "DEV" as Role }, "MANAGE_API_KEYS")).toBe(false);
     expect(hasPermission(null, "MANAGE_API_KEYS")).toBe(false);
+
+    expect(hasPermission({ role: "ADMIN" }, "ISSUE_API_KEYS")).toBe(true);
+    expect(hasPermission({ role: "DEV" as Role }, "ISSUE_API_KEYS")).toBe(true);
+    expect(hasPermission({ role: "OPERATOR" }, "ISSUE_API_KEYS")).toBe(false);
   });
 
   it("counts usage per key from ApiRequestLog", async () => {

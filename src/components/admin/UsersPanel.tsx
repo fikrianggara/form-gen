@@ -10,7 +10,7 @@ export interface UserRow {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "OPERATOR";
+  role: "ADMIN" | "OPERATOR" | "DEV";
   isActive: boolean;
   createdAt: string;
 }
@@ -191,7 +191,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                 email: String(fd.get("email") ?? ""),
                 name: String(fd.get("name") ?? ""),
                 password: String(fd.get("password") ?? ""),
-                role: String(fd.get("role")) as "ADMIN" | "OPERATOR",
+                role: String(fd.get("role")) as "ADMIN" | "OPERATOR" | "DEV",
               });
               if (!res?.error) form.reset();
               return res;
@@ -210,6 +210,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
           <Field label="Role" required>
             <select name="role" className={inputClass} defaultValue="OPERATOR">
               <option value="OPERATOR">Operator</option>
+              <option value="DEV">Dev</option>
               <option value="ADMIN">Admin</option>
             </select>
           </Field>
@@ -266,11 +267,12 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                     defaultValue={u.role}
                     className="rounded-lg border border-gray-300 px-2 py-1 text-xs"
                     onChange={(e) => {
-                      const role = e.target.value as "ADMIN" | "OPERATOR";
+                      const role = e.target.value as "ADMIN" | "OPERATOR" | "DEV";
                       run(() => updateUserAction({ id: u.id, role }), `Role set to ${role}`);
                     }}
                   >
                     <option value="OPERATOR">OPERATOR</option>
+                    <option value="DEV">DEV</option>
                     <option value="ADMIN">ADMIN</option>
                   </select>
                 </td>

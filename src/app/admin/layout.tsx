@@ -8,7 +8,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") redirect("/dashboard");
+  if (!session || !(session.role === "ADMIN" || session.role === "DEV")) redirect("/dashboard");
 
   return (
     <div className="min-h-screen">

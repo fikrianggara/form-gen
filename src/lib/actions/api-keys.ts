@@ -72,7 +72,7 @@ export async function denyApiKeyRequestAction(
   }
 }
 
-/** Admin-only: issue a key directly (bypassing the portal). */
+/** Admin + dev: issue a key directly (bypassing the portal). */
 export async function issueApiKeyAction(input: {
   name: string;
   scopes: string[];
@@ -80,7 +80,7 @@ export async function issueApiKeyAction(input: {
 }): Promise<{ error?: string; secret?: string; keyPrefix?: string }> {
   try {
     const session = await getSession();
-    requirePermission(session, "MANAGE_API_KEYS");
+    requirePermission(session, "ISSUE_API_KEYS");
     const { key, secret } = await issueApiKey({
       name: input.name,
       scopes: input.scopes as never,
@@ -94,13 +94,13 @@ export async function issueApiKeyAction(input: {
   }
 }
 
-/** Admin-only: revoke a key (status flip). */
+/** Admin + dev: revoke a key (status flip). */
 export async function revokeApiKeyAction(
   keyId: string
 ): Promise<{ error?: string }> {
   try {
     const session = await getSession();
-    requirePermission(session, "MANAGE_API_KEYS");
+    requirePermission(session, "ISSUE_API_KEYS");
     await revokeApiKey(keyId);
     revalidatePath("/admin/api-keys");
     return {};
@@ -113,13 +113,18 @@ export async function revokeApiKeyAction(
 export interface AdminApiKeyDashboard {
   keys: (Awaited<ReturnType<typeof listApiKeys>>[number] & { requestCount: number })[];
   requests: Awaited<ReturnType<typeof listApiKeyRequests>>;
+  /** DEV can issue/revoke but cannot see the approval queue (admin-only). */
+  canApproveRequests: boolean;
 }
 
 export async function getAdminApiKeyDashboard(): Promise<AdminApiKeyDashboard | null> {
   const session = await getSession();
-  if (!session || !(await import("@/lib/auth/rbac")).hasPermission(session, "MANAGE_API_KEYS")) {
-    return null;
-  }
+  if (!session) return null;
+  const rbac = await import("@/lib/auth/rbac");
+  const canIssue = rbac.hasPermission(session, "ISSUE_API_KEYS");
+  const canApprove = rbac.hasPermission(session, "MANAGE_API_KEYS");
+  if (!canIssue && !canApprove) return null;
+
   const [keys, requests, usage] = await Promise.all([
     listApiKeys(),
     listApiKeyRequests(),
@@ -132,6 +137,7 @@ export async function getAdminApiKeyDashboard(): Promise<AdminApiKeyDashboard | 
   const usageMap = new Map(usage.map((u) => [u.apiKeyId, u._count._all]));
   return {
     keys: keys.map((k) => ({ ...k, requestCount: usageMap.get(k.id) ?? 0 })),
-    requests,
+    requests: canApprove ? requests : [],
+    canApproveRequests: canApprove,
   };
 }
