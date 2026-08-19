@@ -33,7 +33,7 @@
 | TKT-044 | feature | medium | P2 | admin-polish | backlog | null | null | false | Component tests for interactive panels (Testing Library) — editor add/toggle, user-create reset, kebab menu in table wrapper |
 | TKT-009 | feature | medium | P2 | external-mapping | backlog | null | null | false | External question source with MSSD format remapping |
 | TKT-037 | feature | medium | P2 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | OpenAPI spec + developer guide docs (static) |
-| TKT-046 | feature | medium | P2 | public-api | backlog | null | null | false | Swagger UI for the public API spec — serve openapi.yaml + interactive docs endpoint |
+| TKT-046 | feature | medium | P2 | public-api | ongoing | jarvis | feature-TKT-046-swagger-ui-for-the-publi | false | Swagger UI for the public API spec — serve openapi.yaml + interactive docs endpoint |
 | TKT-012 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Questionnaire sample upload (sampling frame via Excel) |
 | TKT-013 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Mailblast respondent emails |
 | TKT-002 | feature | medium | P2 | respondent-auth | cancelled | null | null | false | Email verification and password reset for respondents |
