@@ -29,7 +29,7 @@
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | Rate-limit respondent login attempts |
 | TKT-025 | feature | small | P1 | — | backlog | null | null | false | Drop dead requiresAccount column |
 | TKT-008 | feature | big | P2 | ai-sourcing | merged | jarvis | feature-TKT-008-ai-generation-round-2-fla | false | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
-| TKT-048 | feature | big | P2 | landing-page | done | jarvis | feature-TKT-048-landing-page-marketing-h | true | Landing page — marketing homepage (features, how it works, business flow) |
+| TKT-048 | feature | big | P2 | landing-page | merged | jarvis | feature-TKT-048-landing-page-marketing-h | false | Landing page — marketing homepage (features, how it works, business flow) |
 | TKT-014 | feature | big | P2 | org-scoping | merged | jarvis | feature-TKT-014-organization-scoping-org | false | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
 | TKT-005 | feature | big | P2 | proposal | merged | jarvis | feature-TKT-005-survey-proposal-workflow | false | Survey proposal workflow with optional email verification |
 | TKT-044 | feature | medium | P2 | admin-polish | backlog | null | null | false | Component tests for interactive panels (Testing Library) — editor add/toggle, user-create reset, kebab menu in table wrapper |
