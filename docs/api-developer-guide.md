@@ -136,3 +136,6 @@ responses contain respondent PII. Logs are retained 90 days
 
 `docs/openapi.yaml` (OpenAPI 3.0.3) describes the full surface; render it
 with any OpenAPI viewer or use it to generate clients.
+
+**Live interactive docs:** `GET /api/docs` serves Swagger UI, and the raw
+spec is available at `GET /api/docs/openapi.yaml`.
