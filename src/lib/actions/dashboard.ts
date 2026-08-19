@@ -469,7 +469,7 @@ export async function createUserAction(input: {
   email: string;
   name: string;
   password: string;
-  role: "ADMIN" | "OPERATOR";
+  role: "ADMIN" | "OPERATOR" | "DEV";
 }): Promise<{ error?: string }> {
   try {
     requirePermission(await getSession(), "MANAGE_USERS");
@@ -485,7 +485,7 @@ export async function updateUserAction(input: {
   id: string;
   name?: string;
   email?: string;
-  role?: "ADMIN" | "OPERATOR";
+  role?: "ADMIN" | "OPERATOR" | "DEV";
   isActive?: boolean;
 }): Promise<{ error?: string }> {
   try {

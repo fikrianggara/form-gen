@@ -4,9 +4,10 @@ import { ForbiddenError, UnauthorizedError } from "@/lib/errors";
 export type Permission =
   | "MANAGE_USERS" // admin only
   | "MANAGE_MASTER_DATA" // admin only: option sets + edit/delete question masters
-  | "CREATE_QUESTION_MASTER" // admin + operator (create only)
-  | "MANAGE_QUESTIONNAIRES" // admin + operator
-  | "MANAGE_API_KEYS"; // admin only: issue/approve/revoke public API keys (TKT-035/036)
+  | "CREATE_QUESTION_MASTER" // admin + operator + dev (create only)
+  | "MANAGE_QUESTIONNAIRES" // admin + operator + dev
+  | "MANAGE_API_KEYS" // admin only: approve/deny portal requests (trust boundary)
+  | "ISSUE_API_KEYS"; // admin + dev: direct issue/revoke of API keys
 
 export const PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
@@ -15,8 +16,10 @@ export const PERMISSIONS: Record<Role, Permission[]> = {
     "CREATE_QUESTION_MASTER",
     "MANAGE_QUESTIONNAIRES",
     "MANAGE_API_KEYS",
+    "ISSUE_API_KEYS",
   ],
   OPERATOR: ["CREATE_QUESTION_MASTER", "MANAGE_QUESTIONNAIRES"],
+  DEV: ["CREATE_QUESTION_MASTER", "MANAGE_QUESTIONNAIRES", "ISSUE_API_KEYS"],
 };
 
 export interface Principal {

@@ -21,7 +21,7 @@ import type { ResponseActorType } from "@prisma/client";
 export interface AdminActor {
   userId: string;
   name: string;
-  role: "ADMIN" | "OPERATOR";
+  role: "ADMIN" | "OPERATOR" | "DEV";
 }
 
 function actorTypeOf(role: AdminActor["role"]): ResponseActorType {

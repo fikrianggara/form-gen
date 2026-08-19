@@ -79,6 +79,7 @@ export function ApiKeysPanel({ dashboard }: { dashboard: AdminApiKeyDashboard })
   }
 
   const pendingRequests = dashboard.requests.filter((r) => r.status === "PENDING");
+  const canApprove = dashboard.canApproveRequests;
 
   return (
     <div className="space-y-8">
@@ -112,44 +113,46 @@ export function ApiKeysPanel({ dashboard }: { dashboard: AdminApiKeyDashboard })
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {/* Pending requests — approval queue */}
-      <Card className="p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">Approval queue</h2>
-          <Badge tone="amber">{pendingRequests.length} pending</Badge>
-        </div>
-        {pendingRequests.length === 0 ? (
-          <p className="text-sm text-gray-500">No pending requests.</p>
-        ) : (
-          <div className="space-y-3">
-            {pendingRequests.map((r) => (
-              <div key={r.id} className="flex items-start justify-between rounded-lg border border-gray-200 p-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {r.requesterName}
-                    {r.organization && <span className="text-gray-500"> · {r.organization}</span>}
-                  </p>
-                  <p className="text-xs text-gray-500">{r.requesterEmail}</p>
-                  <p className="mt-1 text-xs text-gray-600">{r.purpose}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {(r.requestedScopes as string[]).map((s) => (
-                      <Badge key={s} tone="indigo">{SCOPE_LABELS[s] ?? s}</Badge>
-                    ))}
+      {/* Pending requests — approval queue (admin-only; DEV does not see it) */}
+      {canApprove && (
+        <Card className="p-5">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-bold">Approval queue</h2>
+            <Badge tone="amber">{pendingRequests.length} pending</Badge>
+          </div>
+          {pendingRequests.length === 0 ? (
+            <p className="text-sm text-gray-500">No pending requests.</p>
+          ) : (
+            <div className="space-y-3">
+              {pendingRequests.map((r) => (
+                <div key={r.id} className="flex items-start justify-between rounded-lg border border-gray-200 p-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">
+                      {r.requesterName}
+                      {r.organization && <span className="text-gray-500"> · {r.organization}</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">{r.requesterEmail}</p>
+                    <p className="mt-1 text-xs text-gray-600">{r.purpose}</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {(r.requestedScopes as string[]).map((s) => (
+                        <Badge key={s} tone="indigo">{SCOPE_LABELS[s] ?? s}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="secondary" disabled={busy} onClick={() => handleDeny(r.id)}>
+                      Deny
+                    </Button>
+                    <Button disabled={busy} onClick={() => handleApprove(r.id)}>
+                      Approve
+                    </Button>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="secondary" disabled={busy} onClick={() => handleDeny(r.id)}>
-                    Deny
-                  </Button>
-                  <Button disabled={busy} onClick={() => handleApprove(r.id)}>
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* Issue key directly */}
       <Card className="p-5">
