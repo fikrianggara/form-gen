@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/lib/db";
 import { truncateAll } from "./helpers";
 import { createUser } from "@/services/user.service";
-import { createQuestionnaire } from "@/services/questionnaire.service";
+import { createQuestionnaire, listQuestionnaires } from "@/services/questionnaire.service";
 import {
   createOrganization,
   listOrganizations,
@@ -229,6 +229,19 @@ describe("organization service (TKT-014)", () => {
 
     const opPick = await listConnectableQuestionnaires({ sub: op.id, email: "op@x", name: "Op", role: "OPERATOR", organizationId: orgA.id });
     expect(opPick.map((q) => q.id).sort()).toEqual([own.id, legacy.id, inOrgA.id].sort());
+  });
+
+  it("returns survey tags (with org) for the questionnaire list (TKT-043, no N+1)", async () => {
+    const org = await createOrganization({ name: "Tag Org" });
+    const survey = await createSurvey({ organizationId: org.id, name: "Tag Survey" });
+    const q = await createQuestionnaire({ title: "Tagged", slug: "tagged" });
+    await connectQuestionnaireToSurveys(q.id, [survey.id]);
+
+    const list = await listQuestionnaires();
+    const row = list.find((x) => x.id === q.id);
+    expect(row?.surveys).toHaveLength(1);
+    expect(row?.surveys[0].survey.name).toBe("Tag Survey");
+    expect(row?.surveys[0].survey.organization?.name).toBe("Tag Org");
   });
 });
 

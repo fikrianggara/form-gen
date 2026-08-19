@@ -350,35 +350,45 @@ export function Editor({
             <input type="checkbox" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} className="accent-indigo-600" />
             Allow multiple responses
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <span>Survey</span>
-            <select
-              className={inputClass}
-              value={surveyIds[0] ?? ""}
-              onChange={(e) => {
-                const next = e.target.value || null;
-                setSurveyIds(next ? [next] : []);
-                run(
-                  () =>
-                    connectQuestionnaireToSurveysAction({
-                      questionnaireId: q.id,
-                      surveyIds: next ? [next] : [],
-                    }),
-                  next ? "Questionnaire connected to survey" : "Questionnaire detached from surveys"
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <span className="text-gray-600">Surveys</span>
+            <div className="flex flex-wrap gap-1.5">
+              {surveys.map((s) => {
+                const active = surveyIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      const next = active
+                        ? surveyIds.filter((x) => x !== s.id)
+                        : [...surveyIds, s.id];
+                      setSurveyIds(next);
+                      run(
+                        () =>
+                          connectQuestionnaireToSurveysAction({
+                            questionnaireId: q.id,
+                            surveyIds: next,
+                          }),
+                        active ? `Disconnected from ${s.name}` : `Connected to ${s.name}`
+                      );
+                    }}
+                    className={
+                      active
+                        ? "rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+                        : "rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    }
+                  >
+                    {s.name}
+                  </button>
                 );
-              }}
-            >
-              <option value="">None (standalone)</option>
-              {surveys.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            {surveyIds.length > 1 && (
-              <span className="text-xs text-gray-500">+{surveyIds.length - 1} more</span>
-            )}
-          </label>
+              })}
+              {surveys.length === 0 && (
+                <span className="text-xs text-gray-400">No surveys available</span>
+              )}
+            </div>
+          </div>
           <Button
             variant="secondary"
             disabled={pending}

@@ -62,6 +62,26 @@ export default async function DashboardPage() {
                     <p className="mt-1 text-xs text-gray-500">
                       /f/{q.slug} · {q._count.questions} questions · {q._count.responses} responses
                     </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {q.surveys.length === 0 ? (
+                        <span className="rounded-full border border-dashed border-gray-300 px-2 py-0.5 text-[10px] text-gray-400">
+                          no survey
+                        </span>
+                      ) : (
+                        q.surveys.map((s) => (
+                          <span
+                            key={s.surveyId}
+                            className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700"
+                            title={s.survey.organization?.name}
+                          >
+                            {s.survey.name}
+                            {s.survey.organization?.name
+                              ? ` · ${s.survey.organization.name}`
+                              : ""}
+                          </span>
+                        ))
+                      )}
+                    </div>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <Link
