@@ -45,7 +45,7 @@
 | TKT-031 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-031-add-generate-with-ai-but | false | Add 'Generate with AI' button on questionnaires page |
 | TKT-010 | feature | small | P2 | external-mapping | merged | jarvis | feature-TKT-011-small-wins | false | Option set nested key extraction from API responses |
 | TKT-049 | feature | small | P2 | landing-page | merged | jarvis | feature-TKT-049-landing-page-highlight-a | false | Landing page — highlight AI questionnaire generation (RAG hybrid retrieval) |
-| TKT-050 | feature | small | P2 | landing-page | ongoing | jarvis | feature-TKT-050-landing-hero-fold-ai-fea | false | Landing hero — fold AI feature into hero with overlapping cards; hover 'Try AI generation' brings AI card to top |
+| TKT-050 | feature | small | P2 | landing-page | done | jarvis | feature-TKT-050-landing-hero-fold-ai-fea | true | Landing hero — fold AI feature into hero with overlapping cards; hover 'Try AI generation' brings AI card to top |
 | TKT-038 | feature | small | P2 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | ApiRequestLog retention/cleanup policy |
 | TKT-004 | feature | small | P2 | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | Drill ticket — verify the workflow loop |
 | TKT-016 | feature | small | P2 | — | merged | jarvis | feature-TKT-016-visible-disabled-state-f | false | Visible disabled state for input fields in master and option set forms |
