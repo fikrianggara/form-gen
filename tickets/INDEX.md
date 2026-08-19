@@ -24,7 +24,7 @@
 | TKT-019 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | Absolute base URL for invitation links |
 | TKT-021 | bug | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | Escape HTML in mail templates |
 | TKT-022 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | Invitation.responseId as a real FK relation |
-| TKT-045 | feature | small | P1 | public-api | ongoing | jarvis | feature-TKT-045-expose-openapi-spec-via | false | Expose OpenAPI spec via REST API endpoint |
+| TKT-045 | feature | small | P1 | public-api | done | jarvis | feature-TKT-045-expose-openapi-spec-via | true | Expose OpenAPI spec via REST API endpoint |
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | Rate-limit respondent login attempts |
 | TKT-025 | feature | small | P1 | — | backlog | null | null | false | Drop dead requiresAccount column |
 | TKT-008 | feature | big | P2 | ai-sourcing | merged | jarvis | feature-TKT-008-ai-generation-round-2-fla | false | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
