@@ -163,7 +163,8 @@ export async function createApiKeyRequest(input: ApiKeyRequestInput) {
 export async function listApiKeyRequests(status?: "PENDING" | "APPROVED" | "DENIED") {
   return db.apiKeyRequest.findMany({
     where: status ? { status } : {},
-    orderBy: { createdAt: "desc" },
+    // Deterministic: createdAt ties (same-ms creates) break by id desc.
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     include: { approvedKey: { select: { id: true, keyPrefix: true, status: true } } },
   });
 }
