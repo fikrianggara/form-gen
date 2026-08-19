@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -212,7 +213,15 @@ export function OrgsPanel({
                     {(surveysByOrg[org.id] ?? []).map((s) => (
                       <li key={s.id} className="flex items-center justify-between">
                         <span className="text-gray-700">{s.name}</span>
-                        <Badge tone="gray">{s.questionnaireCount} questionnaires</Badge>
+                        <span className="flex items-center gap-2">
+                          <Badge tone="gray">{s.questionnaireCount} questionnaires</Badge>
+                          <Link
+                            href={`/admin/surveys/${s.id}`}
+                            className="text-xs font-medium text-indigo-600 hover:underline"
+                          >
+                            Manage
+                          </Link>
+                        </span>
                       </li>
                     ))}
                   </ul>

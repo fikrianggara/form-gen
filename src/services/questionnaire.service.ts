@@ -138,7 +138,15 @@ export async function setQuestionnaireStatus(
 export async function listQuestionnaires() {
   return db.questionnaire.findMany({
     orderBy: { createdAt: "desc" },
-    include: { _count: { select: { responses: true, questions: true } } },
+    include: {
+      _count: { select: { responses: true, questions: true } },
+      // TKT-043: survey tags — surveys using this questionnaire (single query).
+      surveys: {
+        include: {
+          survey: { select: { id: true, name: true, organization: { select: { name: true } } } },
+        },
+      },
+    },
   });
 }
 
@@ -169,6 +177,7 @@ export function getQuestionnaireWithQuestions(id: string) {
     where: { id },
     include: {
       blocks: { orderBy: { order: "asc" } },
+      surveys: { select: { surveyId: true } },
       questions: {
         orderBy: { order: "asc" },
         include: {

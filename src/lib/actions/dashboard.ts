@@ -75,12 +75,12 @@ export async function createQuestionnaireAction(input: {
     requirePermission(session, "MANAGE_QUESTIONNAIRES");
     const created = await createQuestionnaire({ ...input, createdBy: session?.sub ?? null });
     if (input.surveyId) {
-      const { assignQuestionnaireToSurvey } = await import("@/services/org.service");
+      const { connectQuestionnaireToSurveys } = await import("@/services/org.service");
       if (session.role !== "ADMIN") {
         const { assertCanAccessSurvey } = await import("@/services/access-control.service");
         await assertCanAccessSurvey(session, input.surveyId);
       }
-      await assignQuestionnaireToSurvey(created.id, input.surveyId);
+      await connectQuestionnaireToSurveys(created.id, [input.surveyId]);
     }
     return { id: created.id };
   } catch (err) {

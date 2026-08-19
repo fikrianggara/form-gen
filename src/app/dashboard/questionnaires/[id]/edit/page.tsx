@@ -127,7 +127,7 @@ export default async function EditQuestionnairePage({
         sampleEmails: Array.isArray(questionnaire.sampleEmails)
           ? (questionnaire.sampleEmails as string[])
           : [],
-        surveyId: questionnaire.surveyId,
+        surveyIds: (questionnaire.surveys ?? []).map((s) => s.surveyId),
         slug: questionnaire.slug,
       }}
       surveys={surveys.map((s) => ({ id: s.id, name: s.name }))}

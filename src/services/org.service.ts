@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { AppError, NotFoundError } from "@/lib/errors";
+import type { SessionPayload } from "@/lib/auth/session";
 
 function slugify(name: string): string {
   return name
@@ -95,19 +96,140 @@ export async function listSurveys(organizationId?: string) {
 
 // ---------------------------------------------------------------- assignment
 
-/** Attach a questionnaire to a survey (null detaches to legacy flat). */
-export async function assignQuestionnaireToSurvey(
+/**
+ * Set the full set of surveys a questionnaire belongs to (TKT-041 M2M).
+ * Replace-set semantics: links not in `surveyIds` are removed, the rest kept.
+ */
+export async function connectQuestionnaireToSurveys(
   questionnaireId: string,
-  surveyId: string | null
+  surveyIds: string[]
 ) {
   const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
   if (!q) throw new NotFoundError("Questionnaire not found");
-  if (surveyId) {
-    const survey = await db.survey.findUnique({ where: { id: surveyId } });
-    if (!survey) throw new NotFoundError("Survey not found");
+
+  const unique = [...new Set(surveyIds)];
+  if (unique.length > 0) {
+    const surveys = await db.survey.findMany({
+      where: { id: { in: unique } },
+      select: { id: true },
+    });
+    const found = new Set(surveys.map((s) => s.id));
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundError(`Survey not found: ${missing.join(", ")}`);
+    }
   }
-  return db.questionnaire.update({
+
+  await db.$transaction([
+    db.surveyQuestionnaire.deleteMany({ where: { questionnaireId } }),
+    ...(unique.length > 0
+      ? [
+          db.surveyQuestionnaire.createMany({
+            data: unique.map((surveyId) => ({ questionnaireId, surveyId })),
+          }),
+        ]
+      : []),
+  ]);
+
+  return db.questionnaire.findUnique({
     where: { id: questionnaireId },
-    data: { surveyId },
+    include: { surveys: { include: { survey: true } } },
+  });
+}
+
+/** Surveys using a questionnaire (TKT-041 M2M). */
+export async function listQuestionnaireSurveys(questionnaireId: string) {
+  const q = await db.questionnaire.findUnique({
+    where: { id: questionnaireId },
+    select: { surveys: { include: { survey: true } } },
+  });
+  if (!q) throw new NotFoundError("Questionnaire not found");
+  return q.surveys.map((s) => s.survey);
+}
+
+// ---------------------------------------------------------------- survey side (TKT-042)
+
+/** Survey with org + connected questionnaires (join rows expanded). */
+export async function getSurveyWithQuestionnaires(surveyId: string) {
+  const survey = await db.survey.findUnique({
+    where: { id: surveyId },
+    include: {
+      organization: true,
+      questionnaires: { include: { questionnaire: true } },
+    },
+  });
+  if (!survey) throw new NotFoundError("Survey not found");
+  return survey;
+}
+
+/**
+ * Set the full set of questionnaires connected to a survey (TKT-042).
+ * Replace-set from the survey side; missing questionnaires are rejected.
+ */
+export async function setSurveyQuestionnaires(surveyId: string, questionnaireIds: string[]) {
+  const survey = await db.survey.findUnique({ where: { id: surveyId } });
+  if (!survey) throw new NotFoundError("Survey not found");
+
+  const unique = [...new Set(questionnaireIds)];
+  if (unique.length > 0) {
+    const qs = await db.questionnaire.findMany({
+      where: { id: { in: unique } },
+      select: { id: true },
+    });
+    const found = new Set(qs.map((q) => q.id));
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundError(`Questionnaire not found: ${missing.join(", ")}`);
+    }
+  }
+
+  await db.$transaction([
+    db.surveyQuestionnaire.deleteMany({ where: { surveyId } }),
+    ...(unique.length > 0
+      ? [
+          db.surveyQuestionnaire.createMany({
+            data: unique.map((questionnaireId) => ({ surveyId, questionnaireId })),
+          }),
+        ]
+      : []),
+  ]);
+}
+
+/** Remove a single questionnaire link from a survey; the questionnaire itself is kept. */
+export async function disconnectSurveyQuestionnaire(surveyId: string, questionnaireId: string) {
+  await db.surveyQuestionnaire.delete({
+    where: { surveyId_questionnaireId: { surveyId, questionnaireId } },
+  });
+}
+
+/** Delete a survey and its join rows (FK cascade); connected questionnaires are KEPT. */
+export async function deleteSurvey(surveyId: string) {
+  const survey = await db.survey.findUnique({ where: { id: surveyId } });
+  if (!survey) throw new NotFoundError("Survey not found");
+  await db.survey.delete({ where: { id: surveyId } });
+}
+
+/**
+ * Questionnaires the viewer may connect to a survey (TKT-042 picker):
+ * ADMIN sees all; OPERATOR sees what they can manage — their own, legacy
+ * (no creator), or any with a survey in their organization.
+ */
+export async function listConnectableQuestionnaires(session: SessionPayload) {
+  if (session.role === "ADMIN") {
+    return db.questionnaire.findMany({
+      orderBy: { title: "asc" },
+      select: { id: true, title: true, slug: true },
+    });
+  }
+  return db.questionnaire.findMany({
+    where: {
+      OR: [
+        { createdBy: session.sub },
+        { createdBy: null },
+        { surveys: { some: { survey: { organizationId: session.organizationId ?? "__none__" } } } },
+      ],
+    },
+    orderBy: { title: "asc" },
+    select: { id: true, title: true, slug: true },
   });
 }

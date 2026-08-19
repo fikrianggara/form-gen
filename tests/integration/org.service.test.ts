@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { db } from "@/lib/db";
 import { truncateAll } from "./helpers";
 import { createUser } from "@/services/user.service";
-import { createQuestionnaire } from "@/services/questionnaire.service";
+import { createQuestionnaire, listQuestionnaires } from "@/services/questionnaire.service";
 import {
   createOrganization,
   listOrganizations,
@@ -11,13 +11,19 @@ import {
   listOrganizationUsers,
   createSurvey,
   listSurveys,
-  assignQuestionnaireToSurvey,
+  connectQuestionnaireToSurveys,
+  listQuestionnaireSurveys,
+  setSurveyQuestionnaires,
+  disconnectSurveyQuestionnaire,
+  deleteSurvey,
+  listConnectableQuestionnaires,
 } from "@/services/org.service";
 import {
   assertCanManageQuestionnaire,
   assertCanAccessSurvey,
 } from "@/services/access-control.service";
 import { listQuestionMasters, createQuestionMaster } from "@/services/master-data.service";
+import { createProposal } from "@/services/proposal.service";
 import { ForbiddenError, NotFoundError } from "@/lib/errors";
 import { AppError } from "@/lib/errors";
 import type { Role } from "@prisma/client";
@@ -116,16 +122,126 @@ describe("organization service (TKT-014)", () => {
     expect(await listSurveys(orgB.id)).toHaveLength(1);
   });
 
-  it("assigns a questionnaire to a survey and detaches it", async () => {
+  it("connects a questionnaire to surveys (replace-set) and detaches", async () => {
     const org = await createOrganization({ name: "Org" });
-    const survey = await createSurvey({ organizationId: org.id, name: "S" });
+    const surveyA = await createSurvey({ organizationId: org.id, name: "A" });
+    const surveyB = await createSurvey({ organizationId: org.id, name: "B" });
     const q = await createQuestionnaire({ title: "Q", slug: "q-survey" });
 
-    await assignQuestionnaireToSurvey(q.id, survey.id);
-    expect((await db.questionnaire.findUniqueOrThrow({ where: { id: q.id } })).surveyId).toBe(survey.id);
+    await connectQuestionnaireToSurveys(q.id, [surveyA.id, surveyB.id]);
+    let links = await db.surveyQuestionnaire.findMany({ where: { questionnaireId: q.id } });
+    expect(links.map((l) => l.surveyId).sort()).toEqual([surveyA.id, surveyB.id].sort());
 
-    await assignQuestionnaireToSurvey(q.id, null);
-    expect((await db.questionnaire.findUniqueOrThrow({ where: { id: q.id } })).surveyId).toBeNull();
+    // Replace-set: B dropped, C added.
+    const surveyC = await createSurvey({ organizationId: org.id, name: "C" });
+    await connectQuestionnaireToSurveys(q.id, [surveyA.id, surveyC.id]);
+    links = await db.surveyQuestionnaire.findMany({ where: { questionnaireId: q.id } });
+    expect(links.map((l) => l.surveyId).sort()).toEqual([surveyA.id, surveyC.id].sort());
+
+    // Detach everything (legacy flat).
+    await connectQuestionnaireToSurveys(q.id, []);
+    links = await db.surveyQuestionnaire.findMany({ where: { questionnaireId: q.id } });
+    expect(links).toHaveLength(0);
+  });
+
+  it("rejects connecting to a survey that does not exist", async () => {
+    const org = await createOrganization({ name: "Org" });
+    const q = await createQuestionnaire({ title: "Q", slug: "q-missing" });
+    await expect(connectQuestionnaireToSurveys(q.id, ["missing-survey"])).rejects.toThrow();
+  });
+
+  it("lists the surveys using a questionnaire (M2M)", async () => {
+    const org = await createOrganization({ name: "Org" });
+    const surveyA = await createSurvey({ organizationId: org.id, name: "A" });
+    const surveyB = await createSurvey({ organizationId: org.id, name: "B" });
+    const q = await createQuestionnaire({ title: "Q", slug: "q-tags" });
+
+    await connectQuestionnaireToSurveys(q.id, [surveyA.id, surveyB.id]);
+    const surveys = await listQuestionnaireSurveys(q.id);
+    expect(surveys.map((s) => s.id).sort()).toEqual([surveyA.id, surveyB.id].sort());
+  });
+
+  it("sets a survey's questionnaire set from the survey side (replace-set)", async () => {
+    const org = await createOrganization({ name: "Org" });
+    const survey = await createSurvey({ organizationId: org.id, name: "S" });
+    const qA = await createQuestionnaire({ title: "A", slug: "qa" });
+    const qB = await createQuestionnaire({ title: "B", slug: "qb" });
+    const qC = await createQuestionnaire({ title: "C", slug: "qc" });
+
+    await setSurveyQuestionnaires(survey.id, [qA.id, qB.id]);
+    await setSurveyQuestionnaires(survey.id, [qB.id, qC.id]);
+    const links = await db.surveyQuestionnaire.findMany({ where: { surveyId: survey.id } });
+    expect(links.map((l) => l.questionnaireId).sort()).toEqual([qB.id, qC.id].sort());
+  });
+
+  it("disconnects a questionnaire but keeps the questionnaire itself", async () => {
+    const org = await createOrganization({ name: "Org" });
+    const survey = await createSurvey({ organizationId: org.id, name: "S" });
+    const qA = await createQuestionnaire({ title: "A", slug: "qa2" });
+    const qB = await createQuestionnaire({ title: "B", slug: "qb2" });
+    await setSurveyQuestionnaires(survey.id, [qA.id, qB.id]);
+
+    await disconnectSurveyQuestionnaire(survey.id, qA.id);
+    const links = await db.surveyQuestionnaire.findMany({ where: { surveyId: survey.id } });
+    expect(links.map((l) => l.questionnaireId)).toEqual([qB.id]);
+    expect(await db.questionnaire.findUnique({ where: { id: qA.id } })).not.toBeNull();
+  });
+
+  it("deletes a survey, keeps its questionnaires, and nulls proposal.surveyId", async () => {
+    const org = await createOrganization({ name: "Org" });
+    const survey = await createSurvey({ organizationId: org.id, name: "S" });
+    const qA = await createQuestionnaire({ title: "A", slug: "qa3" });
+    const qB = await createQuestionnaire({ title: "B", slug: "qb3" });
+    await setSurveyQuestionnaires(survey.id, [qA.id, qB.id]);
+    const proposalOwner = await createUser({ email: "proposal-owner@example.com", name: "PO", password: "Secret123!", role: "OPERATOR" });
+    const proposal = await createProposal({
+      organizationId: org.id,
+      createdBy: proposalOwner.id,
+      title: "P",
+    });
+    await db.proposal.update({ where: { id: proposal.id }, data: { surveyId: survey.id } });
+
+    await deleteSurvey(survey.id);
+
+    expect(await db.survey.findUnique({ where: { id: survey.id } })).toBeNull();
+    expect(await db.surveyQuestionnaire.count({ where: { surveyId: survey.id } })).toBe(0);
+    expect(await db.questionnaire.count({ where: { id: { in: [qA.id, qB.id] } } })).toBe(2);
+    expect((await db.proposal.findUniqueOrThrow({ where: { id: proposal.id } })).surveyId).toBeNull();
+  });
+
+  it("scopes the connectable-questionnaire picker to what the operator can manage", async () => {
+    const orgA = await createOrganization({ name: "Org A" });
+    const orgB = await createOrganization({ name: "Org B" });
+    const op = await createUser({ email: "op-picker@example.com", name: "Op", password: "Secret123!", role: "OPERATOR" });
+    await assignUserOrganization(op.id, orgA.id);
+    const own = await createQuestionnaire({ title: "Own", slug: "own", createdBy: op.id });
+    const legacy = await createQuestionnaire({ title: "Legacy", slug: "legacy" });
+    const inOrgA = await createQuestionnaire({ title: "InA", slug: "ina" });
+    const otherUser = await createUser({ email: "other@example.com", name: "Other", password: "Secret123!", role: "OPERATOR" });
+    const inOrgB = await createQuestionnaire({ title: "InB", slug: "inb", createdBy: otherUser.id });
+    const surveyA = await createSurvey({ organizationId: orgA.id, name: "SA" });
+    const surveyB = await createSurvey({ organizationId: orgB.id, name: "SB" });
+    await connectQuestionnaireToSurveys(inOrgA.id, [surveyA.id]);
+    await connectQuestionnaireToSurveys(inOrgB.id, [surveyB.id]);
+
+    const adminPick = await listConnectableQuestionnaires({ sub: "admin", email: "a@x", name: "A", role: "ADMIN", organizationId: null });
+    expect(adminPick.map((q) => q.id).sort()).toEqual([own.id, legacy.id, inOrgA.id, inOrgB.id].sort());
+
+    const opPick = await listConnectableQuestionnaires({ sub: op.id, email: "op@x", name: "Op", role: "OPERATOR", organizationId: orgA.id });
+    expect(opPick.map((q) => q.id).sort()).toEqual([own.id, legacy.id, inOrgA.id].sort());
+  });
+
+  it("returns survey tags (with org) for the questionnaire list (TKT-043, no N+1)", async () => {
+    const org = await createOrganization({ name: "Tag Org" });
+    const survey = await createSurvey({ organizationId: org.id, name: "Tag Survey" });
+    const q = await createQuestionnaire({ title: "Tagged", slug: "tagged" });
+    await connectQuestionnaireToSurveys(q.id, [survey.id]);
+
+    const list = await listQuestionnaires();
+    const row = list.find((x) => x.id === q.id);
+    expect(row?.surveys).toHaveLength(1);
+    expect(row?.surveys[0].survey.name).toBe("Tag Survey");
+    expect(row?.surveys[0].survey.organization?.name).toBe("Tag Org");
   });
 });
 
@@ -141,7 +257,7 @@ describe("org-scoped access control (TKT-014)", () => {
     const creator = await createUser({ email: "creator@example.com", name: "Creator", password: "Secret123!", role: "OPERATOR" });
     const op = await createUser({ email: "op@example.com", name: "Op", password: "Secret123!", role: "OPERATOR" });
     const q = await createQuestionnaire({ title: "Q", slug: "q-same-org", createdBy: creator.id });
-    await assignQuestionnaireToSurvey(q.id, survey.id);
+    await connectQuestionnaireToSurveys(q.id, [survey.id]);
 
     await expect(
       assertCanManageQuestionnaire(principal(op.id, "OPERATOR", org.id), q.id)
@@ -154,18 +270,33 @@ describe("org-scoped access control (TKT-014)", () => {
     const otherOrg = await createOrganization({ name: "Org B" });
     const op = await createUser({ email: "op2@example.com", name: "Op", password: "Secret123!", role: "OPERATOR" });
     const q = await createQuestionnaire({ title: "Q", slug: "q-other-org", createdBy: creator.id });
-    await assignQuestionnaireToSurvey(q.id, survey.id);
+    await connectQuestionnaireToSurveys(q.id, [survey.id]);
 
     await expect(
       assertCanManageQuestionnaire(principal(op.id, "OPERATOR", otherOrg.id), q.id)
     ).rejects.toBeInstanceOf(ForbiddenError);
   });
 
+  it("allows an operator when ANY of the questionnaire's surveys is in their org (TKT-041 M2M)", async () => {
+    const { org, survey } = await orgWithSurvey("Org A");
+    const otherOrg = await createOrganization({ name: "Org B" });
+    const otherSurvey = await createSurvey({ organizationId: otherOrg.id, name: "Org B Survey" });
+    const creator = await createUser({ email: "creator3@example.com", name: "Creator", password: "Secret123!", role: "OPERATOR" });
+    const opB = await createUser({ email: "opb@example.com", name: "OpB", password: "Secret123!", role: "OPERATOR" });
+    const q = await createQuestionnaire({ title: "Q", slug: "q-any-org", createdBy: creator.id });
+    // Connected to org A's survey AND org B's survey.
+    await connectQuestionnaireToSurveys(q.id, [survey.id, otherSurvey.id]);
+
+    await expect(
+      assertCanManageQuestionnaire(principal(opB.id, "OPERATOR", otherOrg.id), q.id)
+    ).resolves.not.toThrow();
+  });
+
   it("still allows the creator of an org questionnaire", async () => {
     const { org, survey } = await orgWithSurvey("Org A");
     const owner = await createUser({ email: "owner@example.com", name: "Owner", password: "Secret123!", role: "OPERATOR" });
     const q = await createQuestionnaire({ title: "Q", slug: "q-owner-org", createdBy: owner.id });
-    await assignQuestionnaireToSurvey(q.id, survey.id);
+    await connectQuestionnaireToSurveys(q.id, [survey.id]);
 
     await expect(
       assertCanManageQuestionnaire(principal(owner.id, "OPERATOR", org.id), q.id)

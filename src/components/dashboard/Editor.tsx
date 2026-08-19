@@ -30,7 +30,7 @@ import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SamplingFrameCard, type SamplingFrameEntryRow } from "@/components/dashboard/SamplingFrameCard";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
-import { assignQuestionnaireToSurveyAction } from "@/lib/actions/org";
+import { connectQuestionnaireToSurveysAction } from "@/lib/actions/org";
 import { RuleSetsEditor } from "@/components/dashboard/RuleSetsEditor";
 import type { EditorQuestion } from "@/app/dashboard/questionnaires/[id]/edit/page";
 import {
@@ -52,7 +52,7 @@ interface EditorProps {
     status: "DRAFT" | "ACTIVE" | "CLOSED";
     acceptMultipleResponses: boolean;
     sampleEmails: string[];
-    surveyId: string | null;
+    surveyIds: string[];
     slug: string;
   };
   surveys: Array<{ id: string; name: string }>;
@@ -159,7 +159,7 @@ export function Editor({
   const [title, setTitle] = useState(q.title);
   const [description, setDescription] = useState(q.description ?? "");
   const [multiple, setMultiple] = useState(q.acceptMultipleResponses);
-  const [surveyId, setSurveyId] = useState<string | null>(q.surveyId);
+  const [surveyIds, setSurveyIds] = useState<string[]>(q.surveyIds);
   const [sampleEmails, setSampleEmails] = useState(q.sampleEmails.join("\n"));
   const [inviteLinks, setInviteLinks] = useState<
     Array<{
@@ -350,32 +350,45 @@ export function Editor({
             <input type="checkbox" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} className="accent-indigo-600" />
             Allow multiple responses
           </label>
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <span>Survey</span>
-            <select
-              className={inputClass}
-              value={surveyId ?? ""}
-              onChange={(e) => {
-                const next = e.target.value || null;
-                setSurveyId(next);
-                run(
-                  () =>
-                    assignQuestionnaireToSurveyAction({
-                      questionnaireId: q.id,
-                      surveyId: next,
-                    }),
-                  next ? "Questionnaire assigned to survey" : "Questionnaire detached from survey"
+          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
+            <span className="text-gray-600">Surveys</span>
+            <div className="flex flex-wrap gap-1.5">
+              {surveys.map((s) => {
+                const active = surveyIds.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      const next = active
+                        ? surveyIds.filter((x) => x !== s.id)
+                        : [...surveyIds, s.id];
+                      setSurveyIds(next);
+                      run(
+                        () =>
+                          connectQuestionnaireToSurveysAction({
+                            questionnaireId: q.id,
+                            surveyIds: next,
+                          }),
+                        active ? `Disconnected from ${s.name}` : `Connected to ${s.name}`
+                      );
+                    }}
+                    className={
+                      active
+                        ? "rounded-full bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+                        : "rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                    }
+                  >
+                    {s.name}
+                  </button>
                 );
-              }}
-            >
-              <option value="">None (standalone)</option>
-              {surveys.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              })}
+              {surveys.length === 0 && (
+                <span className="text-xs text-gray-400">No surveys available</span>
+              )}
+            </div>
+          </div>
           <Button
             variant="secondary"
             disabled={pending}
