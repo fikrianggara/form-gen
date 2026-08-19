@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import {
   Hero,
+  AiSection,
   Features,
   HowItWorks,
   BusinessFlow,
@@ -26,6 +27,7 @@ export default async function HomePage() {
   return (
     <main className="min-h-screen bg-[#faf8f4] text-slate-900">
       <Hero />
+      <AiSection />
       <Features />
       <HowItWorks />
 

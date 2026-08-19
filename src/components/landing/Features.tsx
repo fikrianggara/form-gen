@@ -1,5 +1,11 @@
 const FEATURES = [
   {
+    icon: "✦",
+    title: "AI questionnaire generation",
+    body: "Describe the survey in plain language — hybrid RAG retrieval drafts the questionnaire from your question bank, flagging low-confidence matches and proposing new questions.",
+    highlight: true,
+  },
+  {
     icon: "⇄",
     title: "Conditional logic",
     body: "Questions appear and disappear based on earlier answers — every visibility operator, ALL/ANY groups, no scripting required.",
@@ -49,13 +55,38 @@ export function Features() {
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="group rounded-2xl border border-slate-200 bg-white p-6 transition-all hover:-translate-y-1 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5"
+              className={
+                f.highlight
+                  ? "group relative overflow-hidden rounded-2xl bg-[#0b1220] p-6 text-slate-100 shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
+                  : "group rounded-2xl border border-slate-200 bg-white p-6 transition-all hover:-translate-y-1 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-500/5"
+              }
             >
-              <div className="grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 font-mono text-lg text-indigo-700 transition-colors group-hover:bg-indigo-600 group-hover:text-white">
+              {f.highlight && (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-[0.06]"
+                  style={{
+                    backgroundImage:
+                      "linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)",
+                    backgroundSize: "32px 32px",
+                  }}
+                />
+              )}
+              <div
+                className={
+                  f.highlight
+                    ? "relative grid h-11 w-11 place-items-center rounded-xl bg-indigo-500/20 font-mono text-lg text-indigo-300"
+                    : "relative grid h-11 w-11 place-items-center rounded-xl bg-indigo-50 font-mono text-lg text-indigo-700 transition-colors group-hover:bg-indigo-600 group-hover:text-white"
+                }
+              >
                 {f.icon}
               </div>
-              <h3 className="mt-5 text-lg font-semibold text-slate-900">{f.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">{f.body}</p>
+              <h3 className={`relative mt-5 text-lg font-semibold ${f.highlight ? "text-white" : "text-slate-900"}`}>
+                {f.title}
+              </h3>
+              <p className={`relative mt-2 text-sm leading-relaxed ${f.highlight ? "text-slate-300" : "text-slate-600"}`}>
+                {f.body}
+              </p>
             </div>
           ))}
         </div>
