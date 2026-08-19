@@ -14,6 +14,7 @@
 | TKT-042 | feature | big | P1 | survey-management | backlog | null | null | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
 | TKT-036 | feature | medium | P1 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
 | TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
+| TKT-047 | feature | medium | P1 | public-api | backlog | null | null | false | DEV role — operator permissions + API key issuance (ISSUE_API_KEYS); portal approval stays admin-only |
 | TKT-017 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-017-responses-page-view-edit | false | Responses page: view/edit/delete/mailblast actions in a popup menu per respondent |
 | TKT-040 | feature | medium | P1 | questionnaire-extras | merged | jarvis | feature-TKT-040-delete-questionnaire-cre | false | Delete questionnaire — creator-only with response cascade |
 | TKT-015 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-015-questionnaire-editor-add | false | Questionnaire editor: added question and required toggle do not update until page reload |
