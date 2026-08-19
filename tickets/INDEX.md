@@ -11,7 +11,7 @@
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
 | TKT-041 | feature | big | P1 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
-| TKT-042 | feature | big | P1 | survey-management | backlog | null | null | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
+| TKT-042 | feature | big | P1 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
 | TKT-036 | feature | medium | P1 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
 | TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
 | TKT-047 | feature | medium | P1 | public-api | done | jarvis | feature-TKT-047-dev-role-operator-permis | true | DEV role — operator permissions + API key issuance (ISSUE_API_KEYS); portal approval stays admin-only |
