@@ -10,6 +10,7 @@ import { GET as getReport } from "@/app/api/v1/questionnaires/[id]/report/route"
 import { GET as listMasters } from "@/app/api/v1/masters/route";
 import { GET as getOptionSet } from "@/app/api/v1/option-sets/[id]/route";
 import { GET as health } from "@/app/api/v1/health/route";
+import { GET as getOpenApi } from "@/app/api/v1/openapi.yaml/route";
 import { NextRequest } from "next/server";
 
 useCleanDb();
@@ -28,6 +29,14 @@ describe("v1 health (public)", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.data.status).toBe("ok");
+  });
+
+  it("returns openapi.yaml spec", async () => {
+    const res = await getOpenApi();
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(res.headers.get("Content-Type")).toBe("text/yaml");
+    expect(text).toContain("openapi: 3.0.3");
   });
 });
 
