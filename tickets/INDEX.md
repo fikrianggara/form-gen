@@ -10,8 +10,8 @@
 | TKT-035 | feature | big | P1 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Self-serve API key portal — external request + admin approval workflow |
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
-| TKT-041 | feature | big | P1 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
-| TKT-042 | feature | big | P1 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
+| TKT-041 | feature | big | P1 | survey-management | done | jarvis | feature-TKT-041-survey-questionnaire-man | true | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
+| TKT-042 | feature | big | P1 | survey-management | done | jarvis | feature-TKT-041-survey-questionnaire-man | true | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
 | TKT-036 | feature | medium | P1 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
 | TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
 | TKT-047 | feature | medium | P1 | public-api | done | jarvis | feature-TKT-047-dev-role-operator-permis | true | DEV role — operator permissions + API key issuance (ISSUE_API_KEYS); portal approval stays admin-only |
@@ -38,7 +38,7 @@
 | TKT-012 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Questionnaire sample upload (sampling frame via Excel) |
 | TKT-013 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Mailblast respondent emails |
 | TKT-002 | feature | medium | P2 | respondent-auth | cancelled | null | null | false | Email verification and password reset for respondents |
-| TKT-043 | feature | medium | P2 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Questionnaire survey tags — show surveys using a questionnaire, multi-select in editor |
+| TKT-043 | feature | medium | P2 | survey-management | done | jarvis | feature-TKT-041-survey-questionnaire-man | true | Questionnaire survey tags — show surveys using a questionnaire, multi-select in editor |
 | TKT-011 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-011-small-wins | false | Conditional field disabling in master and option set forms |
 | TKT-018 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-018-system-wide-action-icons | false | System-wide action icons (view, add, edit, delete, logout, login, etc.) |
 | TKT-031 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-031-add-generate-with-ai-but | false | Add 'Generate with AI' button on questionnaires page |
