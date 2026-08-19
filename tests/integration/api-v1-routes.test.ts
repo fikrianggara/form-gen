@@ -32,7 +32,7 @@ describe("v1 health (public)", () => {
   });
 
   it("returns openapi.yaml spec", async () => {
-    const res = await getOpenApi(v1Request("/api/v1/openapi.yaml"));
+    const res = await getOpenApi();
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(res.headers.get("Content-Type")).toBe("text/yaml");
