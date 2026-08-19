@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import {
+  Hero,
+  Features,
+  HowItWorks,
+  BusinessFlow,
+  ApiSection,
+  FinalCta,
+} from "@/components/landing";
 
 export const dynamic = "force-dynamic";
 
@@ -16,50 +24,56 @@ export default async function HomePage() {
   });
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16">
-      <header className="mb-10 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">FormGen</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Questionnaires with conditional logic, repeatable groups and computed totals.
-          </p>
-        </div>
-        <Link
-          href="/login"
-          className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
-          Sign in
-        </Link>
-      </header>
+    <main className="min-h-screen bg-[#faf8f4] text-slate-900">
+      <Hero />
+      <Features />
+      <HowItWorks />
 
-      {questionnaires.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
-          No open questionnaires right now.
-        </p>
-      ) : (
-        <ul className="space-y-4">
-          {questionnaires.map((q) => (
-            <li key={q.slug}>
-              <Link
-                href={`/f/${q.slug}`}
-                className="block rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">{q.title}</h2>
-                    {q.description && (
-                      <p className="mt-1 text-sm text-gray-500">{q.description}</p>
-                    )}
-                  </div>
-                  <span className="shrink-0 rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700">
-                    {q._count.questions} questions
-                  </span>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+      {/* Open questionnaires strip — preserves existing public listing */}
+      <section className="border-y border-slate-900/10 bg-white">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-indigo-700">
+            Open right now
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">
+            Live questionnaires
+          </h2>
+          {questionnaires.length === 0 ? (
+            <p className="mt-8 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-10 text-sm text-slate-500">
+              No open questionnaires right now. Check back soon.
+            </p>
+          ) : (
+            <ul className="mt-8 grid gap-4 md:grid-cols-2">
+              {questionnaires.map((q) => (
+                <li key={q.slug}>
+                  <Link
+                    href={`/f/${q.slug}`}
+                    className="group block rounded-2xl border border-slate-200 bg-white p-6 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-semibold text-slate-900 group-hover:text-indigo-800">
+                          {q.title}
+                        </h3>
+                        {q.description && (
+                          <p className="mt-1 text-sm text-slate-500">{q.description}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 rounded-full bg-indigo-50 px-3 py-1 font-mono text-xs font-medium text-indigo-700">
+                        {q._count.questions} Q
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <BusinessFlow />
+      <ApiSection />
+      <FinalCta />
+    </main>
   );
 }
