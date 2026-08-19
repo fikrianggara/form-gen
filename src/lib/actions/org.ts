@@ -10,6 +10,9 @@ import {
   assignUserOrganization,
   createSurvey,
   connectQuestionnaireToSurveys,
+  setSurveyQuestionnaires,
+  disconnectSurveyQuestionnaire,
+  deleteSurvey,
 } from "@/services/org.service";
 import { setQuestionMasterPublic } from "@/services/master-data.service";
 
@@ -101,6 +104,66 @@ export async function connectQuestionnaireToSurveysAction(input: {
   } catch (err) {
     return actionError(err);
   }
+  return {};
+}
+
+// ---------------------------------------------------------------- surveys (TKT-042)
+
+async function assertCanAccessSurveyOrAdmin(session: Awaited<ReturnType<typeof getSession>>, surveyId: string) {
+  if (session?.role === "ADMIN") return;
+  const { assertCanAccessSurvey } = await import("@/services/access-control.service");
+  await assertCanAccessSurvey(session, surveyId);
+}
+
+/** Replace the questionnaire set connected to a survey (survey-side M2M). */
+export async function setSurveyQuestionnairesAction(input: {
+  surveyId: string;
+  questionnaireIds: string[];
+}): Promise<{ error?: string }> {
+  try {
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
+    await assertCanAccessSurveyOrAdmin(session, input.surveyId);
+    await setSurveyQuestionnaires(input.surveyId, input.questionnaireIds);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/admin/surveys/[id]", "page");
+  revalidatePath("/admin/orgs");
+  return {};
+}
+
+/** Disconnect one questionnaire from a survey (keeps the questionnaire). */
+export async function disconnectSurveyQuestionnaireAction(input: {
+  surveyId: string;
+  questionnaireId: string;
+}): Promise<{ error?: string }> {
+  try {
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
+    await assertCanAccessSurveyOrAdmin(session, input.surveyId);
+    await disconnectSurveyQuestionnaire(input.surveyId, input.questionnaireId);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/admin/surveys/[id]", "page");
+  revalidatePath("/admin/orgs");
+  return {};
+}
+
+/** Delete a survey; connected questionnaires are kept. */
+export async function deleteSurveyAction(input: {
+  surveyId: string;
+}): Promise<{ error?: string }> {
+  try {
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
+    await assertCanAccessSurveyOrAdmin(session, input.surveyId);
+    await deleteSurvey(input.surveyId);
+  } catch (err) {
+    return actionError(err);
+  }
+  revalidatePath("/admin/orgs");
   return {};
 }
 
