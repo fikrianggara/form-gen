@@ -10,7 +10,7 @@
 | TKT-035 | feature | big | P1 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Self-serve API key portal — external request + admin approval workflow |
 | TKT-006 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Multi-rule visibility engine — OR/AND rule sets + validation engine |
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | Question blocks with multi entry rules |
-| TKT-041 | feature | big | P1 | survey-management | backlog | null | null | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
+| TKT-041 | feature | big | P1 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
 | TKT-042 | feature | big | P1 | survey-management | backlog | null | null | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
 | TKT-036 | feature | medium | P1 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | Admin API-key management UI — list, issue, approve, revoke, usage view |
 | TKT-039 | feature | medium | P1 | public-api | backlog | null | null | false | Org-scoped API access — organizationId on ApiKey/ApiKeyRequest + org-aware v1 route filters |
