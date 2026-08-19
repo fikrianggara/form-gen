@@ -10,7 +10,7 @@ import { requireAuth } from "@/lib/auth/rbac";
  * - OPERATOR: can manage a questionnaire when any of:
  *   - they created it, or
  *   - it is a legacy row with no creator (createdBy null), or
- *   - it belongs to a survey in the operator's organization (org scoping).
+ *   - ANY of its surveys belongs to the operator's organization (TKT-041 M2M).
  * - Anonymous: always rejected.
  */
 export async function assertCanManageQuestionnaire(
@@ -22,12 +22,15 @@ export async function assertCanManageQuestionnaire(
 
   const q = await db.questionnaire.findUnique({
     where: { id: questionnaireId },
-    select: { createdBy: true, survey: { select: { organizationId: true } } },
+    select: {
+      createdBy: true,
+      surveys: { select: { survey: { select: { organizationId: true } } } },
+    },
   });
   if (!q) throw new NotFoundError("Questionnaire not found");
 
   if (q.createdBy === null || q.createdBy === session.sub) return;
-  if (q.survey && q.survey.organizationId === session.organizationId) return;
+  if (q.surveys.some((s) => s.survey.organizationId === session.organizationId)) return;
   throw new ForbiddenError("You can only manage questionnaires in your organization");
 }
 

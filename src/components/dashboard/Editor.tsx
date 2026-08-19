@@ -30,7 +30,7 @@ import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { SamplingFrameCard, type SamplingFrameEntryRow } from "@/components/dashboard/SamplingFrameCard";
 import { SearchableSelect } from "@/components/SearchableSelect";
 import { useToast } from "@/components/toast";
-import { assignQuestionnaireToSurveyAction } from "@/lib/actions/org";
+import { connectQuestionnaireToSurveysAction } from "@/lib/actions/org";
 import { RuleSetsEditor } from "@/components/dashboard/RuleSetsEditor";
 import type { EditorQuestion } from "@/app/dashboard/questionnaires/[id]/edit/page";
 import {
@@ -52,7 +52,7 @@ interface EditorProps {
     status: "DRAFT" | "ACTIVE" | "CLOSED";
     acceptMultipleResponses: boolean;
     sampleEmails: string[];
-    surveyId: string | null;
+    surveyIds: string[];
     slug: string;
   };
   surveys: Array<{ id: string; name: string }>;
@@ -159,7 +159,7 @@ export function Editor({
   const [title, setTitle] = useState(q.title);
   const [description, setDescription] = useState(q.description ?? "");
   const [multiple, setMultiple] = useState(q.acceptMultipleResponses);
-  const [surveyId, setSurveyId] = useState<string | null>(q.surveyId);
+  const [surveyIds, setSurveyIds] = useState<string[]>(q.surveyIds);
   const [sampleEmails, setSampleEmails] = useState(q.sampleEmails.join("\n"));
   const [inviteLinks, setInviteLinks] = useState<
     Array<{
@@ -354,17 +354,17 @@ export function Editor({
             <span>Survey</span>
             <select
               className={inputClass}
-              value={surveyId ?? ""}
+              value={surveyIds[0] ?? ""}
               onChange={(e) => {
                 const next = e.target.value || null;
-                setSurveyId(next);
+                setSurveyIds(next ? [next] : []);
                 run(
                   () =>
-                    assignQuestionnaireToSurveyAction({
+                    connectQuestionnaireToSurveysAction({
                       questionnaireId: q.id,
-                      surveyId: next,
+                      surveyIds: next ? [next] : [],
                     }),
-                  next ? "Questionnaire assigned to survey" : "Questionnaire detached from survey"
+                  next ? "Questionnaire connected to survey" : "Questionnaire detached from surveys"
                 );
               }}
             >
@@ -375,6 +375,9 @@ export function Editor({
                 </option>
               ))}
             </select>
+            {surveyIds.length > 1 && (
+              <span className="text-xs text-gray-500">+{surveyIds.length - 1} more</span>
+            )}
           </label>
           <Button
             variant="secondary"

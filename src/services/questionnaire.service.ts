@@ -169,6 +169,7 @@ export function getQuestionnaireWithQuestions(id: string) {
     where: { id },
     include: {
       blocks: { orderBy: { order: "asc" } },
+      surveys: { select: { surveyId: true } },
       questions: {
         orderBy: { order: "asc" },
         include: {

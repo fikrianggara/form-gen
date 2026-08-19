@@ -109,12 +109,23 @@ model Survey {
   description     String?
   organizationId  String
   organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  questionnaires  Questionnaire[]
+  questionnaires  SurveyQuestionnaire[]
   proposal        Proposal?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
   @@index([organizationId])
+}
+
+/** Survey↔Questionnaire many-to-many join (TKT-041): one questionnaire usable by multiple surveys. */
+model SurveyQuestionnaire {
+  surveyId        String
+  questionnaireId String
+  survey          Survey        @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  questionnaire   Questionnaire @relation(fields: [questionnaireId], references: [id], onDelete: Cascade)
+
+  @@id([surveyId, questionnaireId])
+  @@index([questionnaireId])
 }
 
 /** Survey proposal workflow (TKT-005): draft → pending verification → verified → approved → build. */
@@ -290,11 +301,8 @@ model Questionnaire {
    */
   createdBy               String?
   creator                 User?                   @relation("QuestionnaireCreator", fields: [createdBy], references: [id], onDelete: SetNull)
-  /**
-   * Survey membership (TKT-014); null = legacy flat questionnaire.
-   */
-  surveyId                String?
-  survey                  Survey?                 @relation(fields: [surveyId], references: [id], onDelete: SetNull)
+  /** Surveys using this questionnaire (TKT-041 M2M join). */
+  surveys                 SurveyQuestionnaire[]
   invitations             Invitation[]
   samplingFrame           SamplingFrameEntry[]
   questions               QuestionnaireQuestion[]
@@ -304,7 +312,6 @@ model Questionnaire {
   updatedAt               DateTime                @updatedAt
 
   @@index([createdBy])
-  @@index([surveyId])
 }
 
 /**

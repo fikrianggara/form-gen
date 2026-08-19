@@ -95,19 +95,53 @@ export async function listSurveys(organizationId?: string) {
 
 // ---------------------------------------------------------------- assignment
 
-/** Attach a questionnaire to a survey (null detaches to legacy flat). */
-export async function assignQuestionnaireToSurvey(
+/**
+ * Set the full set of surveys a questionnaire belongs to (TKT-041 M2M).
+ * Replace-set semantics: links not in `surveyIds` are removed, the rest kept.
+ */
+export async function connectQuestionnaireToSurveys(
   questionnaireId: string,
-  surveyId: string | null
+  surveyIds: string[]
 ) {
   const q = await db.questionnaire.findUnique({ where: { id: questionnaireId } });
   if (!q) throw new NotFoundError("Questionnaire not found");
-  if (surveyId) {
-    const survey = await db.survey.findUnique({ where: { id: surveyId } });
-    if (!survey) throw new NotFoundError("Survey not found");
+
+  const unique = [...new Set(surveyIds)];
+  if (unique.length > 0) {
+    const surveys = await db.survey.findMany({
+      where: { id: { in: unique } },
+      select: { id: true },
+    });
+    const found = new Set(surveys.map((s) => s.id));
+    const missing = unique.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw new NotFoundError(`Survey not found: ${missing.join(", ")}`);
+    }
   }
-  return db.questionnaire.update({
+
+  await db.$transaction([
+    db.surveyQuestionnaire.deleteMany({ where: { questionnaireId } }),
+    ...(unique.length > 0
+      ? [
+          db.surveyQuestionnaire.createMany({
+            data: unique.map((surveyId) => ({ questionnaireId, surveyId })),
+          }),
+        ]
+      : []),
+  ]);
+
+  return db.questionnaire.findUnique({
     where: { id: questionnaireId },
-    data: { surveyId },
+    include: { surveys: { include: { survey: true } } },
   });
+}
+
+/** Surveys using a questionnaire (TKT-041 M2M). */
+export async function listQuestionnaireSurveys(questionnaireId: string) {
+  const q = await db.questionnaire.findUnique({
+    where: { id: questionnaireId },
+    select: { surveys: { include: { survey: true } } },
+  });
+  if (!q) throw new NotFoundError("Questionnaire not found");
+  return q.surveys.map((s) => s.survey);
 }

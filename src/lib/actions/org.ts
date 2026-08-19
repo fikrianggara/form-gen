@@ -9,7 +9,7 @@ import {
   updateOrganization,
   assignUserOrganization,
   createSurvey,
-  assignQuestionnaireToSurvey,
+  connectQuestionnaireToSurveys,
 } from "@/services/org.service";
 import { setQuestionMasterPublic } from "@/services/master-data.service";
 
@@ -81,21 +81,23 @@ export async function createSurveyAction(input: {
 }
 
 /**
- * Assign a questionnaire to a survey (null detaches to legacy flat).
- * Operators can only assign into surveys of their own organization.
+ * Set the full set of surveys a questionnaire belongs to (TKT-041 M2M).
+ * Operators can only connect surveys of their own organization.
  */
-export async function assignQuestionnaireToSurveyAction(input: {
+export async function connectQuestionnaireToSurveysAction(input: {
   questionnaireId: string;
-  surveyId: string | null;
+  surveyIds: string[];
 }): Promise<{ error?: string }> {
   try {
     const session = await getSession();
     requirePermission(session, "MANAGE_QUESTIONNAIRES");
-    if (session.role !== "ADMIN" && input.surveyId) {
+    if (session.role !== "ADMIN") {
       const { assertCanAccessSurvey } = await import("@/services/access-control.service");
-      await assertCanAccessSurvey(session, input.surveyId);
+      for (const surveyId of input.surveyIds) {
+        await assertCanAccessSurvey(session, surveyId);
+      }
     }
-    await assignQuestionnaireToSurvey(input.questionnaireId, input.surveyId);
+    await connectQuestionnaireToSurveys(input.questionnaireId, input.surveyIds);
   } catch (err) {
     return actionError(err);
   }
