@@ -38,7 +38,7 @@
 | TKT-012 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Questionnaire sample upload (sampling frame via Excel) |
 | TKT-013 | feature | medium | P2 | questionnaire-extras | merged | jarvis | feature-TKT-012-questionnaire-sample-upl | false | Mailblast respondent emails |
 | TKT-002 | feature | medium | P2 | respondent-auth | cancelled | null | null | false | Email verification and password reset for respondents |
-| TKT-043 | feature | medium | P2 | survey-management | backlog | null | null | false | Questionnaire survey tags — show surveys using a questionnaire, multi-select in editor |
+| TKT-043 | feature | medium | P2 | survey-management | ongoing | jarvis | feature-TKT-041-survey-questionnaire-man | false | Questionnaire survey tags — show surveys using a questionnaire, multi-select in editor |
 | TKT-011 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-011-small-wins | false | Conditional field disabling in master and option set forms |
 | TKT-018 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-018-system-wide-action-icons | false | System-wide action icons (view, add, edit, delete, logout, login, etc.) |
 | TKT-031 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-031-add-generate-with-ai-but | false | Add 'Generate with AI' button on questionnaires page |
