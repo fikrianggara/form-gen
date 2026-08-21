@@ -27,6 +27,16 @@ and `tickets/INDEX.md` before doing anything.
 10. **If `main` moves while you work**, merge/rebase `main` into your branch
     before finishing. Never force-push or rewrite shared branches.
 
+## Ticket timestamps
+
+Every ticket file carries **four** timestamp fields in its frontmatter:
+`created` / `updated` (dates, maintained by `ticket.sh new|start|done`) and
+`createdAt` / `updatedAt` (precise ISO-8601 timestamps — new tickets stamped
+by the CLI, legacy tickets backfilled from git history: `createdAt` = first
+git commit touching the file, `updatedAt` = last). INDEX.md shows the dates in
+its `created` / `updated` columns. **Never hand-edit these fields or
+INDEX.md** — the CLI owns them (see `tickets/README.md` → Ticket timestamps).
+
 ## Project facts
 
 - App: Next.js 14 (App Router) + PostgreSQL 14 + Prisma. Repo root `~/projects/form-gen`.

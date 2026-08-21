@@ -73,7 +73,33 @@ Every ticket carries a **size** and a **group** in its frontmatter:
   ongoing branch** instead of creating a new one (one group = one branch/run,
   one merge). A ticket with no group gets its own branch as before.
 
-Groups in this project (see the `group` field per ticket):
+## Ticket timestamps (created / updated / createdAt / updatedAt)
+
+Every ticket file carries four timestamp fields in its frontmatter. They tell
+you **when a ticket was issued and when it last changed** — visible in
+INDEX.md's `created` / `updated` columns.
+
+| Field | Format | Meaning | Maintained by |
+|-------|--------|---------|---------------|
+| `created` | `YYYY-MM-DD` | Issue date (when `ticket.sh new` ran) | `ticket.sh new` |
+| `updated` | `YYYY-MM-DD` | Last status-change date | `ticket.sh start` / `done` |
+| `createdAt` | ISO-8601 `YYYY-MM-DDTHH:MM:SS±HH:MM` | Precise issue timestamp | `ticket.sh new` (now); legacy tickets backfilled from **first git commit** touching the file |
+| `updatedAt` | ISO-8601 | Precise last-change timestamp | `ticket.sh start` / `done` (now); legacy backfilled from **last git commit** |
+
+Rules:
+
+1. **Never hand-edit these fields** — `ticket.sh` owns them (`new` stamps
+   created/createdAt; `start`/`done` stamp updated/updatedAt).
+2. `created`/`createdAt` are immutable once the ticket exists; `updated`/
+   `updatedAt` advance on every status change.
+3. Legacy backfill note: for tickets committed a day after they were filed
+   (filed via `new`, committed later), `createdAt` = the first commit time —
+   the true issue moment may be up to a day earlier; `created` keeps the
+   recorded issue date.
+4. INDEX.md's `created`/`updated` columns come from the frontmatter — never
+   edit INDEX.md by hand, always `scripts/ticket.sh list`.
+
+## Groups in this project (see the `group` field per ticket):
 
 | group | tickets | theme |
 |-------|---------|-------|

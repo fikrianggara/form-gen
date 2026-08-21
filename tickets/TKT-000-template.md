@@ -9,8 +9,10 @@ status: backlog          # backlog | ongoing | done | merged | cancelled
 assignee: null           # agent name once assigned
 branch: null             # feat/TKT-000-slug once started
 readyToMerge: false
-created: 2026-08-13
-updated: 2026-08-13
+created: 2026-08-13      # issue date (canonical, maintained by ticket.sh)
+updated: 2026-08-13      # last status-change date (maintained by ticket.sh)
+createdAt: 1970-01-01T00:00:00+00:00   # ISO timestamp: git first commit / now (ticket.sh)
+updatedAt: 1970-01-01T00:00:00+00:00   # ISO timestamp: git last commit / now (ticket.sh)
 ---
 
 ## Description

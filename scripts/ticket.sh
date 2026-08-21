@@ -50,6 +50,14 @@ slugify() {
   echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-//; s/-$//' | cut -c1-24 | sed -E 's/-+$//'
 }
 
+# ISO-8601 timestamp with colon'd offset (e.g. 2026-08-21T16:41:00+07:00),
+# matching git's %cI format used for the createdAt/updatedAt backfill.
+now_iso() {
+  local tz
+  tz="$(date +%z)"           # +0700
+  date +"%Y-%m-%dT%H:%M:%S${tz:0:3}:${tz:3:2}"
+}
+
 doc_commit() { # message
   git add "$TICKETS"
   git commit -q -m "$1"
@@ -63,9 +71,10 @@ cmd_new() {
   [[ "$type" == "feature" || "$type" == "bug" ]] || die "type must be feature|bug"
   [[ "$size" == "small" || "$size" == "medium" || "$size" == "big" ]] || die "size must be small|medium|big"
   [[ "$severity" == "P0" || "$severity" == "P1" || "$severity" == "P2" ]] || die "severity must be P0|P1|P2"
-  local id next tmp
+  local id next now tmp
   id="$(next_id)"
   next="$(date +%F)"
+  now="$(now_iso)"
   tmp="$(mktemp)"
   sed -e "s/^id: TKT-000$/id: $id/" \
       -e "s|^title: .*|title: \"$title\"|" \
@@ -75,6 +84,8 @@ cmd_new() {
       -e "s|^group: .*|group: \"$group\"|" \
       -e "s|^created: .*|created: $next|" \
       -e "s|^updated: .*|updated: $next|" \
+      -e "s|^createdAt: .*|createdAt: $now|" \
+      -e "s|^updatedAt: .*|updatedAt: $now|" \
       "$TICKETS/TKT-000-template.md" > "$tmp"
   mv "$tmp" "$TICKETS/$id.md"
   echo "created $id ($type/$size/$severity${group:+, group '$group'}): $title  → tickets/$id.md (status backlog)"
@@ -118,6 +129,7 @@ cmd_start() {
   set_field "$f" assignee "$DEFAULT_ASSIGNEE"
   set_field "$f" branch "$branch"
   set_field "$f" updated "$(date +%F)"
+  set_field "$f" updatedAt "$(now_iso)"
   # Regenerate INDEX.md so agents reading it see the assignment immediately
   # (a stale index showing backlog invites another agent to grab the ticket).
   cmd_list >/dev/null
@@ -171,6 +183,7 @@ cmd_done() {
   set_field "$f" status done
   set_field "$f" readyToMerge true
   set_field "$f" updated "$(date +%F)"
+  set_field "$f" updatedAt "$(now_iso)"
   {
     echo ""
     echo "> **done** ($(date +%F)): $summary"
@@ -185,19 +198,19 @@ cmd_done() {
 cmd_status() {
   local f
   f="$(ticket_file "$1")"
-  sed -n '1,/^---$/p' "$f" | grep -E '^(id|title|type|size|severity|group|status|assignee|branch|readyToMerge|created|updated):'
+  sed -n '1,/^---$/p' "$f" | grep -E '^(id|title|type|size|severity|group|status|assignee|branch|readyToMerge|created|updated|createdAt|updatedAt):'
 }
 
 cmd_list() {
   local out rows
-  out="| id | type | size | sev | group | status | assignee | branch | ready | title |
-|---|-----|------|-----|-------|--------|----------|--------|-------|-------|
+  out="| id | type | size | sev | group | status | assignee | branch | ready | created | updated | title |
+|---|-----|------|-----|-------|--------|----------|--------|-------|--------|---------|-------|
 "
   rows=""
   while IFS= read -r f; do
     [[ -f "$f" ]] || continue
     [[ "$(basename "$f")" == "TKT-000-template.md" ]] && continue
-    local id title type size severity group status assignee branch ready srank rank
+    local id title type size severity group status assignee branch ready created updated srank rank
     id="$(get_field "$f" id)"
     title="$(get_field "$f" title)"
     type="$(get_field "$f" type)"
@@ -208,6 +221,8 @@ cmd_list() {
     assignee="$(get_field "$f" assignee)"
     branch="$(get_field "$f" branch)"
     ready="$(get_field "$f" readyToMerge)"
+    created="$(get_field "$f" created)"
+    updated="$(get_field "$f" updated)"
     case "${severity:-P2}" in
       P0) srank=0 ;;
       P1) srank=1 ;;
@@ -218,13 +233,13 @@ cmd_list() {
       medium) rank=1 ;;
       *) rank=2 ;;
     esac
-    rows+="${srank}|${rank}|${group:-—}|$id|$type|${size:-—}|${severity:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title\n"
+    rows+="${srank}|${rank}|${group:-—}|$id|$type|${size:-—}|${severity:-—}|${group:-—}|$status|${assignee:-—}|${branch:-—}|$ready|$title|$created|$updated\n"
   done < <(ls "$TICKETS"/TKT-*.md 2>/dev/null | sort -t- -k2 -n)
   # Sort by severity (P0 → P1 → P2), then size (big → medium → small),
   # then group, then id.
   rows="$(printf '%b' "$rows" | sort -t'|' -k1,1n -k2,2n -k3,3 -k4,4n)"
-  while IFS='|' read -r _ _ _ id type size severity group status assignee branch ready title; do
-    out+="| $id | $type | $size | $severity | $group | $status | $assignee | $branch | $ready | $title |
+  while IFS='|' read -r _ _ _ id type size severity group status assignee branch ready title created updated; do
+    out+="| $id | $type | $size | $severity | $group | $status | $assignee | $branch | $ready | $created | $updated | $title |
 "
   done <<< "$rows"
   printf '%s' "$out" > "$TICKETS/INDEX.md"
