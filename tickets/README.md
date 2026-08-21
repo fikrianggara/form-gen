@@ -85,6 +85,19 @@ Groups in this project (see the `group` field per ticket):
 | ai-sourcing | TKT-008 | AI generation round 2 |
 | admin-polish | TKT-011 | conditional field disabling |
 | org-scoping | TKT-014 | organization scoping |
+| user-accounts | TKT-051..053 | public registration, admin activation, Google OAuth |
+| api-key-promotion | TKT-054 | operator key request → approval promotes to DEV |
+| org-admin | TKT-055..056 | org membership model, invites, join approval, org roles |
+| org-key-visibility | TKT-057 | org-scoped API key visibility (needs TKT-039) |
+| nav-shell | TKT-058..059 | sidebar nav shell (P0) + landing auth header |
+| ui-theme | TKT-060 | design tokens + dark mode (sequence with nav-shell) |
+| proposal-org-ai | TKT-061 | proposal new-org → approve creates org+survey+AI questionnaire |
+| ai-question-editing | TKT-062 | AI add/edit question in editor |
+| question-editing | TKT-063 | manual inline question editing (verify first) |
+| qa-verification | TKT-064..065 | verify conditional display; DEV login bug |
+| api-key-ux | TKT-066 | copy-to-clipboard for API keys |
+| profile-page | TKT-067 | profile: password, role, org (join via org-admin) |
+| dashboard-stats | TKT-068 | dashboard stats + survey tags |
 
 ## Ticket file format
 

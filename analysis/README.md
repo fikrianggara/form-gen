@@ -23,6 +23,7 @@
 | v04     | 2026-08-17 | Org scoping for public REST API access — impact analysis | v03 lacks org dimension; TKT-014 (org code) not yet on main; mapped org model, per-endpoint org semantics, ApiKey.organizationId requirement, dashboard questionnaire-list gap (TKT-014 itself), sequencing note → org-scoped API ticket filed as backlog. Owner decision: proceed with org-scoped API ticket as backlog |
 | v05     | 2026-08-17 | Survey management — connect questionnaires, survey tags (M2M), delete survey | Verified: Questionnaire.surveyId single FK (no M2M), no survey page, no deleteSurvey. Impact: schema change to join table + backfill migration, access-control org gate becomes ANY-of-surveys, TKT-039 API filter must follow M2M, delete keeps questionnaires (detach not destroy). → TKT-041..043 filed (group survey-management) |
 | v06     | 2026-08-17 | Bug density & defect-pattern analysis | 5 of 43 tickets are bugs (11.6%); UI-feature merge waves produce them; Class A = UI defects (3), Class B = security/hardening caught by register (2). Recommendations R1 (AC line: UI reflects immediately), R2 (codify frontend rules in AGENTS.md), R3 (component tests), R4 (security checklist at merge), R5 (register as bug net), R6 (custom ESLint rule). Owner decision: adopt R1+R2+R4 as conventions, file R3 as ticket |
+| v07     | 2026-08-21 | Post-manual-test feature backlog — 17 requests analyzed vs codebase | Each request verified (exists/partial/new); conditional display + survey chips + activation gating already ship (no re-implement); 18 tickets filed TKT-051..068 across 12 groups; nav-shell TKT-058 is P0; dependency chain + risks recorded; open questions Q1..Q6 pending owner decision |
 
 ## How to review a finding
 
@@ -57,7 +58,9 @@ Each finding is a section `F-###` containing:
 | F-013 | No CI pipeline for the gate chain | P2 | decided | Local integration now; CI can be added later | TKT-026 |
 | F-014 | TKT-008 AI round 2 not started | P2 | decided | Proceed recommendation | TKT-008 |
 | F-015 | TKT-012 blocked on unanswered clarification | P2 | decided | Sample = sampling frame; Excel upload; organization_name + contact (phone/email) | TKT-012 (re-scoped) |
+| F-016 | Post-manual-test feature backlog (17 requests, v07) | P1 | decided | Owner filed requests after manual testing; analyzed vs codebase; conditional display + survey chips + activation already exist; 18 tickets filed | TKT-051..068 |
+| F-017 | Open questions Q1..Q6 from v07 (username vs name, OAuth approach, org-admin model, orgId shortcut, approval atomicity, rule UX) | P1 | open | Answers pending — see analysis/v07_2026-08-21.md §7; each decision line spells the viable options | re-scope per answer |
 
 ## Latest snapshot
 
-Current: `analysis/v03_2026-08-15.md` (mirrored in `analysis/LATEST.md`)
+Current: `analysis/v07_2026-08-21.md` (mirrored in `analysis/LATEST.md`)
