@@ -130,3 +130,14 @@ Rules:
 
 One markdown file per ticket with YAML frontmatter — machine-parseable by any
 agent tool. See `TKT-000-template.md`.
+
+## Project configuration
+
+The scripts are self-locating and portable (they resolve their root from
+their own location, not from this repo). A project can override defaults via
+`scripts/ticket.config.sh` or `TKT_*` env vars (`TKT_DB_URL_BASE`,
+`TKT_TEST_DB_PREFIX`, `TKT_DEFAULT_ASSIGNEE`, `TKT_PORT_BASE`, `TKT_TEST_CMD`,
+`TKT_MIGRATE_CMD`, `TKT_GATE_CMD`); empty overrides disable the step. This
+repo has no config file — form-gen defaults apply. The
+`ticket-system-bootstrap` skill scaffolds the whole system into a new
+project.

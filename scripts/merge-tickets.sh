@@ -19,6 +19,16 @@ done
 cd "$ROOT"
 git diff --quiet || { echo "error: working tree is dirty — commit or stash first" >&2; exit 1; }
 
+# ------------------------------------------------------------ project config
+# Same override mechanism as ticket.sh: scripts/ticket.config.sh or TKT_* env
+# vars; form-gen defaults apply when neither is present. ${VAR-default} so an
+# explicitly-empty override (TKT_MIGRATE_CMD="", TKT_GATE_CMD="") disables the
+# step instead of falling back.
+[[ -f "$ROOT/scripts/ticket.config.sh" ]] && source "$ROOT/scripts/ticket.config.sh"
+TEST_DB_PREFIX="${TKT_TEST_DB_PREFIX-form_gen_test_tkt}"
+MIGRATE_CMD="${TKT_MIGRATE_CMD-npx prisma migrate deploy}"
+GATE_CMD="${TKT_GATE_CMD-npx tsc --noEmit && npx vitest run && npx next lint && npm run build}"
+
 # Status lives on main — read it from there (a feature branch's ticket copy is stale).
 git checkout -q main
 git pull --ff-only >/dev/null 2>&1 || true
@@ -64,19 +74,21 @@ if [[ $merged_any -eq 0 ]]; then
   echo "no branches merged."
 fi
 
-# 2.5 Apply pending migrations to the dev database (form_gen). Merges land
-# migration files on main; without this the dev app throws "Invalid prisma.X
-# invocation" until someone runs migrate deploy by hand (regression: api-keys
-# page after the public-api merge).
-echo "== applying pending migrations to dev DB (form_gen)"
-npx prisma migrate deploy 2>&1 | tail -6
+# 2.5 Apply pending migrations to the dev database (default: form_gen).
+# Merges land migration files on main; without this the dev app throws
+# "Invalid prisma.X invocation" until someone runs migrate deploy by hand
+# (regression: api-keys page after the public-api merge). Skipped when
+# TKT_MIGRATE_CMD is empty (non-Prisma project).
+if [[ -n "$MIGRATE_CMD" ]]; then
+  echo "== applying pending migrations to dev DB"
+  bash -c "$MIGRATE_CMD" 2>&1 | tail -6
+fi
 
-# 3. Full gate chain on main
-echo "== validating main: typecheck + tests + lint + build"
-npx tsc --noEmit
-npx vitest run
-npx next lint
-npm run build
+# 3. Full gate chain on main (skipped when TKT_GATE_CMD is empty)
+if [[ -n "$GATE_CMD" ]]; then
+  echo "== validating main: $GATE_CMD"
+  bash -c "$GATE_CMD"
+fi
 
 # 4. Mark tickets merged + regenerate index (doc commit)
 for f in $(grep -l '^status: done' "$TICKETS"/TKT-*.md 2>/dev/null || true); do
@@ -88,8 +100,10 @@ for f in $(grep -l '^status: done' "$TICKETS"/TKT-*.md 2>/dev/null || true); do
     echo ""
     echo "> **merged** ($(date +%F)): branch merged into main."
   } >> "$f"
-  db="form_gen_test_tkt${id#TKT-}"
-  psql -d postgres -q -c "DROP DATABASE IF EXISTS $db" 2>/dev/null && echo "  dropped db $db" || true
+  db="${TEST_DB_PREFIX}${id#TKT-}"
+  if [[ -n "$DB_URL_BASE" ]]; then
+    psql -d postgres -q -c "DROP DATABASE IF EXISTS $db" 2>/dev/null && echo "  dropped db $db" || true
+  fi
 done
 bash "$ROOT/scripts/ticket.sh" list >/dev/null
 git add "$TICKETS"
