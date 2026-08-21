@@ -6,6 +6,7 @@
 | TKT-020 | feature | medium | P0 | invitation-hardening | merged | jarvis | feature-TKT-020-invitation-token-expiry | false | Invitation token expiry, single-use enforcement, and admin revoke |
 | TKT-023 | feature | medium | P0 | respondent-auth | merged | jarvis | feature-TKT-023-rate-limit-public-respon | false | Rate-limit public response submission endpoints |
 | TKT-065 | bug | small | P0 | qa-verification | backlog | null | null | false | BUG: DEV role login and navigation |
+| TKT-069 | feature | big | P1 | ai-credits | backlog | null | null | false | AI credit system — daily allowance, deduction service, generation enforcement |
 | TKT-054 | feature | big | P1 | api-key-promotion | backlog | null | null | false | Operator API-key request — approval promotes to DEV |
 | TKT-055 | feature | big | P1 | org-admin | backlog | null | null | false | Organization membership model — invites, join requests, approval |
 | TKT-061 | feature | big | P1 | proposal-org-ai | backlog | null | null | false | Proposal new-org — approval auto-creates org + survey + AI questionnaire |
@@ -19,6 +20,7 @@
 | TKT-042 | feature | big | P1 | survey-management | merged | jarvis | feature-TKT-041-survey-questionnaire-man | false | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
 | TKT-060 | feature | big | P1 | ui-theme | backlog | null | null | false | Design token system + dark mode |
 | TKT-051 | feature | big | P1 | user-accounts | backlog | null | null | false | Public user registration — inactive until admin activation |
+| TKT-070 | feature | medium | P1 | ai-credits | backlog | null | null | false | Admin AI-credit management — global default, per-user allowance, balance adjustment |
 | TKT-062 | feature | medium | P1 | ai-question-editing | backlog | null | null | false | AI add-question and edit-question in questionnaire editor |
 | TKT-056 | feature | medium | P1 | org-admin | backlog | null | null | false | Org-admin account management and org role changes |
 | TKT-057 | feature | medium | P1 | org-key-visibility | backlog | null | null | false | Org-scoped API key visibility for org-dev members |

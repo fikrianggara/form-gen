@@ -98,6 +98,7 @@ Groups in this project (see the `group` field per ticket):
 | api-key-ux | TKT-066 | copy-to-clipboard for API keys |
 | profile-page | TKT-067 | profile: password, role, org (join via org-admin) |
 | dashboard-stats | TKT-068 | dashboard stats + survey tags |
+| ai-credits | TKT-069..070 | AI credit system: daily allowance, deduction, admin management |
 
 ## Ticket file format
 
