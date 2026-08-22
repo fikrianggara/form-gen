@@ -60,13 +60,17 @@ function UserActionsMenu({
       if (res?.error) {
         toast.error("Action failed", res.error);
       } else {
-        toast.success(user.isActive ? "User disabled" : "User enabled");
+        // TKT-052: activating = enabling a pending/disabled account.
+        toast.success(user.isActive ? "User disabled" : "User activated");
       }
       close();
     });
   };
 
-  const target = user.isActive ? "Disable" : "Enable";
+  // TKT-052: a labeled "Activate" action for inactive users (pending
+  // registrations or admin-disabled) — the schema has no pending-vs-disabled
+  // distinction, so one action serves both.
+  const target = user.isActive ? "Disable" : "Activate";
 
   return (
     <div ref={ref} className="relative inline-block text-left">
@@ -84,7 +88,7 @@ function UserActionsMenu({
           {confirmDisable ? (
             <>
               <p className="px-3 py-2 text-xs font-medium text-gray-700">
-                {user.isActive ? `Disable ${user.name}?` : `Enable ${user.name}?`}
+                {target} {user.name}?
               </p>
               <div className="flex gap-1 px-2 pb-1">
                 <button
@@ -158,6 +162,13 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  // TKT-052: status filter — "inactive" surfaces pending registrations and
+  // disabled accounts so admins can find who needs activation.
+  const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
+
+  const visibleUsers = users.filter((u) =>
+    filter === "all" ? true : filter === "active" ? u.isActive : !u.isActive
+  );
 
   const run = (fn: () => Promise<{ error?: string } | undefined>, success?: string) => {
     startTransition(async () => {
@@ -224,6 +235,26 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
       </Card>
 
       <div className="overflow-visible rounded-xl border border-gray-200 bg-white shadow-sm">
+        {/* TKT-052: status filter — one-click view of who needs activation. */}
+        <div className="flex items-center gap-1 border-b border-gray-100 px-4 py-3">
+          {(["all", "active", "inactive"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                filter === f
+                  ? "bg-indigo-600 text-white"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {f}
+              <span className="ml-1 opacity-70">
+                ({f === "all" ? users.length : f === "active" ? users.filter((u) => u.isActive).length : users.filter((u) => !u.isActive).length})
+              </span>
+            </button>
+          ))}
+        </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
@@ -235,7 +266,7 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {users.map((u) => (
+            {visibleUsers.map((u) => (
               <tr key={u.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3">
                   {editId === u.id ? (
@@ -277,8 +308,12 @@ export function UsersPanel({ users }: { users: UserRow[] }) {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  {/* TKT-028: display-only badge — the toggle lives in the actions menu. */}
-                  <Badge tone={u.isActive ? "green" : "red"}>{u.isActive ? "active" : "disabled"}</Badge>
+                  {/* TKT-028 + TKT-052: display-only badge — the toggle lives in the
+                      actions menu. Inactive = pending registration OR admin-disabled
+                      (schema has no distinction; one badge serves both). */}
+                  <Badge tone={u.isActive ? "green" : "amber"}>
+                    {u.isActive ? "active" : "inactive"}
+                  </Badge>
                 </td>
                 <td className="px-4 py-3 text-gray-500">{new Date(u.createdAt).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
