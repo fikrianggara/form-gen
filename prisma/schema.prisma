@@ -297,7 +297,6 @@ model Questionnaire {
   slug                    String                  @unique
   status                  QuestionnaireStatus     @default(DRAFT)
   acceptMultipleResponses Boolean                 @default(true)
-  requiresAccount         Boolean                 @default(false)
   /**
    * Sample respondent emails for unique-link distribution (TKT-001).
    */
