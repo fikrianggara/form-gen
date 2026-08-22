@@ -34,6 +34,9 @@ export default async function AdminLayout({
               <Link href="/admin/api-keys" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
                 API keys
               </Link>
+              <Link href="/admin/ai-credits" className="rounded-lg px-3 py-1.5 text-gray-600 hover:bg-gray-100">
+                AI credits
+              </Link>
             </div>
           </div>
           <Link href="/dashboard" className="text-sm text-gray-500 hover:text-gray-700">

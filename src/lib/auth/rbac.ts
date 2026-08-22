@@ -7,7 +7,8 @@ export type Permission =
   | "CREATE_QUESTION_MASTER" // admin + operator + dev (create only)
   | "MANAGE_QUESTIONNAIRES" // admin + operator + dev
   | "MANAGE_API_KEYS" // admin only: approve/deny portal requests (trust boundary)
-  | "ISSUE_API_KEYS"; // admin + dev: direct issue/revoke of API keys
+  | "ISSUE_API_KEYS" // admin + dev: direct issue/revoke of API keys
+  | "MANAGE_AI_CREDITS"; // admin only: global default, per-user allowance, balance adjustments
 
 export const PERMISSIONS: Record<Role, Permission[]> = {
   ADMIN: [
@@ -17,6 +18,7 @@ export const PERMISSIONS: Record<Role, Permission[]> = {
     "MANAGE_QUESTIONNAIRES",
     "MANAGE_API_KEYS",
     "ISSUE_API_KEYS",
+    "MANAGE_AI_CREDITS",
   ],
   OPERATOR: ["CREATE_QUESTION_MASTER", "MANAGE_QUESTIONNAIRES"],
   DEV: ["CREATE_QUESTION_MASTER", "MANAGE_QUESTIONNAIRES", "ISSUE_API_KEYS"],
