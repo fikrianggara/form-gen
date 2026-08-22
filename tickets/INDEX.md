@@ -66,7 +66,7 @@
 | TKT-049 | feature | small | P2 | landing-page | merged | jarvis | feature-TKT-049-landing-page-highlight-a | false | 2026-08-19 | 2026-08-19 | Landing page — highlight AI questionnaire generation (RAG hybrid retrieval) |
 | TKT-050 | feature | small | P2 | landing-page | merged | jarvis | feature-TKT-050-landing-hero-fold-ai-fea | false | 2026-08-19 | 2026-08-21 | Landing hero — fold AI feature into hero with overlapping cards; hover 'Try AI generation' brings AI card to top |
 | TKT-038 | feature | small | P2 | public-api | merged | jarvis | feature-TKT-032-public-rest-api-schema-a | false | 2026-08-17 | 2026-08-18 | ApiRequestLog retention/cleanup policy |
-| TKT-071 | feature | small | P2 | public-api | backlog | null | null | false | 2026-08-22 | 2026-08-22 | API documentation link in API keys page |
+| TKT-071 | feature | small | P2 | public-api | ongoing | jarvis | feature-TKT-071-api-documentation-link-i | false | 2026-08-22 | 2026-08-22 | API documentation link in API keys page |
 | TKT-064 | feature | small | P2 | qa-verification | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Verify rule-based conditional question display end-to-end |
 | TKT-004 | feature | small | P2 | — | merged | jarvis | feature-TKT-004-drill-ticket-verify-the | false | 2026-08-14 | 2026-08-14 | Drill ticket — verify the workflow loop |
 | TKT-016 | feature | small | P2 | — | merged | jarvis | feature-TKT-016-visible-disabled-state-f | false | 2026-08-15 | 2026-08-15 | Visible disabled state for input fields in master and option set forms |
