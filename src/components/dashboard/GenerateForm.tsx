@@ -10,11 +10,20 @@ import {
 import { Badge, Button, Card, Field, inputClass } from "@/components/ui";
 import { useToast } from "@/components/toast";
 
-export default function GenerateForm({ hybridActive }: { hybridActive: boolean }) {
+export default function GenerateForm({
+  hybridActive,
+  creditsRemaining,
+}: {
+  hybridActive: boolean;
+  /** TKT-069: today's remaining AI credits (server-fetched; null = not signed in). */
+  creditsRemaining: number | null;
+}) {
   const router = useRouter();
   const toast = useToast();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // TKT-069: live balance — starts from the server value, updated after each generation.
+  const [balance, setBalance] = useState<number | null>(creditsRemaining);
   const [maxQuestions, setMaxQuestions] = useState(10);
   const [threshold, setThreshold] = useState(0.3);
   const [multiple, setMultiple] = useState(true);
@@ -56,6 +65,21 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
         and any novel questions not in the bank.
       </p>
 
+      {balance !== null && (
+        <div className="mb-6 flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+          <div className="text-sm">
+            <span className="font-medium text-indigo-900">AI credits today</span>
+            <span className="text-indigo-600"> · 5 per questionnaire generation</span>
+          </div>
+          <div className="flex items-baseline gap-1">
+            <span className={`text-xl font-bold ${balance <= 0 ? "text-red-600" : "text-indigo-900"}`}>
+              {balance}
+            </span>
+            <span className="text-xs text-indigo-500">remaining</span>
+          </div>
+        </div>
+      )}
+
       <Card className="p-6">
         <form
           className="space-y-4"
@@ -84,6 +108,9 @@ export default function GenerateForm({ hybridActive }: { hybridActive: boolean }
               matchCount: result.matchCount ?? 0,
               lowCount: result.lowCount ?? 0,
             });
+            if (result.creditsRemaining !== undefined) {
+              setBalance(result.creditsRemaining);
+            }
             toast.success(
               "Questionnaire generated",
               `${result.matchCount} question${result.matchCount === 1 ? "" : "s"} suggested from the question bank${(result.novel?.length ?? 0) > 0 ? `, ${result.novel!.length} new question${result.novel!.length === 1 ? "" : "s"} flagged.` : "."}`

@@ -50,6 +50,11 @@ import {
   resetPassword,
 } from "@/services/user.service";
 import { generateQuestionnaireFromPrompt } from "@/services/rag.service";
+import {
+  deductCredits,
+  refundCredits,
+  CREDIT_COSTS,
+} from "@/services/credit.service";
 import type {
   AggregateConfig,
   VisibilityRule,
@@ -610,21 +615,43 @@ export async function generateQuestionnaireAction(input: {
   matchCount?: number;
   lowCount?: number;
   novel?: NovelMasterSuggestion[];
+  /** TKT-069: credits remaining after this generation (deducted up front). */
+  creditsRemaining?: number;
 }> {
   try {
-    requirePermission(await getSession(), "MANAGE_QUESTIONNAIRES");
-    const result = await generateQuestionnaireFromPrompt(input);
-    revalidatePath("/dashboard");
-    return {
-      questionnaireId: result.questionnaire.id,
-      matchCount: result.matches.length,
-      lowCount: result.matches.filter((m) => m.lowConfidence).length,
-      novel: result.novel.map((n) => ({
-        title: n.title,
-        questionType: n.questionType,
-        description: n.description ?? null,
-      })),
-    };
+    const session = await getSession();
+    requirePermission(session, "MANAGE_QUESTIONNAIRES");
+    // TKT-069: charge BEFORE the RAG pipeline. A failed generation is refunded
+    // in the inner catch — a successful one always costs exactly 5.
+    const creditsRemaining = await deductCredits(
+      session.sub,
+      CREDIT_COSTS.GENERATE_QUESTIONNAIRE,
+      "generate questionnaire from prompt"
+    );
+    try {
+      const result = await generateQuestionnaireFromPrompt(input);
+      revalidatePath("/dashboard");
+      revalidatePath("/dashboard/generate");
+      return {
+        questionnaireId: result.questionnaire.id,
+        matchCount: result.matches.length,
+        lowCount: result.matches.filter((m) => m.lowConfidence).length,
+        novel: result.novel.map((n) => ({
+          title: n.title,
+          questionType: n.questionType,
+          description: n.description ?? null,
+        })),
+        creditsRemaining,
+      };
+    } catch (err) {
+      // Refund best-effort, then surface the original error.
+      await refundCredits(
+        session.sub,
+        CREDIT_COSTS.GENERATE_QUESTIONNAIRE,
+        "refund after failed generation"
+      ).catch(() => {});
+      throw err;
+    }
   } catch (err) {
     return actionError(err);
   }
