@@ -61,7 +61,7 @@
 | TKT-011 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-011-small-wins | false | 2026-08-13 | 2026-08-14 | Conditional field disabling in master and option set forms |
 | TKT-018 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-018-system-wide-action-icons | false | 2026-08-15 | 2026-08-15 | System-wide action icons (view, add, edit, delete, logout, login, etc.) |
 | TKT-031 | feature | small | P2 | admin-polish | merged | jarvis | feature-TKT-031-add-generate-with-ai-but | false | 2026-08-15 | 2026-08-16 | Add 'Generate with AI' button on questionnaires page |
-| TKT-066 | feature | small | P2 | api-key-ux | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Copy-to-clipboard for API keys |
+| TKT-066 | feature | small | P2 | api-key-ux | ongoing | jarvis | feature-TKT-066-copy-to-clipboard-for-ap | false | 2026-08-21 | 2026-08-22 | Copy-to-clipboard for API keys |
 | TKT-010 | feature | small | P2 | external-mapping | merged | jarvis | feature-TKT-011-small-wins | false | 2026-08-13 | 2026-08-14 | Option set nested key extraction from API responses |
 | TKT-049 | feature | small | P2 | landing-page | merged | jarvis | feature-TKT-049-landing-page-highlight-a | false | 2026-08-19 | 2026-08-19 | Landing page — highlight AI questionnaire generation (RAG hybrid retrieval) |
 | TKT-050 | feature | small | P2 | landing-page | merged | jarvis | feature-TKT-050-landing-hero-fold-ai-fea | false | 2026-08-19 | 2026-08-21 | Landing hero — fold AI feature into hero with overlapping cards; hover 'Try AI generation' brings AI card to top |
