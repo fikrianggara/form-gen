@@ -27,7 +27,7 @@ describe("admin api-key dashboard", () => {
 
   it("counts usage per key from ApiRequestLog", async () => {
     const admin = await db.user.create({
-      data: { email: "a@x.test", name: "A", passwordHash: "x", role: "ADMIN" },
+      data: { email: "a@x.test", name: "A", username: "ax", passwordHash: "x", role: "ADMIN" },
     });
     const { key } = await issueApiKey({ name: "usage", scopes: ["masters:read"], createdBy: admin.id });
     const { key: key2 } = await issueApiKey({ name: "idle", scopes: ["masters:read"], createdBy: admin.id });
@@ -73,7 +73,7 @@ describe("admin api-key dashboard", () => {
 
   it("approve→revoke lifecycle works through the service", async () => {
     const admin = await db.user.create({
-      data: { email: "b@x.test", name: "B", passwordHash: "x", role: "ADMIN" },
+      data: { email: "b@x.test", name: "B", username: "bx", passwordHash: "x", role: "ADMIN" },
     });
     const request = await createApiKeyRequest({
       requesterName: "Partner",
