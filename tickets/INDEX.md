@@ -42,7 +42,7 @@
 | TKT-059 | feature | small | P1 | nav-shell | done | jarvis | feature-TKT-058-sidebar-navigation-shell | true | 2026-08-21 | 2026-08-22 | Landing page auth-aware header — username + Dashboard link |
 | TKT-045 | feature | small | P1 | public-api | merged | jarvis | feature-TKT-045-expose-openapi-spec-via | false | 2026-08-19 | 2026-08-19 | Expose OpenAPI spec via REST API endpoint |
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | 2026-08-14 | 2026-08-14 | Rate-limit respondent login attempts |
-| TKT-052 | feature | small | P1 | user-accounts | ongoing | jarvis | feature-TKT-052-admin-activation-ux | false | 2026-08-21 | 2026-08-22 | Admin activation UX for pending registrations |
+| TKT-052 | feature | small | P1 | user-accounts | done | jarvis | feature-TKT-052-admin-activation-ux | true | 2026-08-21 | 2026-08-22 | Admin activation UX for pending registrations |
 | TKT-025 | feature | small | P1 | — | done | jarvis | feature-TKT-025-drop-dead-requiresaccoun | true | 2026-08-15 | 2026-08-22 | Drop dead requiresAccount column |
 | TKT-008 | feature | big | P2 | ai-sourcing | merged | jarvis | feature-TKT-008-ai-generation-round-2-fla | false | 2026-08-13 | 2026-08-17 | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
 | TKT-048 | feature | big | P2 | landing-page | merged | jarvis | feature-TKT-048-landing-page-marketing-h | false | 2026-08-19 | 2026-08-19 | Landing page — marketing homepage (features, how it works, business flow) |
