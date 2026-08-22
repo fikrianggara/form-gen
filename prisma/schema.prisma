@@ -176,6 +176,11 @@ model User {
   proposals       Proposal[]
   apiKeys         ApiKey[]         @relation("ApiKeyCreator")
 
+  // TKT-069: AI credit system — per-user daily allowance override (null = config default).
+  aiCreditsPerDay   Int?
+  aiCreditUsages    AiCreditUsage[]
+  aiCreditAdjustments AiCreditAdjustment[]
+
   @@index([organizationId])
 }
 
@@ -292,7 +297,6 @@ model Questionnaire {
   slug                    String                  @unique
   status                  QuestionnaireStatus     @default(DRAFT)
   acceptMultipleResponses Boolean                 @default(true)
-  requiresAccount         Boolean                 @default(false)
   /**
    * Sample respondent emails for unique-link distribution (TKT-001).
    */
@@ -530,4 +534,53 @@ model ApiRequestLog {
 
   @@index([apiKeyId, createdAt])
   @@index([createdAt])
+}
+
+// ------------------------------------------------------------ TKT-069: AI credits
+
+/**
+ * Global AI credit configuration (TKT-069). Single row — `id` is the fixed
+ * literal "global". `dailyDefault` is the daily allowance every user gets
+ * unless overridden by `User.aiCreditsPerDay`.
+ */
+model AiCreditConfig {
+  id           String   @id
+  dailyDefault Int      @default(20)
+  updatedAt    DateTime @updatedAt
+}
+
+/**
+ * Daily AI credit usage (TKT-069). One row per (user, calendar date). The
+ * daily "reset" is inherent: balance(today) = allowance − used(today) +
+ * Σ adjustments(today), so no cron is needed — the date key simply flips.
+ */
+model AiCreditUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  used      Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+}
+
+/**
+ * Dated balance adjustment (TKT-069) — admin top-up/revoke for a specific day,
+ * with audit. A positive delta adds credits to that day's balance, negative
+ * subtracts.
+ */
+model AiCreditAdjustment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  delta     Int
+  reason    String
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([date])
 }
