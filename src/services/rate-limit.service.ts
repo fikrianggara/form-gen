@@ -131,3 +131,9 @@ export async function recordResponseSubmission(
   await recordRateLimitEvent(`submit:ip:${ip}`);
   await recordRateLimitEvent(`submit:q:${questionnaireId}`);
 }
+
+// ------------------------------------------------------------ TKT-051: registration
+
+/** Registration spam guard: per-IP window (10/hour). */
+export const REGISTER_MAX_PER_IP = 10;
+export const REGISTER_WINDOW_MS = 60 * 60 * 1000;
