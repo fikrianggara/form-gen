@@ -39,7 +39,7 @@
 | TKT-019 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Absolute base URL for invitation links |
 | TKT-021 | bug | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Escape HTML in mail templates |
 | TKT-022 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Invitation.responseId as a real FK relation |
-| TKT-059 | feature | small | P1 | nav-shell | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Landing page auth-aware header — username + Dashboard link |
+| TKT-059 | feature | small | P1 | nav-shell | ongoing | jarvis | feature-TKT-058-sidebar-navigation-shell | false | 2026-08-21 | 2026-08-22 | Landing page auth-aware header — username + Dashboard link |
 | TKT-045 | feature | small | P1 | public-api | merged | jarvis | feature-TKT-045-expose-openapi-spec-via | false | 2026-08-19 | 2026-08-19 | Expose OpenAPI spec via REST API endpoint |
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | 2026-08-14 | 2026-08-14 | Rate-limit respondent login attempts |
 | TKT-052 | feature | small | P1 | user-accounts | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Admin activation UX for pending registrations |
