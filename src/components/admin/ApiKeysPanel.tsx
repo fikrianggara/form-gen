@@ -10,6 +10,9 @@ import {
 } from "@/lib/actions/api-keys";
 import { Button, Card, Field, inputClass, Badge } from "@/components/ui";
 import { API_SCOPES, type ApiScope } from "@/lib/api-key-scopes";
+import { copyToClipboard } from "@/lib/clipboard";
+import { useToast } from "@/components/toast";
+import { IconCopy, IconCheck } from "@/components/icons";
 
 const SCOPE_LABELS: Record<string, string> = {
   "questionnaires:read": "questionnaires:read",
@@ -29,12 +32,34 @@ const STATUS_TONE: Record<string, "gray" | "green" | "amber" | "red"> = {
 };
 
 export function ApiKeysPanel({ dashboard }: { dashboard: AdminApiKeyDashboard }) {
+  const toast = useToast();
   const [issueOpen, setIssueOpen] = useState(false);
   const [name, setName] = useState("");
   const [scopes, setScopes] = useState<ApiScope[]>([]);
   const [secretReveal, setSecretReveal] = useState<{ keyPrefix: string; secret: string } | null>(null);
+  const [copiedSecret, setCopiedSecret] = useState(false);
+  const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  async function handleCopySecret() {
+    if (!secretReveal) return;
+    const ok = await copyToClipboard(secretReveal.secret);
+    if (ok) {
+      setCopiedSecret(true);
+      toast.success("API key copied", "Make sure to store it securely.");
+      setTimeout(() => setCopiedSecret(false), 2000);
+    }
+  }
+
+  async function handleCopyPrefix(id: string, prefix: string) {
+    const ok = await copyToClipboard(prefix);
+    if (ok) {
+      setCopiedKeyId(id);
+      toast.success("Key prefix copied", prefix);
+      setTimeout(() => setCopiedKeyId((cur) => (cur === id ? null : cur)), 2000);
+    }
+  }
 
   async function handleIssue(e: React.FormEvent) {
     e.preventDefault();
@@ -98,11 +123,27 @@ export function ApiKeysPanel({ dashboard }: { dashboard: AdminApiKeyDashboard })
           <div className="mt-3 flex gap-2">
             <Button
               variant="secondary"
-              onClick={() => navigator.clipboard?.writeText(secretReveal.secret)}
+              onClick={handleCopySecret}
             >
-              Copy
+              {copiedSecret ? (
+                <span className="inline-flex items-center gap-1.5 text-emerald-700">
+                  <IconCheck size={14} />
+                  Copied!
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <IconCopy size={14} />
+                  Copy key
+                </span>
+              )}
             </Button>
-            <Button variant="ghost" onClick={() => setSecretReveal(null)}>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSecretReveal(null);
+                setCopiedSecret(false);
+              }}
+            >
               Dismiss
             </Button>
           </div>
@@ -226,7 +267,28 @@ export function ApiKeysPanel({ dashboard }: { dashboard: AdminApiKeyDashboard })
                   <tr key={k.id} className="border-b border-gray-100">
                     <td className="py-2 pr-4 font-medium text-gray-900">{k.name}</td>
                     <td className="py-2 pr-4">
-                      <code className="text-xs text-gray-500">{k.keyPrefix}…</code>
+                      <div className="flex items-center gap-1.5">
+                        <code className="text-xs text-gray-500">{k.keyPrefix}…</code>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPrefix(k.id, k.keyPrefix)}
+                          className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-xs font-medium text-gray-600 shadow-sm transition hover:bg-gray-50 hover:text-gray-900"
+                          title="Copy key prefix"
+                          aria-label={`Copy prefix for ${k.name}`}
+                        >
+                          {copiedKeyId === k.id ? (
+                            <>
+                              <IconCheck size={12} className="text-emerald-600" />
+                              <span className="text-emerald-700">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <IconCopy size={12} className="text-gray-400" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </td>
                     <td className="py-2 pr-4">
                       <div className="flex flex-wrap gap-1">
