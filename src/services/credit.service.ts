@@ -160,3 +160,210 @@ export async function refundCredits(
     data: { used: { decrement: cost } },
   });
 }
+
+// ---------------------------------------------------------------- TKT-070: Admin Credit Management
+
+export interface UserCreditOverview {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  allowance: number;
+  isOverride: boolean;
+  usedToday: number;
+  adjustmentsToday: number;
+  balanceToday: number;
+}
+
+export interface CreditAdjustmentRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  date: string;
+  delta: number;
+  reason: string;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export interface AdminCreditDashboardData {
+  globalDailyDefault: number;
+  users: UserCreditOverview[];
+  recentAdjustments: CreditAdjustmentRecord[];
+}
+
+/** Get the current global default daily allowance. */
+export async function getGlobalCreditConfig(): Promise<{ dailyDefault: number }> {
+  const config = await db.aiCreditConfig.findUnique({
+    where: { id: AI_CREDIT_CONFIG_ID },
+  });
+  return { dailyDefault: config?.dailyDefault ?? DEFAULT_DAILY_ALLOWANCE };
+}
+
+/** Set the global default daily allowance (TKT-070). */
+export async function setGlobalDailyDefault(
+  dailyDefault: number
+): Promise<{ dailyDefault: number }> {
+  if (!Number.isInteger(dailyDefault) || dailyDefault < 0) {
+    throw new AppError("Daily default credits must be a non-negative integer", 400, "INVALID_ALLOWANCE");
+  }
+  const config = await db.aiCreditConfig.upsert({
+    where: { id: AI_CREDIT_CONFIG_ID },
+    create: {
+      id: AI_CREDIT_CONFIG_ID,
+      dailyDefault,
+    },
+    update: {
+      dailyDefault,
+    },
+  });
+  return { dailyDefault: config.dailyDefault };
+}
+
+/** Set a user's daily credit allowance override, or null to revert to global default (TKT-070). */
+export async function setUserDailyAllowance(
+  userId: string,
+  allowance: number | null
+): Promise<void> {
+  if (allowance !== null && (!Number.isInteger(allowance) || allowance < 0)) {
+    throw new AppError("User allowance must be a non-negative integer or null", 400, "INVALID_ALLOWANCE");
+  }
+  await db.user.update({
+    where: { id: userId },
+    data: { aiCreditsPerDay: allowance },
+  });
+}
+
+/** Add a dated credit balance adjustment for today with audit trail (TKT-070). */
+export async function adjustUserCreditBalance(
+  userId: string,
+  delta: number,
+  reason: string,
+  adminUserId?: string
+): Promise<{ id: string; delta: number; reason: string }> {
+  if (!Number.isInteger(delta) || delta === 0) {
+    throw new AppError("Adjustment delta must be a non-zero integer", 400, "INVALID_ADJUSTMENT_DELTA");
+  }
+  const trimmedReason = reason?.trim();
+  if (!trimmedReason) {
+    throw new AppError("Adjustment reason is required", 400, "INVALID_ADJUSTMENT_REASON");
+  }
+  const date = dateFromKey(todayKey());
+  const adj = await db.aiCreditAdjustment.create({
+    data: {
+      userId,
+      date,
+      delta,
+      reason: trimmedReason,
+      createdBy: adminUserId ?? null,
+    },
+  });
+  return { id: adj.id, delta: adj.delta, reason: adj.reason };
+}
+
+/** Get full admin overview: global config, user credit balances, and recent adjustments (TKT-070). */
+export async function getAdminCreditDashboardData(): Promise<AdminCreditDashboardData> {
+  const date = dateFromKey(todayKey());
+  const [config, users, usages, adjustments, recentAdjustments] = await Promise.all([
+    db.aiCreditConfig.findUnique({ where: { id: AI_CREDIT_CONFIG_ID } }),
+    db.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        aiCreditsPerDay: true,
+      },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
+    db.aiCreditUsage.findMany({
+      where: { date },
+      select: { userId: true, used: true },
+    }),
+    db.aiCreditAdjustment.groupBy({
+      by: ["userId"],
+      where: { date },
+      _sum: { delta: true },
+    }),
+    db.aiCreditAdjustment.findMany({
+      include: {
+        user: { select: { name: true, email: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    }),
+  ]);
+
+  const globalDailyDefault = config?.dailyDefault ?? DEFAULT_DAILY_ALLOWANCE;
+  const usageMap = new Map<string, number>(
+    usages.map((u: { userId: string; used: number }) => [u.userId, u.used])
+  );
+  const adjMap = new Map<string, number>(
+    adjustments.map((a: { userId: string; _sum: { delta: number | null } }) => [
+      a.userId,
+      a._sum.delta ?? 0,
+    ])
+  );
+
+  const userOverviews: UserCreditOverview[] = users.map(
+    (u: {
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      isActive: boolean;
+      aiCreditsPerDay: number | null;
+    }) => {
+      const isOverride = u.aiCreditsPerDay !== null;
+      const allowance = u.aiCreditsPerDay ?? globalDailyDefault;
+      const usedToday = usageMap.get(u.id) ?? 0;
+      const adjustmentsToday = adjMap.get(u.id) ?? 0;
+      const balanceToday = Math.max(0, allowance - usedToday + adjustmentsToday);
+
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        isActive: u.isActive,
+        allowance,
+        isOverride,
+        usedToday,
+        adjustmentsToday,
+        balanceToday,
+      };
+    }
+  );
+
+  const formattedAdjustments: CreditAdjustmentRecord[] = recentAdjustments.map(
+    (adj: {
+      id: string;
+      userId: string;
+      user: { name: string; email: string };
+      date: Date;
+      delta: number;
+      reason: string;
+      createdBy: string | null;
+      createdAt: Date;
+    }) => ({
+      id: adj.id,
+      userId: adj.userId,
+      userName: adj.user.name,
+      userEmail: adj.user.email,
+      date: todayKey(adj.date),
+      delta: adj.delta,
+      reason: adj.reason,
+      createdBy: adj.createdBy,
+      createdAt: adj.createdAt.toISOString(),
+    })
+  );
+
+  return {
+    globalDailyDefault,
+    users: userOverviews,
+    recentAdjustments: formattedAdjustments,
+  };
+}
