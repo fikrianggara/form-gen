@@ -6,7 +6,7 @@
 | TKT-020 | feature | medium | P0 | invitation-hardening | merged | jarvis | feature-TKT-020-invitation-token-expiry | false | 2026-08-15 | 2026-08-15 | Invitation token expiry, single-use enforcement, and admin revoke |
 | TKT-023 | feature | medium | P0 | respondent-auth | merged | jarvis | feature-TKT-023-rate-limit-public-respon | false | 2026-08-15 | 2026-08-15 | Rate-limit public response submission endpoints |
 | TKT-065 | bug | small | P0 | qa-verification | backlog | null | null | false | 2026-08-21 | 2026-08-21 | BUG: DEV role login and navigation |
-| TKT-069 | feature | big | P1 | ai-credits | ongoing | jarvis | feature-TKT-069-ai-credit-system-daily-a | false | 2026-08-21 | 2026-08-22 | AI credit system — daily allowance, deduction service, generation enforcement |
+| TKT-069 | feature | big | P1 | ai-credits | done | jarvis | feature-TKT-069-ai-credit-system-daily-a | true | 2026-08-21 | 2026-08-22 | AI credit system — daily allowance, deduction service, generation enforcement |
 | TKT-054 | feature | big | P1 | api-key-promotion | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Operator API-key request — approval promotes to DEV |
 | TKT-055 | feature | big | P1 | org-admin | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Organization membership model — invites, join requests, approval |
 | TKT-061 | feature | big | P1 | proposal-org-ai | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Proposal new-org — approval auto-creates org + survey + AI questionnaire |
@@ -39,11 +39,11 @@
 | TKT-019 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Absolute base URL for invitation links |
 | TKT-021 | bug | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Escape HTML in mail templates |
 | TKT-022 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Invitation.responseId as a real FK relation |
-| TKT-059 | feature | small | P1 | nav-shell | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Landing page auth-aware header — username + Dashboard link |
+| TKT-059 | feature | small | P1 | nav-shell | done | jarvis | feature-TKT-058-sidebar-navigation-shell | true | 2026-08-21 | 2026-08-22 | Landing page auth-aware header — username + Dashboard link |
 | TKT-045 | feature | small | P1 | public-api | merged | jarvis | feature-TKT-045-expose-openapi-spec-via | false | 2026-08-19 | 2026-08-19 | Expose OpenAPI spec via REST API endpoint |
 | TKT-003 | bug | small | P1 | respondent-auth | merged | jarvis | bug-TKT-003-rate-limit-respondent-lo | false | 2026-08-14 | 2026-08-14 | Rate-limit respondent login attempts |
 | TKT-052 | feature | small | P1 | user-accounts | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Admin activation UX for pending registrations |
-| TKT-025 | feature | small | P1 | — | backlog | null | null | false | 2026-08-15 | 2026-08-15 | Drop dead requiresAccount column |
+| TKT-025 | feature | small | P1 | — | ongoing | jarvis | feature-TKT-025-drop-dead-requiresaccoun | false | 2026-08-15 | 2026-08-22 | Drop dead requiresAccount column |
 | TKT-008 | feature | big | P2 | ai-sourcing | merged | jarvis | feature-TKT-008-ai-generation-round-2-fla | false | 2026-08-13 | 2026-08-17 | AI generation round 2 — flag novel questions, add-to-master modal, admin validation, visibility filter |
 | TKT-048 | feature | big | P2 | landing-page | merged | jarvis | feature-TKT-048-landing-page-marketing-h | false | 2026-08-19 | 2026-08-19 | Landing page — marketing homepage (features, how it works, business flow) |
 | TKT-014 | feature | big | P2 | org-scoping | merged | jarvis | feature-TKT-014-organization-scoping-org | false | 2026-08-13 | 2026-08-17 | Organization scoping — org to survey to multiple questionnaires, operator org access, public/private masters |
