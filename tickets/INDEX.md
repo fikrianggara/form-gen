@@ -5,7 +5,7 @@
 | TKT-001 | feature | big | P0 | respondent-auth | merged | jarvis | feature-TKT-001-unique-link-distribution | false | 2026-08-14 | 2026-08-14 | Unique-link distribution & lazy response creation — mailblast sample links, no accounts |
 | TKT-020 | feature | medium | P0 | invitation-hardening | merged | jarvis | feature-TKT-020-invitation-token-expiry | false | 2026-08-15 | 2026-08-15 | Invitation token expiry, single-use enforcement, and admin revoke |
 | TKT-023 | feature | medium | P0 | respondent-auth | merged | jarvis | feature-TKT-023-rate-limit-public-respon | false | 2026-08-15 | 2026-08-15 | Rate-limit public response submission endpoints |
-| TKT-065 | bug | small | P0 | qa-verification | backlog | null | null | false | 2026-08-21 | 2026-08-21 | BUG: DEV role login and navigation |
+| TKT-065 | bug | small | P0 | qa-verification | done | null | null | false | 2026-08-21 | 2026-08-21 | BUG: DEV role login and navigation |
 | TKT-069 | feature | big | P1 | ai-credits | done | jarvis | feature-TKT-069-ai-credit-system-daily-a | true | 2026-08-21 | 2026-08-22 | AI credit system — daily allowance, deduction service, generation enforcement |
 | TKT-054 | feature | big | P1 | api-key-promotion | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Operator API-key request — approval promotes to DEV |
 | TKT-055 | feature | big | P1 | org-admin | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Organization membership model — invites, join requests, approval |
@@ -18,7 +18,7 @@
 | TKT-007 | feature | big | P1 | rule-engine | merged | jarvis | feature-TKT-006-multi-rule-visibility-en | false | 2026-08-13 | 2026-08-14 | Question blocks with multi entry rules |
 | TKT-041 | feature | big | P1 | survey-management | merged | jarvis | feature-TKT-041-survey-questionnaire-man | false | 2026-08-17 | 2026-08-19 | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
 | TKT-042 | feature | big | P1 | survey-management | merged | jarvis | feature-TKT-041-survey-questionnaire-man | false | 2026-08-17 | 2026-08-19 | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
-| TKT-060 | feature | big | P1 | ui-theme | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Design token system + dark mode |
+| TKT-060 | feature | big | P1 | ui-theme | done | null | null | false | 2026-08-21 | 2026-08-21 | Design token system + dark mode |
 | TKT-051 | feature | big | P1 | user-accounts | done | jarvis | feature-TKT-051-public-user-registration | true | 2026-08-21 | 2026-08-22 | Public user registration — inactive until admin activation |
 | TKT-070 | feature | medium | P1 | ai-credits | done | jarvis | feature-TKT-070-admin-ai-credit-manageme | true | 2026-08-21 | 2026-08-22 | Admin AI-credit management — global default, per-user allowance, balance adjustment |
 | TKT-062 | feature | medium | P1 | ai-question-editing | backlog | null | null | false | 2026-08-21 | 2026-08-21 | AI add-question and edit-question in questionnaire editor |
