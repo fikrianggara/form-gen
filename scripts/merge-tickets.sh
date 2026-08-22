@@ -25,6 +25,7 @@ git diff --quiet || { echo "error: working tree is dirty — commit or stash fir
 # explicitly-empty override (TKT_MIGRATE_CMD="", TKT_GATE_CMD="") disables the
 # step instead of falling back.
 [[ -f "$ROOT/scripts/ticket.config.sh" ]] && source "$ROOT/scripts/ticket.config.sh"
+DB_URL_BASE="${TKT_DB_URL_BASE-postgresql://fikrianggara@localhost:5432}"
 TEST_DB_PREFIX="${TKT_TEST_DB_PREFIX-form_gen_test_tkt}"
 MIGRATE_CMD="${TKT_MIGRATE_CMD-npx prisma migrate deploy}"
 GATE_CMD="${TKT_GATE_CMD-npx tsc --noEmit && npx vitest run && npx next lint && npm run build}"
