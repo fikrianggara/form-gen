@@ -1,6 +1,6 @@
 | id | type | size | sev | group | status | assignee | branch | ready | created | updated | title |
 |---|-----|------|-----|-------|--------|----------|--------|-------|--------|---------|-------|
-| TKT-058 | feature | big | P0 | nav-shell | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Sidebar navigation shell — unified dashboard/admin nav |
+| TKT-058 | feature | big | P0 | nav-shell | ongoing | jarvis | feature-TKT-058-sidebar-navigation-shell | false | 2026-08-21 | 2026-08-22 | Sidebar navigation shell — unified dashboard/admin nav |
 | TKT-024 | feature | big | P0 | questionnaire-extras | merged | jarvis | feature-TKT-024-response-status-workflow | false | 2026-08-15 | 2026-08-15 | Response status workflow: draft, submitted, edited, approved + audit trail |
 | TKT-001 | feature | big | P0 | respondent-auth | merged | jarvis | feature-TKT-001-unique-link-distribution | false | 2026-08-14 | 2026-08-14 | Unique-link distribution & lazy response creation — mailblast sample links, no accounts |
 | TKT-020 | feature | medium | P0 | invitation-hardening | merged | jarvis | feature-TKT-020-invitation-token-expiry | false | 2026-08-15 | 2026-08-15 | Invitation token expiry, single-use enforcement, and admin revoke |
