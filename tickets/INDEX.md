@@ -35,7 +35,7 @@
 | TKT-028 | feature | small | P1 | admin-polish | merged | jarvis | feature-TKT-028-users-table-kebab-action | false | 2026-08-15 | 2026-08-15 | Users table: kebab action menu (Edit, Reset password, Enable/Disable) + pure status badge |
 | TKT-029 | feature | small | P1 | admin-polish | merged | jarvis | feature-TKT-028-users-table-kebab-action | false | 2026-08-15 | 2026-08-15 | Disable user revokes active session (isActive checked at session verify) + self-lockout guard |
 | TKT-030 | bug | small | P1 | admin-polish | merged | jarvis | bug-TKT-030-table-wrappers-clip-popu | false | 2026-08-15 | 2026-08-15 | Table wrappers clip popup menus (overflow-hidden truncates action menus) |
-| TKT-068 | feature | small | P1 | dashboard-stats | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Dashboard statistics + survey tags on questionnaire cards |
+| TKT-068 | feature | small | P1 | dashboard-stats | ongoing | jarvis | feature-TKT-068-dashboard-statistics-sur | false | 2026-08-21 | 2026-08-22 | Dashboard statistics + survey tags on questionnaire cards |
 | TKT-019 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Absolute base URL for invitation links |
 | TKT-021 | bug | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Escape HTML in mail templates |
 | TKT-022 | feature | small | P1 | invitation-hardening | merged | jarvis | feature-TKT-019-absolute-base-url-for-in | false | 2026-08-15 | 2026-08-16 | Invitation.responseId as a real FK relation |
