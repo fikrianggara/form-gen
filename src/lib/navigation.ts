@@ -118,6 +118,12 @@ export function getNavigationGroups(role: Role): NavigationGroup[] {
           href: "/admin/users",
           iconName: "users",
         },
+        {
+          id: "ai-credits",
+          label: "AI Credits",
+          href: "/admin/ai-credits",
+          iconName: "sparkles",
+        },
       ],
     });
   }
