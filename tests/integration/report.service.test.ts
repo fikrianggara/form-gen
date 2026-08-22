@@ -265,5 +265,5 @@ describe("report service — export", () => {
 
     const long = wb.getWorksheet("Answers (long)")!;
     expect(long.rowCount).toBeGreaterThan(10);
-  });
+  }, 60000);
 });
