@@ -10,6 +10,8 @@ export interface CreateUserInput {
   name: string;
   password: string;
   role: Role;
+  /** Optional explicit username (TKT-051); defaults to the email local part (deduped). */
+  username?: string;
 }
 
 export interface UpdateUserInput {
@@ -32,6 +34,56 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+// ------------------------------------------------- TKT-051: usernames
+
+const USERNAME_RE = /^[a-z0-9._-]{3,30}$/;
+
+/** Normalize a sign-in handle: trimmed, lowercased. */
+export function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+/** Validate a user-supplied username; returns the normalized form or throws. */
+export function validateUsername(username: string): string {
+  const normalized = normalizeUsername(username);
+  if (!USERNAME_RE.test(normalized)) {
+    throw new AppError(
+      "Username must be 3–30 characters (letters, numbers, dot, dash, underscore)",
+      422,
+      "INVALID_USERNAME"
+    );
+  }
+  return normalized;
+}
+
+/** Throw USERNAME_TAKEN when the normalized username is already in use. */
+async function assertUsernameFree(raw: string): Promise<string> {
+  const username = validateUsername(raw);
+  const taken = await db.user.findUnique({ where: { username } });
+  if (taken) {
+    throw new AppError("This username is already taken", 409, "USERNAME_TAKEN");
+  }
+  return username;
+}
+
+/**
+ * Reserve a unique username starting from `base` (typically an email local
+ * part): sanitized, truncated, then suffixed -2/-3… on collision.
+ */
+async function uniqueUsername(base: string): Promise<string> {
+  const candidate =
+    normalizeUsername(base).replace(/[^a-z0-9._-]/g, "").slice(0, 28) || "user";
+  let current = candidate;
+  let n = 2;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const taken = await db.user.findUnique({ where: { username: current } });
+    if (!taken) return current;
+    current = `${candidate}-${n}`;
+    n += 1;
+  }
+}
+
 /** Create a user with a bcrypt-hashed password. */
 export async function createUser(input: CreateUserInput): Promise<User> {
   validatePassword(input.password);
@@ -40,13 +92,58 @@ export async function createUser(input: CreateUserInput): Promise<User> {
   if (existing) {
     throw new AppError("A user with this email already exists", 409, "EMAIL_TAKEN");
   }
+  const username = input.username
+    ? await assertUsernameFree(input.username)
+    : await uniqueUsername(email.split("@")[0]);
   const passwordHash = await bcrypt.hash(input.password, 10);
   return db.user.create({
     data: {
       email,
+      username,
       name: input.name.trim(),
       passwordHash,
       role: input.role,
+    },
+  });
+}
+
+export interface RegisterUserInput {
+  username: string;
+  email: string;
+  password: string;
+}
+
+/**
+ * TKT-051: public self-registration. The account is created INACTIVE with the
+ * OPERATOR role and cannot sign in until an admin activates it — `authenticate`
+ * already rejects inactive users, so the gate comes for free.
+ */
+export async function registerPublicUser(input: RegisterUserInput): Promise<User> {
+  validatePassword(input.password);
+  const username = validateUsername(input.username);
+  const email = normalizeEmail(input.email);
+  const existing = await db.user.findFirst({
+    where: { OR: [{ email }, { username }] },
+  });
+  if (existing) {
+    const emailTaken = existing.email === email;
+    throw new AppError(
+      emailTaken
+        ? "A user with this email already exists"
+        : "This username is already taken",
+      409,
+      emailTaken ? "EMAIL_TAKEN" : "USERNAME_TAKEN"
+    );
+  }
+  const passwordHash = await bcrypt.hash(input.password, 10);
+  return db.user.create({
+    data: {
+      email,
+      username,
+      name: username,
+      passwordHash,
+      role: "OPERATOR",
+      isActive: false,
     },
   });
 }
@@ -128,12 +225,19 @@ export async function resetPassword(id: string, newPassword: string): Promise<vo
   await db.user.update({ where: { id }, data: { passwordHash } });
 }
 
-/** Verify credentials. Returns the user on success, null on failure/inactive. */
+/**
+ * Verify credentials. Accepts the username OR the email as `identifier`.
+ * Returns the user on success, null on failure or when inactive (TKT-051:
+ * pending registrations can't sign in until an admin activates them).
+ */
 export async function authenticate(
-  email: string,
+  identifier: string,
   password: string
 ): Promise<User | null> {
-  const user = await db.user.findUnique({ where: { email: normalizeEmail(email) } });
+  const key = identifier.trim().toLowerCase();
+  const user = await db.user.findFirst({
+    where: { OR: [{ email: key }, { username: key }] },
+  });
   if (!user || !user.isActive) return null;
   const ok = await bcrypt.compare(password, user.passwordHash);
   return ok ? user : null;

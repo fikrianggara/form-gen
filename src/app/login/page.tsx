@@ -23,22 +23,22 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm p-8">
         <h1 className="text-2xl font-bold">Sign in to FormGen</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Admin and operator access only.
+          Sign in with your username or email.
         </p>
 
         <form action={formAction} className="mt-6 space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-800" htmlFor="email">
-              Email
+              Username or email
             </label>
             <input
               id="email"
               name="email"
-              type="email"
+              type="text"
               required
-              autoComplete="email"
+              autoComplete="username"
               className={inputClass}
-              placeholder="admin@formgen.app"
+              placeholder="username or admin@formgen.app"
             />
           </div>
           <div>
@@ -66,7 +66,14 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-gray-400">
+        <p className="mt-6 text-center text-sm text-gray-500">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-medium text-indigo-600 hover:underline">
+            Create one
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-gray-400">
           <Link href="/" className="hover:text-gray-600">
             ← Back to home
           </Link>

@@ -160,6 +160,8 @@ model Proposal {
 model User {
   id              String           @id @default(cuid())
   email           String           @unique
+  /** TKT-051: unique sign-in handle; login accepts username OR email. */
+  username        String           @unique
   name            String
   passwordHash    String
   role            Role             @default(OPERATOR)

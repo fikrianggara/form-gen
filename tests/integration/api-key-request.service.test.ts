@@ -15,6 +15,7 @@ async function makeAdmin() {
     data: {
       email: "admin@formgen.test",
       name: "Admin",
+      username: "admin",
       passwordHash: "x",
       role: "ADMIN",
     },

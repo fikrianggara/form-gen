@@ -2,11 +2,15 @@
 
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { authenticate } from "@/services/user.service";
+import { authenticate, registerPublicUser } from "@/services/user.service";
 import {
   assertLoginAllowed,
   recordLoginFailure,
   recordLoginSuccess,
+  assertWithinLimit,
+  recordRateLimitEvent,
+  REGISTER_MAX_PER_IP,
+  REGISTER_WINDOW_MS,
 } from "@/services/rate-limit.service";
 import { signSession, SESSION_COOKIE } from "@/lib/auth/session";
 import { AppError } from "@/lib/errors";
@@ -35,7 +39,7 @@ export async function loginAction(
     const user = await authenticate(email, password);
     if (!user) {
       await recordLoginFailure(email, ip);
-      return { error: "Invalid email or password" };
+      return { error: "Invalid username, email or password" };
     }
     await recordLoginSuccess(email, ip);
     const token = await signSession({
@@ -62,4 +66,31 @@ export async function loginAction(
 export async function logoutAction(): Promise<void> {
   cookies().delete(SESSION_COOKIE);
   redirect("/login");
+}
+
+// ------------------------------------------------------------- TKT-051: register
+
+export interface RegisterState {
+  error: string | null;
+  /** True once the account was created and awaits admin activation. */
+  success?: boolean;
+}
+
+export async function registerAction(
+  _prev: RegisterState,
+  formData: FormData
+): Promise<RegisterState> {
+  const username = String(formData.get("username") ?? "");
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const ip = clientIp();
+
+  try {
+    await assertWithinLimit(`register:${ip}`, REGISTER_MAX_PER_IP, REGISTER_WINDOW_MS);
+    await registerPublicUser({ username, email, password });
+    await recordRateLimitEvent(`register:${ip}`);
+    return { error: null, success: true };
+  } catch (err) {
+    return { error: err instanceof AppError ? err.message : "Registration failed" };
+  }
 }

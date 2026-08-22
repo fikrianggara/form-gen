@@ -10,6 +10,8 @@ import {
   listUsers,
   getUserById,
   isUserActive,
+  registerPublicUser,
+  validateUsername,
 } from "@/services/user.service";
 import { AppError } from "@/lib/errors";
 import bcrypt from "bcryptjs";
@@ -192,5 +194,83 @@ describe("user service", () => {
     const created = await createUser({ email: "get@example.com", name: "G", password: "Secret123!", role: "OPERATOR" });
     const found = await getUserById(created.id);
     expect(found?.email).toBe("get@example.com");
+  });
+});
+
+describe("TKT-051: usernames + public registration", () => {
+  it("registerPublicUser creates an INACTIVE OPERATOR user with the normalized username", async () => {
+    const user = await registerPublicUser({
+      username: "Budi.Santoso",
+      email: "BUDI@Example.com",
+      password: "Secret123!",
+    });
+    expect(user.username).toBe("budi.santoso");
+    expect(user.email).toBe("budi@example.com");
+    expect(user.role).toBe("OPERATOR");
+    expect(user.isActive).toBe(false);
+    expect(await isUserActive(user.id)).toBe(false);
+  });
+
+  it("rejects a duplicate email with EMAIL_TAKEN", async () => {
+    await registerPublicUser({ username: "one", email: "dup@example.com", password: "Secret123!" });
+    await expect(
+      registerPublicUser({ username: "two", email: "dup@example.com", password: "Secret123!" })
+    ).rejects.toMatchObject({ statusCode: 409, code: "EMAIL_TAKEN" });
+  });
+
+  it("rejects a duplicate username with USERNAME_TAKEN (case-insensitive)", async () => {
+    await registerPublicUser({ username: "same", email: "a@example.com", password: "Secret123!" });
+    await expect(
+      registerPublicUser({ username: "SAME", email: "b@example.com", password: "Secret123!" })
+    ).rejects.toMatchObject({ statusCode: 409, code: "USERNAME_TAKEN" });
+  });
+
+  it("rejects invalid usernames and weak passwords", async () => {
+    expect(() => validateUsername("ab")).toThrow(/Username must be/);
+    expect(() => validateUsername("has space")).toThrow(/Username must be/);
+    expect(() => validateUsername("bad@char")).toThrow(/Username must be/);
+    await expect(
+      registerPublicUser({ username: "valid", email: "x@example.com", password: "short" })
+    ).rejects.toMatchObject({ code: "WEAK_PASSWORD" });
+  });
+
+  it("an inactive registration CANNOT sign in (same response as wrong password)", async () => {
+    const user = await registerPublicUser({
+      username: "pending",
+      email: "pending@example.com",
+      password: "Secret123!",
+    });
+    expect(await authenticate("pending@example.com", "Secret123!")).toBeNull();
+    expect(await authenticate("pending", "Secret123!")).toBeNull();
+    expect(await authenticate("pending", "wrong-password!")).toBeNull();
+    expect(user.isActive).toBe(false);
+  });
+
+  it("after admin activation, the user signs in by username AND by email", async () => {
+    const user = await registerPublicUser({
+      username: "activateme",
+      email: "activate@example.com",
+      password: "Secret123!",
+    });
+    await setUserActive(user.id, true);
+    const byEmail = await authenticate("activate@example.com", "Secret123!");
+    const byUsername = await authenticate("ACTIVATEME", "Secret123!");
+    expect(byEmail?.id).toBe(user.id);
+    expect(byUsername?.id).toBe(user.id);
+  });
+
+  it("createUser derives a unique username from the email local part", async () => {
+    const first = await createUser({ email: "alice@example.com", name: "Alice", password: "Secret123!", role: "OPERATOR" });
+    // Same local part, different domain → deduped to alice-2.
+    const second = await createUser({ email: "alice@other.com", name: "Alice 2", password: "Secret123!", role: "OPERATOR" });
+    expect(first.username).toBe("alice");
+    expect(second.username).toBe("alice-2");
+  });
+
+  it("createUser honors an explicit username and rejects collisions", async () => {
+    await createUser({ email: "explicit@example.com", name: "E", password: "Secret123!", role: "OPERATOR", username: "custom" });
+    await expect(
+      createUser({ email: "explicit2@example.com", name: "E2", password: "Secret123!", role: "OPERATOR", username: "custom" })
+    ).rejects.toMatchObject({ code: "USERNAME_TAKEN" });
   });
 });

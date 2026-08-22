@@ -20,6 +20,7 @@ async function main() {
     update: { role: "ADMIN", isActive: true },
     create: {
       email: "admin@formgen.app",
+      username: "admin",
       name: "System Admin",
       passwordHash,
       role: "ADMIN",
@@ -30,6 +31,7 @@ async function main() {
     update: { role: "OPERATOR", isActive: true },
     create: {
       email: "operator@formgen.app",
+      username: "operator",
       name: "Survey Operator",
       passwordHash,
       role: "OPERATOR",
