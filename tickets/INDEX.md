@@ -19,7 +19,7 @@
 | TKT-041 | feature | big | P1 | survey-management | merged | jarvis | feature-TKT-041-survey-questionnaire-man | false | 2026-08-17 | 2026-08-19 | Survey↔Questionnaire many-to-many — join table + backfill migration + access-control updates |
 | TKT-042 | feature | big | P1 | survey-management | merged | jarvis | feature-TKT-041-survey-questionnaire-man | false | 2026-08-17 | 2026-08-19 | Survey page — connect/disconnect questionnaires, delete survey (survey page + org page) |
 | TKT-060 | feature | big | P1 | ui-theme | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Design token system + dark mode |
-| TKT-051 | feature | big | P1 | user-accounts | ongoing | jarvis | feature-TKT-051-public-user-registration | false | 2026-08-21 | 2026-08-22 | Public user registration — inactive until admin activation |
+| TKT-051 | feature | big | P1 | user-accounts | done | jarvis | feature-TKT-051-public-user-registration | true | 2026-08-21 | 2026-08-22 | Public user registration — inactive until admin activation |
 | TKT-070 | feature | medium | P1 | ai-credits | done | jarvis | feature-TKT-070-admin-ai-credit-manageme | true | 2026-08-21 | 2026-08-22 | Admin AI-credit management — global default, per-user allowance, balance adjustment |
 | TKT-062 | feature | medium | P1 | ai-question-editing | backlog | null | null | false | 2026-08-21 | 2026-08-21 | AI add-question and edit-question in questionnaire editor |
 | TKT-056 | feature | medium | P1 | org-admin | backlog | null | null | false | 2026-08-21 | 2026-08-21 | Org-admin account management and org role changes |
