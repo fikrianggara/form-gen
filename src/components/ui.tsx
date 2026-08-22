@@ -8,11 +8,14 @@ export function Button({
   variant?: "primary" | "secondary" | "danger" | "ghost";
 }) {
   const variants = {
-    primary: "bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-300",
+    primary:
+      "bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 disabled:bg-indigo-300 dark:disabled:bg-indigo-900",
     secondary:
-      "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 disabled:text-gray-400",
-    danger: "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300",
-    ghost: "text-indigo-600 hover:bg-indigo-50",
+      "bg-card text-foreground border border-border hover:bg-muted disabled:text-muted-foreground",
+    danger:
+      "bg-red-600 text-white hover:bg-red-700 dark:bg-red-600 dark:hover:bg-red-500 disabled:bg-red-300",
+    ghost:
+      "text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50",
   };
   return (
     <button
@@ -33,7 +36,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-gray-200 bg-white shadow-sm",
+        "rounded-xl border border-border bg-card text-card-foreground shadow-sm",
         className
       )}
       {...props}
@@ -42,7 +45,7 @@ export function Card({
 }
 
 export const inputClass =
-  "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400";
+  "w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground";
 
 export function Field({
   label,
@@ -59,13 +62,13 @@ export function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-medium text-gray-800">
+      <span className="mb-1 block text-sm font-medium text-foreground">
         {label}
         {required && <span className="ml-1 text-red-500">*</span>}
       </span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-gray-500">{hint}</span>}
-      {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
+      {hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>}
+      {error && <span className="mt-1 block text-xs text-red-600 dark:text-red-400">{error}</span>}
     </label>
   );
 }
@@ -80,11 +83,11 @@ export function Badge({
   children: React.ReactNode;
 }) {
   const tones = {
-    gray: "bg-gray-100 text-gray-700",
-    green: "bg-emerald-100 text-emerald-700",
-    amber: "bg-amber-100 text-amber-700",
-    red: "bg-red-100 text-red-700",
-    indigo: "bg-indigo-100 text-indigo-700",
+    gray: "bg-muted text-muted-foreground",
+    green: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300",
+    amber: "bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300",
+    red: "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300",
+    indigo: "bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300",
   };
   return (
     <span
@@ -101,9 +104,9 @@ export function Badge({
 
 export function ProgressBar({ value }: { value: number }) {
   return (
-    <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+    <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
       <div
-        className="h-full rounded-full bg-indigo-600 transition-all"
+        className="h-full rounded-full bg-indigo-600 dark:bg-indigo-500 transition-all"
         style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
       />
     </div>
