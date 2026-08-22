@@ -1,10 +1,15 @@
 import { listOrganizations, listSurveys } from "@/services/org.service";
 import { listUsers } from "@/services/user.service";
 import { OrgsPanel } from "@/components/admin/OrgsPanel";
+import { getSession } from "@/lib/http";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOrgsPage() {
+  const session = await getSession();
+  if (session?.role !== "ADMIN") redirect("/dashboard");
+
   const [orgs, surveys, users] = await Promise.all([
     listOrganizations(),
     listSurveys(),

@@ -1,11 +1,22 @@
 import { listQuestionMasters, listAllMasterVersions, listOptionSets } from "@/services/master-data.service";
 import { MastersPanel } from "@/components/admin/MastersPanel";
+import { getSession } from "@/lib/http";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminMastersPage() {
+  const session = await getSession();
+  if (!session || (session.role !== "ADMIN" && session.role !== "DEV")) {
+    redirect("/dashboard");
+  }
+
   const [masters, optionSets, history] = await Promise.all([
-    listQuestionMasters({ userId: "admin", role: "ADMIN" }),
+    listQuestionMasters({
+      userId: session.sub,
+      role: session.role,
+      organizationId: session.organizationId,
+    }),
     listOptionSets(),
     listAllMasterVersions(),
   ]);

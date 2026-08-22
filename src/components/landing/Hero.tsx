@@ -1,7 +1,11 @@
+import React from "react";
 import Link from "next/link";
+import { getSession } from "@/lib/http";
 import { HeroInteractive } from "./HeroInteractive";
 
-export function Hero() {
+export async function Hero() {
+  const session = await getSession();
+
   return (
     <header className="relative overflow-hidden bg-[#0b1220] text-slate-100">
       {/* faint grid backdrop */}
@@ -28,18 +32,29 @@ export function Hero() {
           <a href="#api" className="transition-colors hover:text-white">API</a>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:text-white"
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
-          >
-            Open dashboard
-          </Link>
+          {session ? (
+            <>
+              <span className="text-xs text-slate-300">
+                <span className="font-medium text-white">{session.name}</span>
+                <span className="ml-2 rounded-full border border-indigo-500/30 bg-indigo-500/20 px-2 py-0.5 font-mono text-[10px] font-semibold text-indigo-300">
+                  {session.role}
+                </span>
+              </span>
+              <Link
+                href="/dashboard"
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500"
+              >
+                Dashboard
+              </Link>
+            </>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:text-white"
+            >
+              Sign in
+            </Link>
+          )}
         </div>
       </nav>
 

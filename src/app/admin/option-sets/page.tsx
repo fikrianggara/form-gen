@@ -1,9 +1,16 @@
 import { listOptionSets, listAllOptionSetVersions } from "@/services/master-data.service";
 import { OptionSetsPanel } from "@/components/admin/OptionSetsPanel";
+import { getSession } from "@/lib/http";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOptionSetsPage() {
+  const session = await getSession();
+  if (!session || (session.role !== "ADMIN" && session.role !== "DEV")) {
+    redirect("/dashboard");
+  }
+
   const [optionSets, history] = await Promise.all([
     listOptionSets(),
     listAllOptionSetVersions(),
